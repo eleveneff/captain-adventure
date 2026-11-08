@@ -67,6 +67,29 @@ Still true:
 - The passage is a timber tunnel to a beach arch.
 - The course is four gates on the grass.
 
+## Second pass
+
+Walked the built lair with the real gameplay camera. Fixed:
+
+- Standing at the chart no longer gets stolen by the chair prompt. The table nudge pushes you toward the map.
+- Leaving the HQ puts the captain on the grass in front of the door, and if the hill blocks the walk camera it steps aside so the captain stays in view. The stairs do the same.
+- The hammock rest is on the cloth, and the camera sits outside the rock. Getting up clears the lie tilt so later views are not stuck on their side.
+- The passage is a run of timber frames with a low camera beside the captain, both directions still reach the beach and the room.
+- The garage prompt stands on the open grass by the pool, not inside the beam.
+- The Exit button sits above the keyboard hint, and above the joystick on touch.
+
+`node tests/lair.mjs` after this pass: **45 passed, 0 failed**. New checks cover the map prompt, the captain staying in the room view, the exit spot, the hammock height and camera, and the tunnel camera. Same-spot frames: bare **10.0**, built **10.1**.
+
+Nits still there: the door is a disk in a frame, the garage is still stone slabs, the hammock sling is shallow, the passage is open timber rather than a dug tunnel, and a phone prompt covers part of the door. A boat aimed at the back of the island does not show the lair; the dock side does.
+
+Ideas only, not built:
+
+1. A short lit path from the dock to the door.
+2. A mooring buoy and a clearer garage apron on the water side.
+3. A deeper hammock sling readable from the dock.
+4. A darker lantern tunnel instead of open frames.
+5. Numbered course flags and a start banner.
+
 ## Do not do yet
 
 Do not merge. Do not publish to https://eleveneff.github.io/captain-adventure/.

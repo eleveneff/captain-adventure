@@ -195,6 +195,50 @@ check("obstacle course counts four gates", play.course === 4, String(play.course
 check("boat parks in the garage without spending coins", play.parked === true && play.modeAfterPark === "walk" && play.boatHidden === true && play.parkFlag === true && play.coinsHeld === true, JSON.stringify(play));
 check("launch puts the boat back in the water", play.modeAfterLaunch === "motorboat" && play.parkCleared === true);
 
+const flow = await page.evaluate(() => {
+  const C = window.CaptainAdventure;
+  const L = C.lair;
+  if (C.mode !== "walk") C.exitVehicle();
+  L.enter();
+  L.place(-6.15, -0.45);
+  L.frame(0.05);
+  const mapPrompt = L.near(C.captain.position);
+  C.camera.updateMatrixWorld(true);
+  const mapV = C.captain.position.clone().project(C.camera);
+  L.leave();
+  L.frame(0.05);
+  const door = L.loc(C.captain.position.x, C.captain.position.z);
+  C.camera.updateMatrixWorld(true);
+  const exitV = C.captain.position.clone().project(C.camera);
+  L.place(-0.15, -0.95);
+  L.act("lair:hammock");
+  L.frame(0.05);
+  const lieY = C.captain.position.y;
+  const lieCam = C.camera.position.y;
+  const gy = L.gy(0, -1);
+  L.act("lair:hammock");
+  L.enter();
+  L.act("lair:tunnel");
+  L.frame(0.05);
+  const tunY = C.captain.position.y;
+  const tunCam = C.camera.position.y;
+  L.leave();
+  return {
+    mapPrompt: mapPrompt && mapPrompt.id,
+    mapNy: mapV.y,
+    doorIe: door.ie,
+    exitNy: exitV.y,
+    lieY, lieCam, gy, tunY, tunCam,
+  };
+});
+check("chart table prompt is the map", flow.mapPrompt === "lair:map", String(flow.mapPrompt));
+check("captain stays in the room view at the table", flow.mapNy > -0.85 && flow.mapNy < 0.85, String(flow.mapNy));
+check("exit stands clear of the door", flow.doorIe > 9.5, String(flow.doorIe));
+check("exit camera can see the captain", flow.exitNy > -0.9 && flow.exitNy < 0.95, String(flow.exitNy));
+check("hammock rest sits on the cloth", flow.lieY > flow.gy + 4.6 && flow.lieY < flow.gy + 6.6, `lie ${flow.lieY} ground ${flow.gy}`);
+check("hammock camera is outside the rock", flow.lieCam > flow.lieY + 1, `cam ${flow.lieCam} lie ${flow.lieY}`);
+check("tunnel camera stays near the captain", Math.abs(flow.tunCam - flow.tunY) < 4, `cam ${flow.tunCam} y ${flow.tunY}`);
+
 const kept = await page.evaluate(() => {
   const C = window.CaptainAdventure;
   const s = C.state();

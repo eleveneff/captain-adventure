@@ -132,6 +132,9 @@ const play = await page.evaluate(() => {
   out.beach = !L.tunnel() && !L.inside();
   L.act("lair:beach");
   out.backIn = L.tunnel();
+  L.place(-2.4, 2.2);
+  L.frame(0.05);
+  out.roomAgain = L.inside() && !L.tunnel();
   L.leave();
   out.outside = !L.inside() && !L.tunnel();
   const diveFrom = { x: C.captain.position.x, z: C.captain.position.z };
@@ -184,6 +187,7 @@ check("chair sits and stands", play.sat === true && play.stood === true);
 check("tunnel starts under the lair", play.tunnel === true && play.tunnelIe < -1, String(play.tunnelIe));
 check("tunnel walk reaches the back beach", play.beach === true);
 check("beach arch returns into the tunnel", play.backIn === true);
+check("tunnel walk returns to the room", play.roomAgain === true);
 check("exit leaves the lair", play.outside === true);
 check("dive leaves the board", play.dove === true, JSON.stringify(play));
 check("slide carries the captain", play.slid === true, JSON.stringify(play));
@@ -208,8 +212,10 @@ const flow = await page.evaluate(() => {
   L.leave();
   L.frame(0.05);
   const door = L.loc(C.captain.position.x, C.captain.position.z);
+  const doorSpot = L.near({ x: L.world(2.5, 5.35, 0).x, z: L.world(2.5, 5.35, 0).z });
   C.camera.updateMatrixWorld(true);
   const exitV = C.captain.position.clone().project(C.camera);
+  const inPool = (ie, ge) => { const dx = (ie - 9.4) / 4.15, dz = (ge + 0.4) / 2.7; return dx * dx + dz * dz < 1; };
   L.place(-0.15, -0.95);
   L.act("lair:hammock");
   L.frame(0.05);
@@ -227,13 +233,18 @@ const flow = await page.evaluate(() => {
     mapPrompt: mapPrompt && mapPrompt.id,
     mapNy: mapV.y,
     doorIe: door.ie,
+    doorGe: door.ge,
+    exitDry: !inPool(door.ie, door.ge),
+    doorDry: !inPool(2.5, 5.35),
+    doorPrompt: doorSpot && doorSpot.id,
     exitNy: exitV.y,
     lieY, lieCam, gy, tunY, tunCam,
   };
 });
 check("chart table prompt is the map", flow.mapPrompt === "lair:map", String(flow.mapPrompt));
 check("captain stays in the room view at the table", flow.mapNy > -0.85 && flow.mapNy < 0.85, String(flow.mapNy));
-check("exit stands clear of the door", flow.doorIe > 9.5, String(flow.doorIe));
+check("exit landing is dry grass clear of the pool", flow.exitDry === true && flow.doorDry === true, JSON.stringify({ ie: flow.doorIe, ge: flow.doorGe }));
+check("hidden door prompt is on the dry path", flow.doorDry === true && flow.doorPrompt === "lair:door", String(flow.doorPrompt));
 check("exit camera can see the captain", flow.exitNy > -0.9 && flow.exitNy < 0.95, String(flow.exitNy));
 check("hammock rest sits on the cloth", flow.lieY > flow.gy + 4.6 && flow.lieY < flow.gy + 6.6, `lie ${flow.lieY} ground ${flow.gy}`);
 check("hammock camera is outside the rock", flow.lieCam > flow.lieY + 1, `cam ${flow.lieCam} lie ${flow.lieY}`);
@@ -259,10 +270,14 @@ await page.waitForFunction(() => window.CaptainAdventure && window.CaptainAdvent
 const restored = await page.evaluate(() => {
   const C = window.CaptainAdventure;
   const s = C.state();
-    const outside = ["lair-hq", "lair-pool", "lair-slide", "lair-garage", "lair-tower", "lair-roof", "lair-tunnel", "lair-course"];
+    const outside = ["lair-hq", "lair-pool", "lair-slide", "lair-garage", "lair-tower", "lair-roof", "lair-course", "lair-beach-arch"];
     const exterior = outside.every((n) => C.scene.getObjectByName(n) && C.scene.getObjectByName(n).visible);
+    const corridor = C.scene.getObjectByName("lair-tunnel");
+    const corridorHidden = !!corridor && !corridor.visible;
     C.lair.enter();
     const rooms = ["lair-trophy", "lair-aqua"].every((n) => C.scene.getObjectByName(n) && C.scene.getObjectByName(n).visible);
+    C.lair.act("lair:tunnel");
+    const corridorOpen = !!corridor && corridor.visible;
     return {
       score: s.score,
       badges: s.badges,
@@ -272,7 +287,7 @@ const restored = await page.evaluate(() => {
       streak: s.streak,
       hat: s.shop && s.shop.equip && s.shop.equip.hat,
       owned: s.v45.owned,
-      shown: exterior && rooms,
+      shown: exterior && rooms && corridorHidden && corridorOpen,
     };
 });
 check("reload keeps coins", restored.score === 80, String(restored.score));

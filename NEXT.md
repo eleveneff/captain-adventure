@@ -42,7 +42,7 @@ Lair: all ten parts on Pirate Point, hidden until bought. The sign is always the
 
 Outer save `{x:-185.4,z:114.68}` became `{x:-207.28,z:128.22}` with 77 coins, the yacht, fuel, and the pirate discovery kept. Inner `{x:0,z:8}` with 88 coins stayed.
 
-`node tests/lair.mjs` — **38 passed, 0 failed**, no console errors. This run is the visual pass: rock lumps, door frame, slung hammocks, garage beside the pool, and a walled room.
+`node tests/lair.mjs` — **38 passed, 0 failed**, no console errors. This run is the visual pass: rock lumps, door frame, slung hammocks, garage beside the pool, and a walled room. The count for the current head is in the second pass below.
 
 Covered: the ten prices, HQ first, slide needs the pool, exact drops, no second charge, the menu showing the price before the garage's 50-coin Yes, enter, chair, map, tunnel to the back beach and back, dive, slide, climb, telescope fov 18 then 55, rock doors, hammock, four course gates, park and launch with no coin change, and reload keeping score 80, two badges, yacht, fuel 0.35/0.8, three isle discoveries, streak 6, hat, and all ten parts.
 
@@ -64,7 +64,7 @@ Still true:
 - The door is a framed disk. E enters. There is no carved hole through the rock mesh.
 - Garage doors are stone slabs beside the pool. They slide, and the boat parks and launches.
 - Hammocks are slung cloth between posts. They read up close and stay small in a wide shot.
-- The passage is a timber tunnel to a beach arch.
+- The passage is an enclosed corridor under the island: wood floor, rock walls, a ceiling, and timber posts. It stays hidden until you walk it. A beach arch is the outside door.
 - The course is four gates on the grass.
 
 ## Second pass
@@ -72,23 +72,22 @@ Still true:
 Walked the built lair with the real gameplay camera. Fixed:
 
 - Standing at the chart no longer gets stolen by the chair prompt. The table nudge pushes you toward the map.
-- Leaving the HQ puts the captain on the grass in front of the door, and if the hill blocks the walk camera it steps aside so the captain stays in view. The stairs do the same.
+- Leaving the HQ puts the captain on dry stepping stones beside the rock, clear of the pool, the slide, and the diving board. The hidden-door prompt is on that same dry path, so the dock walk does not share a spot with the water.
 - The hammock rest is on the cloth, and the camera sits outside the rock. Getting up clears the lie tilt so later views are not stuck on their side.
-- The passage is a run of timber frames with a low camera beside the captain, both directions still reach the beach and the room.
+- The passage is a closed corridor with a floor, rock walls, a ceiling, and timber. The captain stays upright. Walking one way comes out at the beach arch; walking back, or using the arch, returns through the corridor to the room. Grass and palms stay hidden while you are inside it. The corridor itself is hidden until you enter.
 - The garage prompt stands on the open grass by the pool, not inside the beam.
 - The Exit button sits above the keyboard hint, and above the joystick on touch.
 
-`node tests/lair.mjs` after this pass: **45 passed, 0 failed**. New checks cover the map prompt, the captain staying in the room view, the exit spot, the hammock height and camera, and the tunnel camera. Same-spot frames: bare **10.0**, built **10.1**.
+`node tests/lair.mjs` on this head: **47 passed, 0 failed**, no console errors. Same-spot frames: bare **8.5**, built **10.2**. `node tests/smoke.mjs`: **22 passed, 0 failed**, no console errors. `node tests/sea-spread.mjs`: **79 passed, 0 failed**, no console errors. Deep radius **324.23**. Outer save still moves to about **{-207.28, 128.22}**.
 
-Nits still there: the door is a disk in a frame, the garage is still stone slabs, the hammock sling is shallow, the passage is open timber rather than a dug tunnel, and a phone prompt covers part of the door. A boat aimed at the back of the island does not show the lair; the dock side does.
+Nits still there: the door is a disk in a frame, the garage is still stone slabs, and the hammock sling is shallow. A boat aimed at the back of the island does not show the lair; the dock side does.
 
 Ideas only, not built:
 
-1. A short lit path from the dock to the door.
+1. Lanterns along the stepping-stone path from the dock.
 2. A mooring buoy and a clearer garage apron on the water side.
 3. A deeper hammock sling readable from the dock.
-4. A darker lantern tunnel instead of open frames.
-5. Numbered course flags and a start banner.
+4. Numbered course flags and a start banner.
 
 ## Do not do yet
 

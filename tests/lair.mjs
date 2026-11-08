@@ -78,11 +78,22 @@ const dup = await page.evaluate(() => {
 });
 check("buying the HQ again does not charge", dup.again.ok === false && dup.again.reason === "owned" && dup.score === 80, String(dup.score));
 
+const menu = await page.evaluate(() => {
+  const L = window.CaptainAdventure.lair;
+  window.CaptainAdventure.setScore(400);
+  const asked = L.ask("garage");
+  return { ok: asked.ok === true && asked.pending === true, score: L.coins(), open: !document.getElementById("lair-shop").classList.contains("hidden") };
+});
+check("build menu shows the price before charging", menu.ok === true && menu.open === true && menu.score === 400, JSON.stringify(menu));
+await page.click("#lair-yes");
+await page.click("#lair-close");
+const afterYes = await page.evaluate(() => window.CaptainAdventure.lair.coins());
+check("Yes charges the garage exactly 50", afterYes === 350, String(afterYes));
+
 const rest = await page.evaluate(() => {
   const L = window.CaptainAdventure.lair;
   const C = window.CaptainAdventure;
-  C.setScore(400);
-  const order = ["garage", "tower", "trophy", "slide", "course", "aqua", "roof", "tunnel"];
+  const order = ["tower", "trophy", "slide", "course", "aqua", "roof", "tunnel"];
   const log = [];
   for (const id of order) {
     const before = L.coins();
@@ -233,6 +244,12 @@ async function shot(name, size, camIe, camGe, camY, lookIe, lookGe) {
     }
     const C = window.CaptainAdventure;
     const L = C.lair;
+    L.leave();
+    L.place(16, 4);
+    const exit = document.getElementById("lair-exit");
+    if (exit) exit.style.display = "none";
+    const prompt = document.getElementById("prompt");
+    if (prompt) prompt.style.display = "none";
     const cam = L.world(camIe, camGe, 0);
     const look = L.world(lookIe, lookGe, 2);
     C.photo([cam.x, camY, cam.z], [look.x, 3, look.z]);
@@ -241,17 +258,20 @@ async function shot(name, size, camIe, camGe, camY, lookIe, lookGe) {
   await new Promise((r) => setTimeout(r, 400));
   await page.screenshot({ path: path.join(outDir, name + ".png") });
 }
-await shot("desktop", [1280, 720], 22, 4, 26, 0, -1);
-await shot("portrait", [390, 844], 24, 2, 30, 0, -1);
-await shot("landscape-short", [844, 390], 26, 8, 18, 0, -1);
-await shot("garage", [1280, 720], 4, 18, 8, 0.3, 4);
+await shot("desktop", [1280, 720], -6, 24, 16, 2, -1);
+await shot("portrait", [390, 844], -4, 26, 20, 2, -1);
+await shot("landscape-short", [844, 390], -8, 22, 12, 2, -1);
+await shot("garage", [1280, 720], 2, 20, 9, 0.3, 5);
 await page.evaluate(() => {
   const C = window.CaptainAdventure;
   const L = C.lair;
   L.enter();
-  const eye = L.world(5.2, -1, 0);
-  const look = L.world(-1, -1, 1);
-  C.photo([eye.x, eye.y + 2.2, eye.z], [look.x, look.y + 1.2, look.z]);
+  const eye = L.world(-1.4, -2.4, 0);
+  const look = L.world(-1.2, 0.6, 1);
+  const gy = L.gy(-1.4, -2.4);
+  const prompt = document.getElementById("prompt");
+  if (prompt) prompt.style.display = "none";
+  C.photo([eye.x, gy + 1.7, eye.z], [look.x, gy + 1.15, look.z]);
   C.qc(8);
 });
 await page.setViewport({ width: 1280, height: 720 });

@@ -42,28 +42,32 @@ Lair: all ten parts on Pirate Point, hidden until bought. The sign is always the
 
 Outer save `{x:-185.4,z:114.68}` became `{x:-207.28,z:128.22}` with 77 coins, the yacht, fuel, and the pirate discovery kept. Inner `{x:0,z:8}` with 88 coins stayed.
 
-`node tests/lair.mjs` — **37 passed, 0 failed**, no console errors. This run is after the interior-wall fix and includes the Yes-button purchase.
+`node tests/lair.mjs` — **38 passed, 0 failed**, no console errors. This run is the visual pass: rock lumps, door frame, slung hammocks, garage beside the pool, and a walled room.
 
 Covered: the ten prices, HQ first, slide needs the pool, exact drops, no second charge, the menu showing the price before the garage's 50-coin Yes, enter, chair, map, tunnel to the back beach and back, dive, slide, climb, telescope fov 18 then 55, rock doors, hammock, four course gates, park and launch with no coin change, and reload keeping score 80, two badges, yacht, fuel 0.35/0.8, three isle discoveries, streak 6, hat, and all ten parts.
 
-Headless SwiftShader, median of three ~1.2s runs (not a phone):
+`node tests/smoke.mjs` — **14 passed, 0 failed**. There is no older full gameplay suite in this repo. This smoke checks live constants and a short boat move. It does not play a mini-game. Full tank is still 20 coins. The fuel module's `PRICE` constant is 5 (unchanged here). Tickets stay 10, baseball and Tecmo stay 30, the math gate stays every 3. Home beach is walkable. The power boat still moves at home and does not spend coins. Boarding and tow hooks are still present. Baseball still has 13 questions.
 
-- Sea suite: home harbor **7.4** (worst; cold first run 3.1), open water 12.8, sea edge 14.4, Pirate Point 12.4.
-- Lair suite after the build: home harbor 6.4, pirate lair **5.9** (worst that run). The harbor and the built lair are the slow spots. Open water is faster.
+Headless SwiftShader, median of three (not a phone). Same-spot comparison hides the lair groups, then shows them, from the same boat at the garage mooring:
+
+- Sea suite this pass: home harbor **7.9** (worst; cold first run 3.6), open water 12.5, sea edge 14.9, Pirate Point 13.1.
+- Lair suite same spot: bare island median **6.8** (runs 3.9, 6.8, 8.0), built lair median **8.0** (runs 6.4, 8.0, 8.9). Harbor in that suite was 9.4. The built lair is not slower than the bare island at that spot. The spread between runs is larger than the difference.
 
 ## Honest look versus the approved pictures
 
-The dome, green cap, string of lights, blue chute, curved pool, white board, tower, stairs, and brass telescope read in the game's simple Lambert shapes. The hut, red X, palms, and dock are still there. The island radius did not grow.
+The rock is several overlapping lumps with a stone base ring and a grass cap, not one smooth ball. A wood frame and two lanterns mark the round door, with a step in front. Red and blue hammocks sag between posts on the roof under the string of lights. The garage mouth sits beside the pool, on the open side of the approach, so the palms stay and the doors are not behind them. The chute, pool, board, tower, and telescope are unchanged in kind. The hut, red X, palms, and dock are still there. The island radius did not grow.
 
-Limits, on purpose:
+Inside, the shell stays up. A floor, four walls, and a ceiling enclose the room. The follow camera tucks in, and only a wall between the camera and the captain is hidden. The map is the blue disk with green and gold islands, the chair is a seat with a back and legs, trophies sit on a shelf, and the tank holds the fish.
 
-- Hammocks are small roof pads, not the concept's big striped slings.
-- The round door is a disk on the shell. E enters; there is no carved hole in the mesh.
-- Garage doors are stone slabs just outside the shell. They open, and the boat parks and launches, but palms hide them from the dock view.
-- The passage lowers you through a timber tunnel and pops you out at a beach arch. It is not the cutaway's open hillside.
-- Indoors, the shell hides and you stand in an open room with the map table, gold trophies, and a glass tank of fish. It is brighter and more open than a closed cave.
-- The course is four gates on the grass. The exterior concept did not draw that course.
-- A big green distant peak sits off the dock side of Pirate Point. It is an existing world shape, not part of the lair. Screenshots are taken from the other side so it stays small.
+Limits that are still true:
+
+- The door is still a disk in a frame. E enters. There is no carved hole through the rock mesh.
+- Garage doors are stone slabs. They slide, and the boat parks and launches. From the dock they read as the stone mouth by the pool, not a detailed cave.
+- Hammocks are slung strips between posts. They are recognizable up close and small in a wide shot. They are not the concept's large striped slings.
+- The room is low and the captain model is large, so a close interior shot still fills with the captain, the ceiling, and the map blobs. Outdoor palms no longer show through a missing shell. It is not the cutaway illustration.
+- The passage is a timber tunnel to a beach arch, not an open hillside.
+- The course is four gates on the grass.
+- HUD shots: portrait prompt "Hidden door / Press E", portrait "Yes, build it" for the rooftop at 25 coins with 100 on hand, and short landscape "costs 25 coins. You have 5." The confirm card sits at the top of the shop so it is on screen in portrait.
 
 ## Do not do yet
 

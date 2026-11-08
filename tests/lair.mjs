@@ -136,8 +136,9 @@ const play = await page.evaluate(() => {
   out.outside = !L.inside() && !L.tunnel();
   const diveFrom = { x: C.captain.position.x, z: C.captain.position.z };
   L.act("lair:board");
-  for (let i = 0; i < 24; i++) L.frame(0.04);
+  L.frame(0.25);
   out.dove = Math.hypot(C.captain.position.x - diveFrom.x, C.captain.position.z - diveFrom.z) > 0.4;
+  for (let i = 0; i < 20; i++) L.frame(0.04);
   const slideFrom = { x: C.captain.position.x, z: C.captain.position.z };
   L.act("lair:slide");
   for (let i = 0; i < 30; i++) L.frame(0.04);
@@ -163,7 +164,7 @@ const play = await page.evaluate(() => {
     L.frame(0.05);
   }
   out.course = L.courseAt();
-  const spot = L.world(0.4, 18.5, 0);
+  const spot = L.world(9, 20, 0);
   C.boatAt(spot.x, spot.z, 0);
   const boat = C.VEH.motorboat.obj;
   out.parked = L.boatE(boat);
@@ -266,17 +267,63 @@ await page.evaluate(() => {
   const C = window.CaptainAdventure;
   const L = C.lair;
   L.enter();
-  const eye = L.world(-1.4, -2.4, 0);
-  const look = L.world(-1.2, 0.6, 1);
-  const gy = L.gy(-1.4, -2.4);
+  L.place(1.4, 0.2);
+  const eye = L.world(-0.6, -2.9, 0);
+  const look = L.world(-0.6, 0.4, 1);
+  const gy = L.gy(-0.6, -2.9);
   const prompt = document.getElementById("prompt");
   if (prompt) prompt.style.display = "none";
-  C.photo([eye.x, gy + 1.7, eye.z], [look.x, gy + 1.15, look.z]);
+  C.photo([eye.x, gy + 1.7, eye.z], [look.x, gy + 0.9, look.z]);
   C.qc(8);
 });
 await page.setViewport({ width: 1280, height: 720 });
 await new Promise((r) => setTimeout(r, 300));
 await page.screenshot({ path: path.join(outDir, "interior.png") });
+
+async function hudShot(name, size) {
+  await page.setViewport({ width: size[0], height: size[1], deviceScaleFactor: 1 });
+  await new Promise((r) => setTimeout(r, 350));
+  await page.screenshot({ path: path.join(outDir, name + ".png") });
+}
+await page.evaluate(() => {
+  const hud = document.getElementById("hud");
+  if (hud) { hud.style.display = ""; hud.classList.remove("hidden"); }
+  const hint = document.getElementById("hint");
+  if (hint) hint.style.display = "";
+  const L = window.CaptainAdventure.lair;
+  L.leave();
+  L.place(8.6, -0.55);
+  const prompt = document.getElementById("prompt");
+  if (prompt) prompt.style.display = "";
+  window.CaptainAdventure.qc(null);
+});
+await hudShot("hud-prompt-portrait", [390, 844]);
+await hudShot("hud-prompt-landscape", [844, 390]);
+await page.evaluate(() => {
+  const C = window.CaptainAdventure;
+  const s = C.state();
+  s.v45.owned.roof = 0;
+  C.setScore(100);
+  C.lair.ask("roof");
+});
+await hudShot("hud-confirm-portrait", [390, 844]);
+await page.evaluate(() => {
+  const shop = document.getElementById("lair-shop");
+  shop.style.display = "none";
+  shop.classList.add("hidden");
+  window.CaptainAdventure.lair.closeShop();
+  const s = window.CaptainAdventure.state();
+  s.v45.owned.roof = 0;
+  window.CaptainAdventure.setScore(5);
+  window.CaptainAdventure.lair.ask("roof");
+});
+await hudShot("hud-short-landscape", [844, 390]);
+await page.evaluate(() => {
+  window.CaptainAdventure.state().v45.owned.roof = 1;
+  window.CaptainAdventure.state().score = 80;
+  window.CaptainAdventure.save();
+  window.CaptainAdventure.lair.closeShop();
+});
 
 async function fpsAt(label, place) {
   const runs = [];
@@ -307,9 +354,41 @@ const center = await page.evaluate(() => {
 });
 const fps = [];
 fps.push(await fpsAt("home-harbor", { x: 30, z: 12 }));
-fps.push(await fpsAt("pirate-lair", center));
+const mooring = await page.evaluate(() => window.CaptainAdventure.lair.world(9, 20, 0));
+async function fpsSame(label, hideLair) {
+  const runs = [];
+  for (let i = 0; i < 3; i++) {
+    const fps = await page.evaluate((hide) => new Promise((resolve) => {
+      const C = window.CaptainAdventure;
+      C.qc(null);
+      C.lair.leave();
+      const spot = C.lair.world(9, 20, 0);
+      C.boatAt(spot.x, spot.z, 0);
+      for (const n of ["lair-hq", "lair-pool", "lair-slide", "lair-garage", "lair-tower", "lair-roof", "lair-tunnel", "lair-course"]) {
+        const o = C.scene.getObjectByName(n);
+        if (o) o.visible = !hide;
+      }
+      let k = 0;
+      const t0 = performance.now();
+      function loop(t) {
+        k++;
+        if (t - t0 >= 1000) resolve((k * 1000) / (t - t0));
+        else requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+    }), hideLair);
+    runs.push(fps);
+  }
+  runs.sort((a, b) => a - b);
+  console.log(`FPS ${label} ${runs.map((n) => n.toFixed(1)).join(", ")} median ${runs[1].toFixed(1)}`);
+  return { label, runs, median: runs[1] };
+}
+const bare = await fpsSame("same-spot-bare", true);
+const built = await fpsSame("same-spot-lair", false);
+fps.push(bare, built);
 const worst = fps.slice().sort((a, b) => a.median - b.median)[0];
 check("frames advance with the lair built", fps.every((n) => n.median > 0), fps.map((n) => `${n.label}:${n.median.toFixed(1)}`).join(" "));
+check("same-spot lair cost stays modest", built.median > bare.median * 0.5, `bare ${bare.median.toFixed(1)} built ${built.median.toFixed(1)}`);
 
 await page.close();
 await browser.close();

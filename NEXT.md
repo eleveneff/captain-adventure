@@ -46,28 +46,26 @@ Outer save `{x:-185.4,z:114.68}` became `{x:-207.28,z:128.22}` with 77 coins, th
 
 Covered: the ten prices, HQ first, slide needs the pool, exact drops, no second charge, the menu showing the price before the garage's 50-coin Yes, enter, chair, map, tunnel to the back beach and back, dive, slide, climb, telescope fov 18 then 55, rock doors, hammock, four course gates, park and launch with no coin change, and reload keeping score 80, two badges, yacht, fuel 0.35/0.8, three isle discoveries, streak 6, hat, and all ten parts.
 
-`node tests/smoke.mjs` — **14 passed, 0 failed**. There is no older full gameplay suite in this repo. This smoke checks live constants and a short boat move. It does not play a mini-game. Full tank is still 20 coins. The fuel module's `PRICE` constant is 5 (unchanged here). Tickets stay 10, baseball and Tecmo stay 30, the math gate stays every 3. Home beach is walkable. The power boat still moves at home and does not spend coins. Boarding and tow hooks are still present. Baseball still has 13 questions.
+`node tests/smoke.mjs` — **22 passed, 0 failed**. This drives the real panels, not just constants. Three correct math-gate answers pay 20 (score 40 to 60). The fuel dock then charges 20 and fills an empty tank (score 60 to 40), and Cast off boards the power boat. Holding forward drains that tank and the free tow returns the captain to a dock with the coins unchanged. Home is not a lair prompt before or after. Baseball's first play opens its math gate, pays the gate reward, then charges 30 (220 to 190). Play again charges another 30 and does not reopen the gate (190 to 160). Tennis charges 10 (220 to 210). Reload keeps the volcano badge, the yacht, turtle and pirate discoveries, the hat, streak 6, yacht fuel 0.8, layout 4, and the score.
 
 Headless SwiftShader, median of three (not a phone). Same-spot comparison hides the lair groups, then shows them, from the same boat at the garage mooring:
 
 - Sea suite this pass: home harbor **7.9** (worst; cold first run 3.6), open water 12.5, sea edge 14.9, Pirate Point 13.1.
-- Lair suite same spot: bare island median **6.8** (runs 3.9, 6.8, 8.0), built lair median **8.0** (runs 6.4, 8.0, 8.9). Harbor in that suite was 9.4. The built lair is not slower than the bare island at that spot. The spread between runs is larger than the difference.
+- Lair suite same spot this pass: bare island median **8.8** (runs 6.5, 8.8, 9.2), built lair median **9.5** (runs 8.6, 9.5, 10.8). Harbor in that suite was 4.4 on a cold first run. The built lair is not slower than the bare island at that spot. The spread between runs is larger than the difference.
 
 ## Honest look versus the approved pictures
 
 The rock is several overlapping lumps with a stone base ring and a grass cap, not one smooth ball. A wood frame and two lanterns mark the round door, with a step in front. Red and blue hammocks sag between posts on the roof under the string of lights. The garage mouth sits beside the pool, on the open side of the approach, so the palms stay and the doors are not behind them. The chute, pool, board, tower, and telescope are unchanged in kind. The hut, red X, palms, and dock are still there. The island radius did not grow.
 
-Inside, the shell stays up. A floor, four walls, and a ceiling enclose the room. The follow camera tucks in, and only a wall between the camera and the captain is hidden. The map is the blue disk with green and gold islands, the chair is a seat with a back and legs, trophies sit on a shelf, and the tank holds the fish.
+Inside, entering the door uses the room camera, not the outdoor follow camera. The floor sits above the hill, the walls are drawn from both sides, and the ceiling stays above the view. While the captain is inside, island props and the roof, tower, pool, and slide are hidden so they cannot poke through the walls. Leaving puts them back. The entry view shows the captain on the rug, the chair, the chart table, the trophy shelves, and the aquarium, with open floor to walk. The same camera is what desktop, portrait, and short landscape use.
 
-Limits that are still true:
+Still true:
 
-- The door is still a disk in a frame. E enters. There is no carved hole through the rock mesh.
-- Garage doors are stone slabs. They slide, and the boat parks and launches. From the dock they read as the stone mouth by the pool, not a detailed cave.
-- Hammocks are slung strips between posts. They are recognizable up close and small in a wide shot. They are not the concept's large striped slings.
-- The room is low and the captain model is large, so a close interior shot still fills with the captain, the ceiling, and the map blobs. Outdoor palms no longer show through a missing shell. It is not the cutaway illustration.
-- The passage is a timber tunnel to a beach arch, not an open hillside.
+- The door is a framed disk. E enters. There is no carved hole through the rock mesh.
+- Garage doors are stone slabs beside the pool. They slide, and the boat parks and launches.
+- Hammocks are slung cloth between posts. They read up close and stay small in a wide shot.
+- The passage is a timber tunnel to a beach arch.
 - The course is four gates on the grass.
-- HUD shots: portrait prompt "Hidden door / Press E", portrait "Yes, build it" for the rooftop at 25 coins with 100 on hand, and short landscape "costs 25 coins. You have 5." The confirm card sits at the top of the shop so it is on screen in portrait.
 
 ## Do not do yet
 

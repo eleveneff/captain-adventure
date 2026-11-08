@@ -265,20 +265,27 @@ await shot("landscape-short", [844, 390], -8, 22, 12, 2, -1);
 await shot("garage", [1280, 720], 2, 20, 9, 0.3, 5);
 await page.evaluate(() => {
   const C = window.CaptainAdventure;
-  const L = C.lair;
-  L.enter();
-  L.place(1.4, 0.2);
-  const eye = L.world(-0.6, -2.9, 0);
-  const look = L.world(-0.6, 0.4, 1);
-  const gy = L.gy(-0.6, -2.9);
-  const prompt = document.getElementById("prompt");
-  if (prompt) prompt.style.display = "none";
-  C.photo([eye.x, gy + 1.7, eye.z], [look.x, gy + 0.9, look.z]);
-  C.qc(8);
+  C.photo(null);
+  C.qc(null);
+  const hud = document.getElementById("hud");
+  if (hud) { hud.classList.remove("hidden"); hud.style.display = ""; }
+  const hint = document.getElementById("hint");
+  if (hint) hint.style.display = "";
+  C.lair.enter();
 });
-await page.setViewport({ width: 1280, height: 720 });
-await new Promise((r) => setTimeout(r, 300));
-await page.screenshot({ path: path.join(outDir, "interior.png") });
+await new Promise((r) => setTimeout(r, 400));
+for (const [name, size] of [["interior", [1280, 720]], ["interior-portrait", [390, 844]], ["interior-landscape", [844, 390]]]) {
+  await page.setViewport({ width: size[0], height: size[1], deviceScaleFactor: 1 });
+  await new Promise((r) => setTimeout(r, 350));
+  await page.screenshot({ path: path.join(outDir, name + ".png") });
+}
+await page.evaluate(() => {
+  window.CaptainAdventure.lair.place(-1.4, -1.2);
+  window.CaptainAdventure.lair.frame(0.05);
+});
+await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
+await new Promise((r) => setTimeout(r, 250));
+await page.screenshot({ path: path.join(outDir, "interior-walk.png") });
 
 async function hudShot(name, size) {
   await page.setViewport({ width: size[0], height: size[1], deviceScaleFactor: 1 });

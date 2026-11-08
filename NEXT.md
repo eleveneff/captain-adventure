@@ -85,7 +85,7 @@ The four suggested additions are in this head, at no extra price. They show up o
 - The hammocks sag between taller posts. Lying down rests in the dip. Standing up sets the tilt back to zero.
 - The course has a START banner and flags 1 to 4. A later gate does not count until the earlier ones are done.
 
-The HQ room and the lighthouse got a finish pass, not a new layout. The room has a wood band, a gold edge on the rug, framed sea pictures, a cushioned chair, a chart lamp, a shelf back, and a brass tank frame. The lighthouse stairs show their treads and the gold rail, and the climb camera stays under the ceiling. The lamp room keeps the keeper inside the glass.
+The HQ room and the lighthouse got a finish pass, not a new layout. The room has a wood band, a gold edge on the rug, framed sea pictures, a cushioned chair, a chart lamp, a shelf back, and a brass tank frame. The lighthouse climb camera sits outside the turn and looks down, so the hat and the torso stay in view at the bottom and the middle of the stairs. Near the top, and while walking up to the lamp, the camera stands to the side of the cage instead of looking through a brass post. A near plane of 0.35 keeps a tread that touches the lens from filling the picture. Brick, portholes, and the lamp were left as they are.
 
 `node tests/lair.mjs` on this head: **53 passed, 0 failed**, no console errors. Same-spot frames: bare **9.7**, built **9.8**. Worst spot in that suite is the harbor at **4.9**. `node tests/smoke.mjs`: **26 passed, 0 failed**, including the lighthouse climb, the lamp, the climb down, and leaving. `node tests/sea-spread.mjs`: **79 passed, 0 failed**. Deep radius **324.23**. Outer save still moves to about **{-207.28, 128.22}**.
 
@@ -108,4 +108,6 @@ Read from the published Princess Explorer (v4.3, no files there were changed), t
 
 ## Do not do yet
 
-Do not merge. Do not publish to https://eleveneff.github.io/captain-adventure/. The additions and the interior polish are on this branch and tested. Publication waits for a coordinator go-ahead. PR 1 is still open; it was not merged. The live site checked just now is still v4.4, last modified 1 Nov 2026, and its file is not this SHA-256.
+`node tests/lh-view.mjs` on the lighthouse camera fix: **14 passed, 0 failed**. It checks the hat and the torso on screen at the bottom, middle, and top of the climb, and at the lamp. `node tests/smoke.mjs` on this same head: **26 passed, 0 failed**, including the lighthouse climb, the lamp, and the climb down. The sea and lair frame-rate sweeps were not run again on this camera-only change.
+
+The user has authorized publication. This agent cannot merge: the pull-request tool has no merge action, and the GitHub CLI here is read-only. The coordinator can merge PR 1 from GitHub after checks are green. Do not report the live site as v4.6 until a cache-busted fetch of https://eleveneff.github.io/captain-adventure/ shows version v4.6 and the same SHA-256 as `index.html`.

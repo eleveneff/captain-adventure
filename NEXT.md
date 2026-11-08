@@ -1,35 +1,19 @@
 # NEXT — Captain Adventure
 
-Live game stays on `main` until this branch is reviewed. Do not publish or merge yet.
+**PRODUCTION PAUSED.** Owner is out of weekly tokens and asked to stop. Do not merge, do not publish, do not start the next feature, and do not resume QC until the owner says so.
 
-## Largest offshore island
+Branch: `cursor/sea-spread-lair-concepts-fa88`
+PR: https://github.com/eleveneff/captain-adventure/pull/1
+Live site is still v4.4 on `main`. This branch is not released.
 
-Measured from the current build (`Ot = 1.5625`), not from the island name.
+## Approved concepts and prices
 
-| Place | Code | Radius | Area scale (r²) |
-| --- | --- | --- | --- |
-| Home hub (excluded) | `$n = 15 * Ot` | 23.44 | 549 |
-| **Pirate Point** | remote `R: 20` | **20** | **400** |
-| Turtle Cove | remote `R: 19` | 19 | 361 |
-| Parrot Palms | remote `R: 18` | 18 | 324 |
-| Eight activity islands | `Hc = 11 * Ot` | 17.19 | 295 |
-| Lighthouse Rock | collision `r: 10.5` | ~10.5 | ~110 |
-| Sandy Sandbar | ellipse about 7.3 × 17 | — | ~137 |
-
-**The secret lair site is Pirate Point** (`id: "pirate"`). It is the largest island that is not the home hub. The home island is larger and stays the harbor.
-
-## Concepts for approval (lair look not built)
-
-Feature list and prices are approved. These pictures are the first look at the lair. Nothing from this list is in the playable build yet.
+Both pictures were approved: "Yes, build the lair with this design."
 
 - Exterior: `concepts/pirate-point-lair-exterior.jpg`
 - Cutaway: `concepts/pirate-point-lair-cutaway.jpg`
 
-The exterior keeps the existing hut, palms, red X, dock, and checker ocean, and adds a rock-hill lair: hidden lit door, captain’s map room implied inside, curved pool, diving board, floating toys, water slide, sliding-rock boat garage, telescope tower, rooftop hammocks and string lights. The cutaway shows the map room and captain chair, trophy room, aquarium with a blank fact plaque, pool and slide, and an underground passage to a second beach exit.
-
-Still to place after approval: the training obstacle course on the open grass beside the red X. The built lair must sit on today’s island radius (20). The mockup rock hill must not grow the shoreline.
-
-### Approved prices (not charged until the lair is built)
+Site is **Pirate Point** (`id: "pirate"`, radius 20). Home hub is larger (23.44) and is not the lair. Turtle Cove is 19, Parrot Palms 18, activity islands 17.19.
 
 | Feature | Coins | Needs |
 | --- | ---: | --- |
@@ -44,43 +28,62 @@ Still to place after approval: the training obstacle course on the open grass be
 | Rooftop hammock hangout | 25 | HQ |
 | Underground passage | 45 | HQ |
 
-Purchase rules when this is built: show the price, refuse if coins are short, never go negative, never charge twice, save the build, show it in the world, and make every bought part something the captain can use. No new coin sources.
+No new coin sources. Full tank still 20, baseball/Tecmo 30, other games and fishing 10, 3-in-a-row gate 20.
 
-## Sea expansion in this branch (v4.5)
+## Implemented in this WIP (not released)
 
-Boating area is the disk inside the orange buoys. Old radius 290. New radius `290 * sqrt(1.25)` ≈ 324.23. Area ratio 1.25.
+Sea, already committed before this pause:
 
-What moved, by `SEA_SPREAD = sqrt(1.25)`:
+- Boating disk 290 → 324.23 (`sqrt(1.25)`, area ×1.25). Land radii unchanged.
+- Offshore islands and sea sights moved out. Home, bridges, activity islands, drawbridge, speedway, and wakes were not resized.
+- `layoutVer` 4. A layout-2 save standing on an old offshore spot is **moved with that island**, not deleted. Coins, badges, prizes, fuel, and discoveries are not cleared. Inner positions (within 140) stay. A pre-layout save still drops only `pos`.
 
-- Buoy ring and `DEEP_R`
-- Turtle Cove, Pirate Point, and Parrot Palms centers (radii 19 / 20 / 18 unchanged)
-- Sandy Sandbar, dolphins, Lighthouse Rock, whale, and treasure buoy
-- Fog far, so the haze at the new edge matches the old edge
-- Buoy count `round(56 * SEA_SPREAD)` so the ring does not look sparse
+Lair, in the uncommitted-until-this-checkpoint `index.html` (game version string v4.6):
 
-What did not move or grow:
+- All ten parts exist as groups on Pirate Point. They stay hidden until bought. A "Secret Lair" sign is always there.
+- Buy path re-checks ownership, prerequisite, and coins at the moment of charge. Short funds and duplicates do not deduct. Score is not allowed to go negative.
+- Owned parts save on `Ne.v45.owned` and show again after reload.
+- HQ: E at the round door enters; chair sits/stands; map toast lists harbor and the other islands; Exit lair leaves.
+- Pool: curved water, board, duck/ball/toy. E on the board dives.
+- Slide: blue chute. Refuses purchase without HQ and pool. E rides it into the pool.
+- Garage: E slides the rock doors. A motorboat at the side mooring parks inside without a coin charge. E launches it again.
+- Tower: stairs raise you as you walk up; E climbs to the platform. Telescope sets the camera fov to 18 and names the place you are aimed at. E closes it and restores fov.
+- Trophy room and aquarium: visible after you enter. E reads trophies or the next ocean fact.
+- Course: four gates on the grass. Walking through them in order counts to 4. No coin reward.
+- Passage: E inside starts the tunnel; walking to the end comes out on the back beach. The beach arch goes back in.
+- Hammock: E holds the captain on the roof pad. E gets up.
 
-- Home hub, wooden bridges, eight activity islands, drawbridge, speedway
-- Land radii, docks’ local shapes, wave band at 120–185, wake code
-- Coin prices: full tank 20, baseball and Tecmo 30, other games and fishing 10, 3-in-a-row gate 20
+## Tests already run (do not rerun until resume)
 
-Saves: `layoutVer` 3. Coins, stars, badges, prizes, fuel, and island discoveries stay. A saved position inside radius 140 stays. A saved position farther out (old offshore spot) is cleared so the captain restarts on the home beach instead of in open water. Older saves that were not yet layout 2 still drop their position, same as the previous world bump.
+`node tests/lair.mjs` — **35 passed, 0 failed**, no console errors.
 
-## Checked on this branch
+Covered prices, HQ-first, slide-needs-pool, exact drops (HQ 60, pool 40, then garage 50, tower 30, trophy 25, slide 35, course 30, aqua 40, roof 25, tunnel 45), no second charge, enter/chair/tunnel/beach/dive/slide/climb/telescope/doors/hammock/course/park/launch, and reload keeping score 80, two badges, yacht, fuel 0.35/0.8, three isle discoveries, streak 6, hat, and all ten owned flags.
 
-`node tests/sea-spread.mjs` against headless Chrome (SwiftShader). 79 checks, no console errors.
+`node tests/sea-spread.mjs` — **78 passed, 1 failed**, then the assertion was edited and **not re-run**.
 
-- Buoy radius 324.23, area exactly 1.25× the old 290 disk. Fog far 557.8. Camera far still 820.
-- Pirate Point, Turtle Cove, and Parrot Palms kept radii 20 / 19 / 18 and moved out to 243.7 / 248.2 / 252.7. All three docks are water, and the boat can land. Sea sights moved with them and stay inside the buoys.
-- Six bearings accept water inside the ring and refuse it outside. Open water between the hub and Pirate Point still boats. Home harbor water still boats.
-- Home radius 23.44, activity islands 17.19, ring 62.5, drawbridge and speedway radii were not edited. Lagoon screenshots match the old camera.
-- Holding W moved the power boat about 75 units and did not change coins. A keydown sets the left control and keyup clears it. Portrait touch shows the joystick (`display: block`) and the action button.
-- A layout-2 save with 77 coins, the yacht, a volcano badge, half a tank, and Pirate Point discovered kept all of that. Its old offshore position was cleared. A save standing at home (0, 8) with 88 coins kept that position.
-- Same-camera shots: `tests` writes `/tmp/cap-shots/before` and `/tmp/cap-shots/after`. The hub is unchanged. Pirate Point sits farther out, with more open water between it and the speedway.
-- Frame rate in software GL, median of three 1.2s runs: home harbor 8.1 (worst, densest spot, cold first run 3.6), open water 12.2, sea edge 14.2, Pirate Point 12.6. The new water is not the slow spot. These numbers are the headless renderer, not a player phone.
+The failure was the source check still looking for `Ne.layoutVer!==3`. Behavior in that same run was good: outer save `{x:-185.4,z:114.68}` became `{x:-207.28,z:128.22}` with 77 coins, yacht, fuel, and pirate discovery kept. Inner `{x:0,z:8}` with 88 coins stayed. The edited check looks for `function relocateSave()` and `Ne.layoutVer===4`.
 
-## Not in this branch
+Headless SwiftShader, median of three ~1.2s runs:
 
-- Lair meshes, purchase menu, and interactions (waiting on the concepts above)
-- Publishing to GitHub Pages
-- Princess Adventure
+- Sea suite: home harbor 8.6 (worst), open water 12.7, sea edge 14.0, Pirate Point 13.4.
+- Lair suite, after the build: home harbor 8.2, pirate lair 7.9 (worst that run).
+
+These are software-GL numbers, not a phone. No console errors in either run.
+
+## Known gaps (do this after the weekly reset, not now)
+
+1. Re-run `node tests/sea-spread.mjs` once, to confirm the edited layout assertion. Do not treat the old 1-failure log as the final sea result.
+2. Screenshot sweep is not release-ready. The last desktop/portrait/landscape frames were taken **after** `enter()`, so they show the open interior, the "Exit lair" button, and a palm crown clipping the camera. Retake exterior shots before enter, from a higher dock-side camera. Also shoot the garage doors from the side and a clean interior.
+3. Honest concept gap: the dome, green cap, pool, blue chute, diving board, tower, stairs, telescope, round door, and string lights read in the game's simple Lambert style. Hammocks are small pads. Garage doors sit just outside the shell and are easy to miss from the dock. The tunnel is a walk that lowers you and pops you out at a timber arch, not the cutaway's open hillside. The obstacle course is four gates on the grass, which the exterior concept did not draw clearly. Do not grow the island radius.
+4. Purchase confirm UI exists (`ask` then Yes). The automated test called `commit` directly. A manual click-through of the menu is still undone.
+5. Do not merge PR #1 and do not publish to https://eleveneff.github.io/captain-adventure/ until those shots and the sea re-run look right.
+
+## Resume commands
+
+```bash
+git checkout cursor/sea-spread-lair-concepts-fa88
+node tests/sea-spread.mjs
+node tests/lair.mjs
+```
+
+Then retake exterior screenshots before calling `Lair.enter()`, update this file, and only then ask the owner about release.

@@ -1,5 +1,5 @@
 /**
- * Captain Adventure v4.5 sea-spread checks.
+ * Captain Adventure sea-spread checks.
  * Run: node tests/sea-spread.mjs
  * Needs google-chrome and puppeteer-core (this environment: /tmp/cap-tools).
  */
@@ -40,7 +40,7 @@ check("other tickets still 10", sourceHas("Z_=10"));
 check("home radius formula unchanged", sourceHas("var $n=15*Ot"));
 check("activity radius formula unchanged", sourceHas("var Vc=40*Ot,Hc=11*Ot"));
 check("deep swell band unchanged", sourceHas("Lf(120,185"));
-check("layout migration present", sourceHas("Ne.layoutVer!==3"));
+check("layout migration relocates instead of erasing", sourceHas("function relocateSave()") && sourceHas("Ne.layoutVer===4"));
 
 const browser = await puppeteer.launch({
   executablePath: "/usr/bin/google-chrome",
@@ -108,7 +108,7 @@ const world = await page.evaluate(() => {
   };
 });
 
-check("version v4.5", world.version === "v4.5", world.version);
+check("version v4.6", world.version === "v4.6", world.version);
 check("spread value", Math.abs(world.spread - S) < 1e-9, String(world.spread));
 check("area +25%", Math.abs(world.deepR / OLD_R - S) < 1e-6 && Math.abs((world.deepR / OLD_R) ** 2 - 1.25) < 1e-6, `R=${world.deepR}`);
 check("home radius", Math.abs(world.homeR - 15 * 1.5625) < 1e-6, String(world.homeR));
@@ -302,7 +302,7 @@ async function migrate(label, save, expectPos) {
     return { score: s.score, layoutVer: s.layoutVer, pos: s.pos || null, badges: s.badges, prizes: s.prizes, fuel: s.fuel, isles: s.v43 && s.v43.isles, stars: s.stars };
   });
   check(`${label} coins kept`, got.score === save.score, String(got.score));
-  check(`${label} layoutVer 3`, got.layoutVer === 3, String(got.layoutVer));
+  check(`${label} layoutVer 4`, got.layoutVer === 4, String(got.layoutVer));
   check(`${label} badges kept`, got.badges && got.badges.volcano === true);
   check(`${label} prize kept`, Array.isArray(got.prizes) && got.prizes.includes("yacht"));
   check(`${label} fuel kept`, got.fuel && Math.abs(got.fuel.motorboat - 0.5) < 1e-6, JSON.stringify(got.fuel));
@@ -310,7 +310,8 @@ async function migrate(label, save, expectPos) {
   if (expectPos) {
     check(`${label} inner position kept`, got.pos && Math.abs(got.pos.x - expectPos.x) < 0.02 && Math.abs(got.pos.z - expectPos.z) < 0.02, JSON.stringify(got.pos));
   } else {
-    check(`${label} outer position cleared`, got.pos == null, JSON.stringify(got.pos));
+    const dist = got.pos ? Math.hypot(got.pos.x, got.pos.z) : 0;
+    check(`${label} outer position moved with its island`, dist > 230 && dist < 270, JSON.stringify(got.pos));
   }
   await p.close();
 }

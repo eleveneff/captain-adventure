@@ -161,6 +161,9 @@ const play = await page.evaluate(() => {
   out.hammock = C.captain.position.y > 4;
   L.act("lair:hammock");
   out.hammockUp = C.captain.position.y !== hy || true;
+  L.place(-13.65, -7.1);
+  L.frame(0.05);
+  out.skipped = L.courseAt();
   L.place(-6, -7.1);
   for (const ie of [-7.2, -9.35, -11.5, -13.65]) {
     L.place(ie, -7.1);
@@ -195,6 +198,7 @@ check("tower climb raises the captain", play.high === true, String(play.high));
 check("telescope narrows the camera and closes again", play.fovIn < 25 && play.fovOut > 40, JSON.stringify({ fovIn: play.fovIn, fovOut: play.fovOut }));
 check("rock doors slide open", play.doors === 1, String(play.doors));
 check("hammock holds the captain up on the roof", play.hammock === true);
+check("obstacle course ignores a later gate", play.skipped === 0, String(play.skipped));
 check("obstacle course counts four gates", play.course === 4, String(play.course));
 check("boat parks in the garage without spending coins", play.parked === true && play.modeAfterPark === "walk" && play.boatHidden === true && play.parkFlag === true && play.coinsHeld === true, JSON.stringify(play));
 check("launch puts the boat back in the water", play.modeAfterLaunch === "motorboat" && play.parkCleared === true);
@@ -223,6 +227,19 @@ const flow = await page.evaluate(() => {
   const lieCam = C.camera.position.y;
   const gy = L.gy(0, -1);
   L.act("lair:hammock");
+  const stoodRot = C.captain.rotation.x;
+  let lanterns = 0, lairLights = 0;
+  C.scene.traverse((o) => {
+    if (o.name === "lair-lantern") lanterns++;
+    if (o.isPointLight) {
+      let p = o;
+      while (p) { if (p.name === "pirate-lair") lairLights++; p = p.parent; }
+    }
+  });
+  const named = (n) => !!C.scene.getObjectByName(n);
+  const buoy = C.scene.getObjectByName("lair-buoy");
+  const moor = L.world(9, 20, 0);
+  const buoyNear = buoy ? Math.hypot(buoy.position.x - moor.x, buoy.position.z - moor.z) < 3 : false;
   L.enter();
   L.act("lair:tunnel");
   L.frame(0.05);
@@ -238,7 +255,10 @@ const flow = await page.evaluate(() => {
     doorDry: !inPool(2.5, 5.35),
     doorPrompt: doorSpot && doorSpot.id,
     exitNy: exitV.y,
-    lieY, lieCam, gy, tunY, tunCam,
+    lieY, lieCam, gy, tunY, tunCam, stoodRot, lanterns, lairLights, buoyNear,
+    flags: [1, 2, 3, 4].every((n) => named("lair-flag-" + n)) && named("lair-start"),
+    apron: named("lair-apron"),
+    windows: named("lair-window"),
   };
 });
 check("chart table prompt is the map", flow.mapPrompt === "lair:map", String(flow.mapPrompt));
@@ -248,6 +268,11 @@ check("hidden door prompt is on the dry path", flow.doorDry === true && flow.doo
 check("exit camera can see the captain", flow.exitNy > -0.9 && flow.exitNy < 0.95, String(flow.exitNy));
 check("hammock rest sits on the cloth", flow.lieY > flow.gy + 4.6 && flow.lieY < flow.gy + 6.6, `lie ${flow.lieY} ground ${flow.gy}`);
 check("hammock camera is outside the rock", flow.lieCam > flow.lieY + 1, `cam ${flow.lieCam} lie ${flow.lieY}`);
+check("standing up clears the hammock tilt", flow.stoodRot === 0, String(flow.stoodRot));
+check("path lanterns glow without extra lights", flow.lanterns >= 4 && flow.lairLights === 0, JSON.stringify({ lanterns: flow.lanterns, lights: flow.lairLights }));
+check("garage buoy marks the mooring", flow.buoyNear === true && flow.apron === true);
+check("course shows four numbers and a start banner", flow.flags === true);
+check("the room has a framed window", flow.windows === true);
 check("tunnel camera stays near the captain", Math.abs(flow.tunCam - flow.tunY) < 4, `cam ${flow.tunCam} y ${flow.tunY}`);
 
 const kept = await page.evaluate(() => {

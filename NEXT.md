@@ -78,17 +78,34 @@ Walked the built lair with the real gameplay camera. Fixed:
 - The garage prompt stands on the open grass by the pool, not inside the beam.
 - The Exit button sits above the keyboard hint, and above the joystick on touch.
 
-`node tests/lair.mjs` on this head: **47 passed, 0 failed**, no console errors. Same-spot frames: bare **8.5**, built **10.2**. `node tests/smoke.mjs`: **22 passed, 0 failed**, no console errors. `node tests/sea-spread.mjs`: **79 passed, 0 failed**, no console errors. Deep radius **324.23**. Outer save still moves to about **{-207.28, 128.22}**.
+The four suggested additions are in this head, at no extra price. They show up only with the part they belong to.
 
-Nits still there: the door is a disk in a frame, the garage is still stone slabs, and the hammock sling is shallow. A boat aimed at the back of the island does not show the lair; the dock side does.
+- Lanterns stand along the dry stepping-stone path. Each one is an emissive box on a post. The lair adds no point lights.
+- The garage has a plank apron out to the water and a red-and-white buoy beside the existing mooring. Parking and launching are the same action as before.
+- The hammocks sag between taller posts. Lying down rests in the dip. Standing up sets the tilt back to zero.
+- The course has a START banner and flags 1 to 4. A later gate does not count until the earlier ones are done.
 
-Ideas only, not built:
+The HQ room and the lighthouse got a finish pass, not a new layout. The room has a wood band, a gold edge on the rug, framed sea pictures, a cushioned chair, a chart lamp, a shelf back, and a brass tank frame. The lighthouse stairs show their treads and the gold rail, and the climb camera stays under the ceiling. The lamp room keeps the keeper inside the glass.
 
-1. Lanterns along the stepping-stone path from the dock.
-2. A mooring buoy and a clearer garage apron on the water side.
-3. A deeper hammock sling readable from the dock.
-4. Numbered course flags and a start banner.
+`node tests/lair.mjs` on this head: **53 passed, 0 failed**, no console errors. Same-spot frames: bare **9.7**, built **9.8**. Worst spot in that suite is the harbor at **4.9**. `node tests/smoke.mjs`: **26 passed, 0 failed**, including the lighthouse climb, the lamp, the climb down, and leaving. `node tests/sea-spread.mjs`: **79 passed, 0 failed**. Deep radius **324.23**. Outer save still moves to about **{-207.28, 128.22}**.
+
+SHA-256 of `index.html`: `bf54a4ab82542549fb5bdc831601c59de8cacee777e8c35fc1b8578ef55bcdfc`.
+
+Nits still there: the door is a disk in a frame, and the garage doors are still stone slabs. A boat aimed at the back of the island does not show the lair; the dock side does.
+
+No further ideas are queued. Do not start more features.
+
+## Lessons for the Princess team
+
+Read from the published Princess Explorer (v4.3, no files there were changed), the lighthouse already in this game, and the Pirate Point room. These are for the castle team to use. They are not a request to edit that repo from here.
+
+- Close the room before you decorate it. The castle paints a mural on a shell you see only from the inside, so the garden never shows through the walls. The lighthouse does the same with a painted cylinder. The lair hides the island while you are indoors. A window should be a framed picture of the sea, not a hole.
+- Keep the camera inside the floor you can walk. The lighthouse pulls the camera back in when it would leave the tower. The lair uses two corners inside the room and looks at the captain's chest. Looking through the ceiling, or standing the camera in a wall, is what made the rooms feel unfinished.
+- Light the whole room once. The castle uses one warm light plus glowing crystals that share a material. A lantern on a path can be an emissive box. It does not need its own light. That keeps the frame rate steady.
+- Finish a surface with a few cheap strips: a wood band on the lower wall, a darker edge on the rug, a frame around glass, a baseboard. The castle's red runner with gold edges is the model. Flat boxes with no edge read as prototypes.
+- Build a chair, a table, or a lamp from a handful of primitives at the captain's size, and leave a clear walk down the middle. The castle stations sit on the walls. The middle stays open.
+- Show the route in the world. Numbers on the gates, a start banner, lanterns on the dry path, and a buoy by the garage tell a child where to go without a new menu or a new price.
 
 ## Do not do yet
 
-Do not merge. Do not publish to https://eleveneff.github.io/captain-adventure/.
+Do not merge. Do not publish to https://eleveneff.github.io/captain-adventure/. The additions and the interior polish are on this branch and tested. Publication waits for a coordinator go-ahead. PR 1 is still open; it was not merged. The live site checked just now is still v4.4, last modified 1 Nov 2026, and its file is not this SHA-256.

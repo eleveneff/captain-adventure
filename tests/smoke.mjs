@@ -255,6 +255,28 @@ check("reload keeps the yacht", (reloaded.prizes || []).includes("yacht"));
 check("reload keeps island discoveries", reloaded.isles && reloaded.isles.turtle === 1 && reloaded.isles.pirate === 1, JSON.stringify(reloaded.isles));
 check("reload keeps the hat, streak, yacht fuel, and score", reloaded.hat === "captain" && reloaded.streak === 6 && reloaded.yacht === 0.8 && reloaded.score === kept.score && reloaded.layout === 4, JSON.stringify(reloaded));
 
+const lh = await page.evaluate(() => {
+  const C = window.CaptainAdventure;
+  const L = C.lh;
+  L.land();
+  L.enterInside();
+  const y0 = C.captain.position.y;
+  L.startClimb(true);
+  for (let i = 0; i < 40; i++) L.step(0.12);
+  const y1 = C.captain.position.y;
+  L.lampAct();
+  const lit = !!(C.state().v4 && C.state().v4.lh && C.state().v4.lh.lit);
+  L.startClimb(false);
+  for (let i = 0; i < 40; i++) L.step(0.12);
+  const y2 = C.captain.position.y;
+  L.leave(true);
+  return { y0, y1, y2, lit, open: document.body.classList.contains("lh-on") };
+});
+check("lighthouse climb reaches the lamp room", lh.y1 > 4, JSON.stringify(lh));
+check("lighting the lamp sticks", lh.lit === true);
+check("climbing down returns to the keeper room", lh.y2 < 1, String(lh.y2));
+check("leaving the lighthouse clears the visit", lh.open === false);
+
 await browser.close();
 const real = errors.filter((e) => !/favicon/i.test(e));
 check("no console errors", real.length === 0, real.slice(0, 3).join(" | "));

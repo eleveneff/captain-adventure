@@ -908,12 +908,12 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     mat.uniforms.uMid.value.copy(skyBase.mid);
     mat.uniforms.uHor.value.copy(skyBase.hor);
     if (win) {
-      mat.uniforms.uTop.value.set("#8ea4b8");
-      mat.uniforms.uMid.value.set("#c5d4e0");
-      mat.uniforms.uHor.value.set("#e7eef3");
+      mat.uniforms.uTop.value.set("#6d8294");
+      mat.uniforms.uMid.value.set("#aebcc8");
+      mat.uniforms.uHor.value.set("#d5dee6");
     }
     if (CA.scene.fog && CA.scene.fog.color) {
-      if (win) CA.scene.fog.color.set("#e4eef4");
+      if (win) CA.scene.fog.color.set("#c5d0d8");
       else if (skyBase.fog) CA.scene.fog.color.copy(skyBase.fog);
     }
   }
@@ -994,7 +994,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     const geo = new K.Geo();
     geo.setAttribute("position", new K.Attr(pos, 3));
     const tex = flakeTexture();
-    const mat = new K.PointsMat({ color: 0xffffff, size: 0.42, map: tex, transparent: true, depthWrite: false, sizeAttenuation: true, opacity: 0.9 });
+    const mat = new K.PointsMat({ color: 0xffffff, size: 0.95, map: tex, transparent: true, depthWrite: false, sizeAttenuation: true, opacity: 0.95 });
     const pts = new K.Points(geo, mat);
     pts.name = "v50-snow";
     pts.frustumCulled = false;
@@ -1043,13 +1043,13 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       const h = Math.abs(bb.max.y - bb.min.y) * sy;
       const d = Math.abs(bb.max.z - bb.min.z) * sz;
       const col = o.material.color;
-      const garage = o.geometry.type === "BoxGeometry" && col.b > col.r + 0.08 && w > 6 && h < 0.7 && y > 3;
+      const garage = o.userData.v50GarageRoof || (o.geometry.type === "BoxGeometry" && col.b > col.r + 0.08 && w > 6 && h < 0.7 && y > 3);
       const slope = o.geometry.type === "BoxGeometry" && Math.abs(o.rotation.x) > 0.6 && w > 1.2 && h < 0.4 && y < 2;
       const gallery = o.geometry.type === "CylinderGeometry" && Math.hypot(x - 10.94, z + 10.16) < 1.2 && Math.abs(y - 8.1) < 0.4 && h < 0.4;
       const gazebo = o.geometry.type === "ConeGeometry" && col.b > 0.45 && col.r < 0.25 && y > 2;
       if (garage) {
-        const slab = new K.Mesh(new K.Box(w * 0.96, 0.22, d * 0.96), snowMat);
-        slab.position.y = bb.max.y + 0.11;
+        const slab = new K.Mesh(new K.Box(w * 0.98, 0.42, d * 0.98), snowMat);
+        slab.position.y = bb.max.y + 0.24;
         slab.name = "v50-roof";
         o.add(slab);
       }
@@ -1100,14 +1100,30 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     const c = document.createElement("canvas");
     c.width = 128; c.height = 128;
     const g = c.getContext("2d");
-    for (let y = 0; y < 128; y += 16) {
-      g.fillStyle = ((y / 16) % 2) ? a : b;
-      g.fillRect(0, y, 128, 16);
-      g.strokeStyle = "rgba(0,0,0,.28)";
-      g.beginPath();
-      const off = ((y / 16) % 2) ? 0 : 16;
-      for (let x = off; x < 128; x += 32) { g.moveTo(x, y); g.lineTo(x, y + 16); }
-      g.stroke();
+    g.fillStyle = b;
+    g.fillRect(0, 0, 128, 128);
+    const tones = [a, b, "#245a9e", "#1a467f"];
+    for (let row = 0; row < 8; row++) {
+      const y = row * 16;
+      const off = (row % 2) * 18;
+      for (let x = -20 + off; x < 140; x += 36) {
+        g.fillStyle = tones[(row + x) % tones.length];
+        g.beginPath();
+        g.moveTo(x + 2, y + 1);
+        g.lineTo(x + 32, y + 1);
+        g.lineTo(x + 32, y + 12);
+        g.quadraticCurveTo(x + 17, y + 20, x + 2, y + 12);
+        g.closePath();
+        g.fill();
+        g.strokeStyle = "rgba(8,24,48,.55)";
+        g.lineWidth = 2;
+        g.stroke();
+        g.strokeStyle = "rgba(255,255,255,.28)";
+        g.beginPath();
+        g.moveTo(x + 6, y + 4);
+        g.lineTo(x + 26, y + 4);
+        g.stroke();
+      }
     }
     const tex = new K.CanvasTex(c);
     tex.wrapS = tex.wrapT = 1000;
@@ -1153,56 +1169,42 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     const lamb = (hex) => new K.Lambert({ color: hex });
     const basic = (hex, opacity) => new K.Basic({ color: hex, transparent: true, opacity: opacity, depthWrite: false });
 
-    let head = null;
-    let headY = -1;
-    if (CA.captain) CA.captain.traverse((o) => {
-      if (!o.isMesh || !o.geometry || o.geometry.type !== "SphereGeometry" || !o.material || !o.material.color) return;
-      const col = o.material.color;
-      if (col.r < 0.9 || col.g < 0.7 || col.b < 0.55) return;
-      const w = worldOf(o);
-      if (w.y > headY && w.y > 1.7) { headY = w.y; head = o; }
-    });
-    if (head) {
-      const bb = head.geometry.boundingBox || (head.geometry.computeBoundingBox(), head.geometry.boundingBox);
+    if (CA.captain && !CA.captain.getObjectByName("v50-face")) {
       const face = new K.Group();
       face.name = "v50-face";
-      const z = bb.min.z * 0.82;
-      const midY = (bb.min.y + bb.max.y) * 0.08;
-      const eyeY = midY + (bb.max.y - bb.min.y) * 0.08;
-      const eyeX = (bb.max.x - bb.min.x) * 0.22;
+      face.position.set(0, 1.28, 0.34);
       [-1, 1].forEach((side) => {
-        const eye = new K.Mesh(new K.Sphere(0.07, 8, 6), lamb(0xf7fbff));
-        eye.position.set(side * eyeX, eyeY, z);
-        const pupil = new K.Mesh(new K.Sphere(0.032, 6, 5), lamb(0x16325c));
-        pupil.position.set(0, 0, -0.03);
+        const eye = new K.Mesh(new K.Sphere(0.05, 10, 8), lamb(0xffffff));
+        eye.position.set(side * 0.11, 0.08, 0.02);
+        const pupil = new K.Mesh(new K.Sphere(0.03, 8, 6), lamb(0x16325c));
+        pupil.position.set(0, 0, -0.04);
+        const glint = new K.Mesh(new K.Sphere(0.012, 6, 4), lamb(0xffffff));
+        glint.position.set(side * -0.012, 0.014, -0.055);
         eye.add(pupil);
-        const brow = new K.Mesh(new K.Box(0.07, 0.015, 0.02), lamb(0xc48a3a));
-        brow.position.set(side * eyeX, eyeY + 0.055, z + 0.01);
-        brow.rotation.z = side * -0.25;
+        eye.add(glint);
+        const brow = new K.Mesh(new K.Box(0.09, 0.018, 0.02), lamb(0xc48a3a));
+        brow.position.set(side * 0.095, 0.15, 0.01);
+        brow.rotation.z = side * -0.2;
+        const cheek = new K.Mesh(new K.Sphere(0.045, 8, 6), lamb(0xff8b8b));
+        cheek.position.set(side * 0.13, -0.02, 0.02);
         face.add(eye);
         face.add(brow);
+        face.add(cheek);
       });
-      for (let i = 0; i < 5; i++) {
-        const t = (i / 4) * Math.PI;
-        const smile = new K.Mesh(new K.Sphere(0.012, 5, 4), lamb(0xc45a4a));
-        smile.position.set(Math.cos(t) * eyeX * 0.7 - eyeX * 0.35, midY - 0.06 - Math.sin(t) * 0.02, z);
+      for (let i = 0; i < 7; i++) {
+        const t = Math.PI * (0.15 + 0.7 * (i / 6));
+        const smile = new K.Mesh(new K.Sphere(0.016, 6, 4), lamb(0xd4534a));
+        smile.position.set(Math.cos(t) * 0.07, -0.1 - Math.sin(t) * 0.035, 0.01);
         face.add(smile);
       }
-      head.add(face);
+      CA.captain.add(face);
+      [[-0.2, 1.02, 0.06, 0.1, 0x1a356e], [0.2, 1.02, 0.06, 0.1, 0x1a356e], [-0.3, 0.72, 0.05, 0.07, 0xffd0b0], [0.3, 0.72, 0.05, 0.07, 0xffd0b0], [-0.09, 0.2, 0.06, 0.08, 0xffd0b0], [0.09, 0.2, 0.06, 0.08, 0xffd0b0]].forEach(([x, y, z, r, color]) => {
+        const joint = new K.Mesh(new K.Sphere(r, 10, 8), lamb(color));
+        joint.position.set(x, y, z);
+        joint.name = "v50-joint";
+        CA.captain.add(joint);
+      });
     }
-    if (CA.captain) CA.captain.traverse((o) => {
-      if (!o.isMesh || !o.geometry || o.geometry.type !== "SphereGeometry" || !o.material || !o.material.color) return;
-      if (o.getObjectByName("v50-joint")) return;
-      const w = worldOf(o);
-      const hex = o.material.color.getHexString();
-      const shoulder = hex === "ffc83d" && w.y > 1.45 && w.y < 1.8 && Math.abs(w.x) > 0.12;
-      const elbow = hex === "ffd7b8" && w.y > 0.8 && w.y < 1.25 && Math.abs(w.x) > 0.18;
-      const knee = (hex === "6b4226" || hex === "f4f6fa") && w.y < 0.3 && Math.abs(w.x) > 0.04 && Math.abs(w.x) < 0.45;
-      if (!shoulder && !elbow && !knee) return;
-      const joint = new K.Mesh(new K.Sphere(shoulder ? 0.1 : 0.075, 8, 6), lamb(shoulder ? 0x24468f : 0xffe0c4));
-      joint.name = "v50-joint";
-      o.add(joint);
-    });
 
     const roofTex = shingleTex(K, "#1d4e9e", "#163872");
     const gazeboTex = shingleTex(K, "#2f86d6", "#1c5fa3");
@@ -1222,6 +1224,8 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
         next.color.set("#ffffff");
         o.material = next;
         o.userData.v50Shingle = 1;
+        o.userData.v50GarageRoof = 1;
+        next.map.repeat.set(6, 4);
       }
       const door = o.geometry.type === "BoxGeometry" && hex === "3c6fd1" && sy > 2 && sz < 0.4;
       if (door && !o.getObjectByName("v50-doorframe")) {
@@ -1237,9 +1241,11 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
         o.add(frame);
         const front = new K.Group();
         front.name = "v50-doorframe";
-        front.position.set(-10.94, 1.45, -7.32);
-        [[0, 1.35, 5.4, 0.16, 0.12], [0, -1.35, 5.2, 0.12, 0.1], [-2.55, 0, 0.16, 2.7, 0.12], [2.55, 0, 0.16, 2.7, 0.12]].forEach(([x, y, bw, bh, bd]) => {
-          const bar = new K.Mesh(new K.Box(bw, bh, bd), lamb(0xf4efe4));
+        front.position.set(-10.94, 1.55, -7.05);
+        const cream = lamb(0xfff6e4);
+        const navy = lamb(0x10224d);
+        [[0, 1.45, 5.7, 0.28, 0.18, cream], [0, -1.4, 5.5, 0.22, 0.16, cream], [-2.7, 0, 0.32, 2.9, 0.2, navy], [2.7, 0, 0.32, 2.9, 0.2, navy]].forEach(([x, y, bw, bh, bd, mat]) => {
+          const bar = new K.Mesh(new K.Box(bw, bh, bd), mat);
           bar.position.set(x, y, 0);
           front.add(bar);
         });
@@ -1293,15 +1299,22 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     CA.scene.add(rail);
     const beamPivot = new K.Group();
     beamPivot.name = "v50-beam";
-    beamPivot.position.set(10.94, 9.15, -10.16);
-    const shaft = new K.Mesh(new K.Box(7, 0.08, 0.26), basic(0xfff1c2, 0.14));
-    shaft.material.blending = 2;
-    shaft.position.x = 3.6;
-    beamPivot.add(shaft);
+    beamPivot.position.set(10.94, 9.05, -10.16);
+    const cone = new K.Mesh(new K.Cone(1.35, 7.2, 18, 1, true), basic(0xffe7a0, 0.22));
+    cone.material.blending = 2;
+    cone.material.side = 2;
+    cone.material.depthWrite = false;
+    cone.rotation.z = Math.PI / 2;
+    cone.position.x = 3.6;
+    const halo = new K.Sprite(new K.SpriteMat({ map: flakeTexture(), color: 0xfff1c4, transparent: true, depthWrite: false, opacity: 0.55 }));
+    halo.scale.setScalar(1.6);
+    halo.name = "v50-beam";
+    beamPivot.add(cone);
+    beamPivot.add(halo);
     CA.scene.add(beamPivot);
     gfx.beam = beamPivot;
     const deepBeam = CA.scene.getObjectByName("lighthouse-beam");
-    if (deepBeam) gfx.deepBeam = deepBeam;
+    if (deepBeam) deepBeam.visible = false;
 
     CA.scene.traverse((o) => {
       if (o.name !== "leaf" || o.userData.v50frond || !o.parent) return;
@@ -1345,7 +1358,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
         if (shader.vertexShader.indexOf("return h * calmK") !== -1) {
           shader.vertexShader = shader.vertexShader.replace(
             "return h * calmK(x, z);",
-            "h += sin(x * 0.0065 + z * 0.0048 + t * 0.11) * 0.22 * smoothstep(55.0, 240.0, r);\n    return h * calmK(x, z);"
+            "h += sin(x * 0.012 + z * 0.009 + t * 0.35) * 0.85 * smoothstep(18.0, 80.0, r);\n    return h * calmK(x, z);"
           );
         }
       };
@@ -1379,8 +1392,8 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       });
       if (top && !top.getObjectByName("v50-slide-lip")) {
         const bb = top.geometry.boundingBox || (top.geometry.computeBoundingBox(), top.geometry.boundingBox);
-        const lip = new K.Mesh(new K.Box(Math.max(0.4, bb.max.x - bb.min.x), 0.1, 0.28), lamb(0x0d47a1));
-        lip.position.set(0, bb.max.y + 0.04, bb.max.z);
+        const lip = new K.Mesh(new K.Box(Math.max(0.9, (bb.max.x - bb.min.x) * 1.3), 0.22, 0.55), lamb(0xe3f4ff));
+        lip.position.set(0, bb.max.y + 0.2, bb.max.z + 0.15);
         lip.name = "v50-slide-lip";
         top.add(lip);
         [-0.35, 0.35].forEach((x) => {
@@ -1393,31 +1406,28 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     }
     const pirate = (CA.isl && CA.isl.L || []).find((isle) => isle.id === "pirate");
     if (pirate && root) {
-      const stones = lamb(0xb7aa96);
-      const path = new K.Mesh(new K.Box(1.1, 0.08, 6.5), stones);
-      const p = CA.lair && CA.lair.world ? CA.lair.world(2.2, 6, 0) : { x: pirate.cx + 4, y: 0.2, z: pirate.cz };
-      path.position.set(p.x, (p.y || 0.4) + 0.05, p.z);
-      path.name = "v50-path";
-      root.add(path);
-      const path2 = new K.Mesh(new K.Box(0.9, 0.08, 3.2), lamb(0xa89884));
-      path2.position.set(p.x + 1.6, path.position.y, p.z + 1.2);
-      path2.rotation.y = 0.4;
-      path2.name = "v50-path";
-      root.add(path2);
+      const spots = [];
       CA.scene.traverse((o) => {
         if (!o.isMesh || !o.material || !o.material.color || o.geometry.type !== "BoxGeometry") return;
         const hex = o.material.color.getHexString();
-        if (hex !== "ffffff" && hex !== "f7f7f7" && hex !== "eeeeee") return;
+        if (hex !== "ffffff" && hex !== "f7f7f7" && hex !== "eeeeee" && hex !== "b7aa96" && hex !== "e7d3b0") return;
         const w = worldOf(o);
-        if (Math.hypot(w.x - pirate.cx, w.z - pirate.cz) > 22 || w.y > 0.7 || w.y < -0.2) return;
+        if (Math.hypot(w.x - pirate.cx, w.z - pirate.cz) > 22 || w.y > 0.8 || w.y < -0.2) return;
         const bb = o.geometry.boundingBox || (o.geometry.computeBoundingBox(), o.geometry.boundingBox);
         const span = Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z);
-        if (span > 2.2 || span < 0.3) return;
-        const next = o.material.clone();
-        next.color.set("#b7aa96");
-        next.map = null;
-        o.material = next;
-        o.name = "v50-path";
+        if (span > 2.4 || span < 0.25) return;
+        spots.push({ x: w.x, y: w.y, z: w.z });
+        o.visible = false;
+      });
+      const grays = [0x6a6e68, 0x80867e, 0x555a54, 0x737870];
+      const seeds = spots.length ? spots : [{ x: pirate.cx + 3, y: 0.35, z: pirate.cz }];
+      seeds.forEach((w, i) => {
+        const stone = new K.Mesh(new K.Sphere(0.28 + (i % 4) * 0.09, 7, 5), lamb(grays[i % grays.length]));
+        stone.scale.set(1.2 + (i % 3) * 0.3, 0.26, 0.8 + (i % 2) * 0.4);
+        stone.position.set(w.x + ((i % 3) - 1) * 0.18, Math.max(0.14, w.y + 0.05), w.z + ((i % 2) ? 0.16 : -0.12));
+        stone.rotation.y = i * 0.9;
+        stone.name = "v50-path";
+        root.add(stone);
       });
     }
     let warm = null;
@@ -1455,18 +1465,47 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
         next.color.set("#ffffff");
         lava.material = next;
         lava.userData.v50lava = 1;
-        lava.name = lava.name || "v50-lava";
+        lava.name = "v50-lava";
         gfx.lava = lava;
-        const smokeMat = new K.SpriteMat({ map: flakeTexture(), color: 0xd5dbe2, transparent: true, depthWrite: false, opacity: 0.45 });
-        gfx.smoke = [0, 1].map((i) => {
-          const s = new K.Sprite(smokeMat);
-          s.position.set(lavaSpot.x + (i ? 0.8 : -0.4), 2.2 + i * 0.6, lavaSpot.z);
-          s.scale.setScalar(0.9 + i * 0.4);
-          s.name = "v50-smoke";
-          CA.scene.add(s);
-          return s;
-        });
       }
+      const hot = new K.Lambert({ color: 0xff5a1f, emissive: 0xff6a00, emissiveIntensity: 1.1 });
+      const coneAt = { x: 0, z: -81.3, top: 15.2 };
+      const V = CA.camera.position.constructor;
+      const up = new V(0, 1, 0);
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + 0.6;
+        const top = new V(Math.sin(a) * 1.4, 13.4, coneAt.z + Math.cos(a) * 1.4);
+        const bot = new V(Math.sin(a) * 6.2, 1.6, coneAt.z + Math.cos(a) * 6.2);
+        const len = top.distanceTo(bot);
+        const stream = new K.Mesh(new K.Box(0.55, len, 0.14), hot);
+        stream.position.copy(top).add(bot).multiplyScalar(0.5);
+        const dir = bot.clone().sub(top).normalize();
+        stream.quaternion.setFromUnitVectors(up, dir);
+        stream.name = "v50-lava";
+        CA.scene.add(stream);
+      }
+      const rim = new K.Mesh(new K.Torus(2.15, 0.22, 8, 18), hot);
+      rim.rotation.x = Math.PI / 2;
+      rim.position.set(coneAt.x, coneAt.top, coneAt.z);
+      rim.name = "v50-lava";
+      CA.scene.add(rim);
+      CA.scene.traverse((o) => {
+        if (!o.isMesh || !o.material || !o.material.color) return;
+        if (o.material.color.getHexString() !== "d9d4d0") return;
+        const w = worldOf(o);
+        if (Math.hypot(w.x - coneAt.x, w.z - coneAt.z) < 8 && w.y > 14) o.visible = false;
+      });
+      const smokeMap = flakeTexture();
+      gfx.smoke = [0, 1, 2, 3].map((i) => {
+        const smokeMat = new K.SpriteMat({ map: smokeMap, color: 0xe7edf2, transparent: true, depthWrite: false, opacity: 0.4 });
+        const s = new K.Sprite(smokeMat);
+        s.position.set(coneAt.x + (i - 1.5) * 0.7, 16 + i * 1.4, coneAt.z + 0.4);
+        s.scale.setScalar(1.6 + i * 0.45);
+        s.userData.v50puff = i / 4;
+        s.name = "v50-smoke";
+        CA.scene.add(s);
+        return s;
+      });
     }
     const mine = zones.minefield && zones.minefield.spot;
     if (mine) {
@@ -1650,9 +1689,9 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
         wrap.id = "shop-preview";
         wrap.style.cssText = "display:flex;justify-content:center;padding:6px 0 0";
         const canvas = document.createElement("canvas");
-        canvas.width = 168;
-        canvas.height = 196;
-        canvas.style.cssText = "width:120px;height:140px;background:#e7f2ff;border:4px solid #1e88e5;border-radius:18px";
+        canvas.width = 280;
+        canvas.height = 340;
+        canvas.style.cssText = "width:220px;height:268px;background:#d7ecff;border:4px solid #1e88e5;border-radius:18px";
         wrap.appendChild(canvas);
         const tabs = card.querySelector("#shop-tabs");
         if (tabs) card.insertBefore(wrap, tabs);
@@ -1664,18 +1703,27 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
   function animateWorld(step) {
     if (!gfx || !gfx.ready) return;
     const t = clockMs / 1000;
-    if (gfx.beam) gfx.beam.rotation.y = t * 0.35;
-    if (gfx.deepBeam) gfx.deepBeam.rotation.y = t * 0.22;
+    if (gfx.beam) gfx.beam.rotation.y = t * 0.25;
     if (gfx.lava && gfx.lava.material && gfx.lava.material.map) {
-      gfx.lava.material.map.offset.x = (t * 0.05) % 1;
-      gfx.lava.material.map.offset.y = (t * 0.02) % 1;
+      gfx.lava.material.map.offset.x = (t * 0.08) % 1;
+      gfx.lava.material.map.offset.y = (t * 0.03) % 1;
     }
     if (gfx.smoke) gfx.smoke.forEach((s, i) => {
-      const puff = 0.85 + Math.sin(t * 1.4 + i) * 0.25;
-      s.scale.setScalar(puff + i * 0.25);
-      s.position.y = 2.1 + i * 0.55 + Math.sin(t * 0.8 + i) * 0.15;
-      if (s.material) s.material.opacity = 0.28 + Math.sin(t + i) * 0.08;
+      const phase = ((s.userData.v50puff || 0) + t * 0.12) % 1;
+      s.position.y = 15.5 + phase * 12;
+      s.position.x = (i - 1.5) * 0.6 + Math.sin(t + i) * 0.4;
+      const grow = 1.4 + phase * 2.2;
+      s.scale.setScalar(grow);
+      if (s.material) s.material.opacity = 0.45 * (1 - phase);
     });
+    fadePalms();
+    tuckLabels();
+    dressBuiltLair();
+    if (winterOn()) puffSnow();
+    if (gfx.swell) {
+      gfx.swell.position.x = 20 + Math.sin(t * 0.35) * 28;
+      gfx.swell.position.z = 8 + Math.cos(t * 0.22) * 16;
+    }
     if (gfx.clouds) gfx.clouds.forEach((cloud, i) => {
       const base = cloud.userData.v50cloud;
       if (!base) return;
@@ -1689,54 +1737,132 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       const z = obj.position.z;
       const r = Math.hypot(x, z);
       const k = Math.max(0, Math.min(1, (r - 55) / 180));
-      const swell = Math.sin(x * 0.0065 + z * 0.0048 + t * 0.11) * 0.22 * k;
+      const swell = Math.sin(x * 0.012 + z * 0.009 + t * 0.35) * 0.85 * Math.max(k, Math.hypot(x, z) > 18 ? 0.55 : 0);
       if (obj.userData.v50baseY == null) obj.userData.v50baseY = obj.position.y;
       obj.position.y = obj.userData.v50baseY + swell;
     });
     const preview = document.querySelector("#shop-preview canvas");
     const shop = document.getElementById("shop");
-    if (preview && shop && !shop.classList.contains("hidden")) {
-      const g = preview.getContext("2d");
-      const equip = (CA.state().shop && CA.state().shop.equip) || {};
-      g.clearRect(0, 0, 168, 196);
-      g.fillStyle = "#d7ecff";
-      g.fillRect(0, 0, 168, 196);
-      const jacket = equip.outfit === "uniform-red" ? "#c62828" : equip.outfit === "uniform-teal" ? "#00897b" : equip.outfit === "uniform-white" ? "#e8eef5" : "#1a356e";
-      const hair = equip.hair === "hair-sandy" ? "#e0c070" : equip.hair === "hair-spiky" ? "#ffe082" : "#f2cf5b";
-      g.fillStyle = "#f4f6fa";
-      g.fillRect(68, 118, 14, 48);
-      g.fillRect(86, 118, 14, 48);
-      g.fillStyle = jacket;
-      g.fillRect(58, 78, 52, 52);
-      g.fillStyle = "#ffd7b8";
-      g.beginPath();
-      g.arc(84, 62, 22, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = "#16325c";
-      g.beginPath();
-      g.arc(76, 60, 3, 0, Math.PI * 2);
-      g.arc(92, 60, 3, 0, Math.PI * 2);
-      g.fill();
-      g.strokeStyle = "#c45a4a";
-      g.lineWidth = 2;
-      g.beginPath();
-      g.arc(84, 68, 7, 0.15 * Math.PI, 0.85 * Math.PI);
-      g.stroke();
-      g.fillStyle = hair;
-      g.beginPath();
-      g.arc(84, 52, 18, Math.PI, 0);
-      g.fill();
-      g.fillStyle = "#f8f9fc";
-      g.fillRect(62, 34, 44, 16);
-      g.fillStyle = "#16161c";
-      g.fillRect(70, 28, 28, 10);
-      g.fillStyle = "#ffc83d";
-      g.fillRect(80, 40, 8, 8);
-      if (equip.hat && equip.hat !== "captain") {
-        g.fillStyle = "#e53935";
-        g.fillRect(64, 30, 40, 8);
+    if (preview && shop && !shop.classList.contains("hidden") && CA.captain && CA.renderer) {
+      if (!gfx.shopRenderer) {
+        const Renderer = CA.renderer.constructor;
+        const Cam = CA.camera.constructor;
+        gfx.shopRenderer = new Renderer({ canvas: preview, antialias: true, alpha: false });
+        gfx.shopRenderer.setSize(280, 340, false);
+        gfx.shopRenderer.setClearColor(0xd7ecff, 1);
+        gfx.shopCam = new Cam(30, 280 / 340, 0.05, 30);
       }
+      const w = worldOf(CA.captain);
+      const fwd = new (CA.camera.position.constructor)(0, 0, 1).applyQuaternion(CA.captain.quaternion);
+      gfx.shopCam.position.set(w.x + fwd.x * 2.7, w.y + 1.55, w.z + fwd.z * 2.7);
+      gfx.shopCam.lookAt(w.x, w.y + 1.35, w.z);
+      const hidden = [];
+      CA.scene.children.forEach((ch) => {
+        if (ch === CA.captain || ch.isLight) return;
+        if (ch.visible) { hidden.push(ch); ch.visible = false; }
+      });
+      gfx.shopRenderer.render(CA.scene, gfx.shopCam);
+      hidden.forEach((ch) => { ch.visible = true; });
     }
+  }
+  function dressBuiltLair() {
+    if (gfx.lairDressed || !CA.lair || !CA.lair.own || !CA.lair.own("hq")) return;
+    const pirate = (CA.isl && CA.isl.L || []).find((isle) => isle.id === "pirate");
+    if (!pirate) return;
+    const K = kit();
+    if (!K) return;
+    const spots = [];
+    CA.scene.traverse((o) => {
+      if (!o.isMesh || !o.material || !o.material.color || o.geometry.type !== "BoxGeometry") return;
+      if (o.material.color.getHexString() !== "e7d3b0") return;
+      const w = worldOf(o);
+      if (Math.hypot(w.x - pirate.cx, w.z - pirate.cz) > 20 || w.y > 1 || w.y < 0) return;
+      spots.push(w);
+      o.visible = false;
+    });
+    const grays = [0x5e635d, 0x73786f, 0x4a4f4a, 0x686d66];
+    spots.forEach((w, i) => {
+      const stone = new K.Mesh(new K.Sphere(0.32 + (i % 4) * 0.1, 7, 5), new K.Lambert({ color: grays[i % grays.length] }));
+      stone.scale.set(1.15 + (i % 3) * 0.35, 0.22, 0.75 + (i % 2) * 0.4);
+      stone.position.set(w.x + ((i % 3) - 1) * 0.22, w.y + 0.06, w.z + (i % 2 ? 0.18 : -0.14));
+      stone.rotation.y = i * 0.8;
+      stone.name = "v50-path";
+      CA.scene.add(stone);
+    });
+    const lip = new K.Mesh(new K.Box(1.3, 0.28, 0.7), new K.Lambert({ color: 0xf4fbff }));
+    lip.position.set(-203.4, 5.15, 128.5);
+    lip.name = "v50-slide-lip";
+    CA.scene.add(lip);
+    gfx.lairDressed = true;
+  }
+  function puffSnow() {
+    if (gfx.flakes || !CA.scene) return;
+    const K = kit();
+    if (!K) return;
+    const mat = new K.SpriteMat({ map: flakeTexture(), color: 0xffffff, transparent: true, depthWrite: false, opacity: 0.9 });
+    gfx.flakes = [];
+    for (let i = 0; i < 28; i++) {
+      const s = new K.Sprite(mat);
+      s.position.set((Math.random() - 0.5) * 40, 2 + Math.random() * 12, (Math.random() - 0.5) * 40);
+      s.scale.setScalar(0.28 + (i % 4) * 0.08);
+      s.name = "v50-flake";
+      s.userData.base = s.position.clone();
+      CA.scene.add(s);
+      gfx.flakes.push(s);
+    }
+  }
+  function fadePalms() {
+    const cam = CA.camera;
+    const cap = CA.captain;
+    if (!cam || !cap) return;
+    const cx = cam.position.x, cy = cam.position.y, cz = cam.position.z;
+    const tx = cap.position.x, tz = cap.position.z;
+    const vx = tx - cx, vz = tz - cz;
+    const len2 = vx * vx + vz * vz || 1;
+    CA.scene.traverse((o) => {
+      const green = o.material && o.material.color && o.material.color.g > o.material.color.r + 0.15 && o.material.color.g > 0.35;
+      if (o.name !== "leaf" && o.name !== "v50-frond" && !green) return;
+      if (o.material && !o.userData.v50mat) {
+        o.material = o.material.clone();
+        o.userData.v50mat = 1;
+      }
+      const w = worldOf(o);
+      const e = o.matrixWorld.elements;
+      if (o.geometry && !o.geometry.boundingSphere && o.geometry.computeBoundingSphere) o.geometry.computeBoundingSphere();
+      const basis = Math.hypot(e[0], e[1], e[2]) || 1;
+      const rad = ((o.geometry && o.geometry.boundingSphere && o.geometry.boundingSphere.radius) || 1) * basis;
+      const dc = Math.hypot(w.x - cx, w.y - cy, w.z - cz);
+      const t = ((w.x - cx) * vx + (w.z - cz) * vz) / len2;
+      const px = cx + vx * Math.max(0, Math.min(1, t));
+      const pz = cz + vz * Math.max(0, Math.min(1, t));
+      const off = Math.hypot(w.x - px, w.z - pz);
+      const block = rad > 1.2 && rad < 14 && (dc < rad * 0.92 || (t > 0.02 && t < 0.98 && off < rad * 0.55 && dc < 24));
+      if (o.material) {
+        o.material.transparent = true;
+        o.material.opacity = block ? 0.05 : 1;
+        o.material.depthWrite = !block;
+      }
+    });
+  }
+  function tuckLabels() {
+    const cam = CA.camera;
+    if (!cam || !cam.projectionMatrix) return;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    if (!gfx._proj) gfx._proj = new (cam.position.constructor)();
+    const tmp = gfx._proj;
+    CA.scene.traverse((o) => {
+      if (!o.isSprite) return;
+      if (o.name === "v50-smoke" || o.name === "v50-flame" || o.name === "v50-beam") return;
+      o.getWorldPosition(tmp);
+      tmp.project(cam);
+      if (tmp.z < -1 || tmp.z > 1) return;
+      const sx = (tmp.x * 0.5 + 0.5) * W;
+      const sy = (-tmp.y * 0.5 + 0.5) * H;
+      const hit = sy < 220 || (sx > W - 110 && sy < H * 0.78);
+      if (o.userData.v50labelVis == null) o.userData.v50labelVis = true;
+      o.visible = hit ? false : o.userData.v50labelVis !== false;
+    });
   }
   function dress() {
     const K = kit();
@@ -1749,21 +1875,30 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     const foamMat = new K.Basic({ color: 0xf7fbff, transparent: true, opacity: 0.38, depthWrite: false });
     function foam(cx, cz, radius) {
       if (!(radius > 2)) return;
-      const bits = 4;
-      for (let i = 0; i < bits; i++) {
-        const a = (i / bits) * Math.PI * 2 + ((cx * 0.13 + cz * 0.07) % 1) * 1.4;
-        const gap = 0.55 + (i % 3) * 0.18;
-        const mid = a + gap * 0.5;
-        const r = radius * (0.96 + (i % 2) * 0.05);
-        const len = Math.min(1.15, Math.max(0.45, radius * gap * 0.28));
-        const bit = new K.Mesh(new K.Box(len, 0.045, 0.16 + (i % 2) * 0.06), foamMat);
-        bit.position.set(cx + Math.cos(mid) * r, waterY + 0.07, cz + Math.sin(mid) * r);
-        bit.rotation.y = -mid + Math.PI / 2;
-        bit.name = "v50-foam";
-        root.add(bit);
-        gfx.foam.push(bit);
+      const blobs = 6;
+      for (let i = 0; i < blobs; i++) {
+        const a = (i / blobs) * Math.PI * 2 + i * 0.41 + (cx + cz) * 0.01;
+        const cluster = 2 + (i % 2);
+        for (let k = 0; k < cluster; k++) {
+          const aa = a + (k - 1) * 0.11;
+          const rr = radius * (0.9 + ((i * 3 + k) % 5) * 0.045) + (k - 1) * 0.45;
+          const s = 0.18 + ((i + k) % 4) * 0.07;
+          const blob = new K.Mesh(new K.Sphere(s, 6, 4), foamMat);
+          blob.scale.set(1.35, 0.22, 0.85);
+          blob.position.set(cx + Math.cos(aa) * rr, waterY + 0.05, cz + Math.sin(aa) * rr);
+          blob.rotation.y = aa * 1.7;
+          blob.name = "v50-foam";
+          root.add(blob);
+          gfx.foam.push(blob);
+        }
       }
     }
+    const band = new K.Mesh(new K.Plane(26, 4.5), new K.Basic({ color: 0xffffff, transparent: true, opacity: 0.34, depthWrite: false }));
+    band.rotation.x = -Math.PI / 2;
+    band.position.set(36, waterY + 0.14, 18);
+    band.name = "v50-swell";
+    root.add(band);
+    gfx.swell = band;
     foam(0, 0, 24.15);
     [[0, -62.5], [44.2, -44.2], [62.5, 0], [44.2, 44.2], [0, 62.5], [-44.2, 44.2], [-62.5, 0], [-44.2, -44.2]].forEach(([x, z]) => foam(x, z, 17.7));
     (CA.isl && CA.isl.L || []).forEach((isle) => foam(isle.cx, isle.cz, (isle.R || 18) + 0.45));
@@ -1945,7 +2080,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       frame.name = "v50-door";
       const wood = new K.Lambert({ color: 0x6a3e22 });
       const iron = new K.Lambert({ color: 0x2a241e });
-      [[0, 2.15, 1.15, 3.5, 0.4, 0.32], [-1.6, 0.45, 1.15, 0.36, 3.8, 0.32], [1.6, 0.45, 1.15, 0.36, 3.8, 0.32]].forEach(([x, y, z, w, h, d]) => {
+        [[0, 2.15, 0.2, 3.2, 0.28, 0.22], [-1.35, 0.55, 0.2, 0.22, 3.4, 0.22], [1.35, 0.55, 0.2, 0.22, 3.4, 0.22]].forEach(([x, y, z, w, h, d]) => {
         const bar = new K.Mesh(new K.Box(w, h, d), wood);
         bar.position.set(x, y, z);
         frame.add(bar);

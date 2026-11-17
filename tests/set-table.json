@@ -1,0 +1,138 @@
+[
+  {
+    "set": "powerboat questions",
+    "oldCount": 14,
+    "newCount": 12,
+    "oldReward": 140,
+    "newReward": 120,
+    "note": "first-try coins at 10 each; streak +5 every 3 correct is unchanged"
+  },
+  {
+    "set": "sailboat questions",
+    "oldCount": 8,
+    "newCount": 7,
+    "oldReward": 80,
+    "newReward": 70,
+    "note": "first-try coins at 10 each; streak +5 every 3 correct is unchanged"
+  },
+  {
+    "set": "sailboat / sail-story",
+    "oldCount": 6,
+    "newCount": 5,
+    "oldReward": 60,
+    "newReward": 50,
+    "note": "first-try coins at 10 each; streak +5 every 3 correct is unchanged"
+  },
+  {
+    "set": "volcano questions",
+    "oldCount": 8,
+    "newCount": 7,
+    "oldReward": 80,
+    "newReward": 70,
+    "note": "first-try coins at 10 each; streak +5 every 3 correct is unchanged"
+  },
+  {
+    "set": "volcano / volcano-story",
+    "oldCount": 6,
+    "newCount": 5,
+    "oldReward": 60,
+    "newReward": 50,
+    "note": "first-try coins at 10 each; streak +5 every 3 correct is unchanged"
+  },
+  {
+    "set": "minefield questions",
+    "oldCount": 14,
+    "newCount": 12,
+    "oldReward": 140,
+    "newReward": 120,
+    "note": "first-try coins at 10 each; streak +5 every 3 correct is unchanged"
+  },
+  {
+    "set": "laser questions",
+    "oldCount": 7,
+    "newCount": 6,
+    "oldReward": 70,
+    "newReward": 60,
+    "note": "first-try coins at 10 each; streak +5 every 3 correct is unchanged"
+  },
+  {
+    "set": "laser / laser-story",
+    "oldCount": 6,
+    "newCount": 5,
+    "oldReward": 60,
+    "newReward": 50,
+    "note": "first-try coins at 10 each; streak +5 every 3 correct is unchanged"
+  },
+  {
+    "set": "football questions",
+    "oldCount": 13,
+    "newCount": 11,
+    "oldReward": 130,
+    "newReward": 110,
+    "note": "first-try coins at 10 each; streak +5 every 3 correct is unchanged"
+  },
+  {
+    "set": "baseball questions",
+    "oldCount": 7,
+    "newCount": 6,
+    "oldReward": 70,
+    "newReward": 60,
+    "note": "first-try coins at 10 each; streak +5 every 3 correct is unchanged"
+  },
+  {
+    "set": "baseball / baseball-story",
+    "oldCount": 6,
+    "newCount": 5,
+    "oldReward": 60,
+    "newReward": 50,
+    "note": "first-try coins at 10 each; streak +5 every 3 correct is unchanged"
+  },
+  {
+    "set": "tennis questions",
+    "oldCount": 13,
+    "newCount": 11,
+    "oldReward": 130,
+    "newReward": 110,
+    "note": "first-try coins at 10 each; streak +5 every 3 correct is unchanged"
+  },
+  {
+    "set": "Practice replay",
+    "oldCount": 5,
+    "newCount": 4,
+    "oldReward": 50,
+    "newReward": 40,
+    "note": "buildSet length times 10. With the unchanged streak bonus the perfect totals are 55 and 45."
+  },
+  {
+    "set": "Weak-spot coach",
+    "oldCount": 5,
+    "newCount": 4,
+    "oldReward": 12,
+    "newReward": 10,
+    "note": "perfect set N*2+2 finish. Day cap 30 cut to 24, which is 4/5."
+  },
+  {
+    "set": "Word navigator",
+    "oldCount": 6,
+    "newCount": 5,
+    "oldReward": 12,
+    "newReward": 10,
+    "note": "perfect set N*2. Day cap 24 cut to 20, which is 5/6."
+  },
+  {
+    "set": "Speed run",
+    "oldCount": 8,
+    "newCount": 7,
+    "oldReward": 8,
+    "newReward": 7,
+    "note": "1 coin each. Day cap 12 cut to 11, the nearest coin to 12*7/8."
+  },
+  {
+    "set": "Math gate (3 in a row)",
+    "oldCount": 3,
+    "newCount": 3,
+    "oldReward": 20,
+    "newReward": 20,
+    "note": "unchanged. Full tank stays 20, baseball and Tecmo stay 30, other games and fishing stay 10, boarding fuel problem unchanged."
+  }
+]

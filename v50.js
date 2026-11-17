@@ -1211,6 +1211,113 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     tex.needsUpdate = true;
     return tex;
   }
+  function lavaFlowTex(K) {
+    const c = document.createElement("canvas");
+    c.width = 64;
+    c.height = 256;
+    const g = c.getContext("2d");
+    for (let y = 0; y < 256; y++) {
+      for (let x = 0; x < 64; x++) {
+        const n = Math.sin(y * 0.11 + x * 0.05) * 0.45 + Math.sin(x * 0.4) * 0.25;
+        const edge = Math.min(x, 63 - x) / 16;
+        const hot = n > 0.15 && edge > 0.35;
+        g.fillStyle = hot ? "#ffe27a" : (n > -0.15 ? "#ff7a22" : "#d23a12");
+        if (edge < 0.45) g.fillStyle = "#9a2208";
+        g.fillRect(x, y, 1, 1);
+      }
+    }
+    const tex = new K.CanvasTex(c);
+    tex.wrapS = tex.wrapT = 1000;
+    tex.needsUpdate = true;
+    return tex;
+  }
+  function crustTex(K) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 256;
+    const g = c.getContext("2d");
+    g.fillStyle = "#3a2a24";
+    g.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 900; i++) {
+      const x = (i * 47) % 256;
+      const y = (i * 91) % 256;
+      g.fillStyle = i % 3 ? "#4a342c" : "#2a1c18";
+      g.fillRect(x, y, 3, 2);
+    }
+    function pool(x, y, rx, ry, rot) {
+      g.save();
+      g.translate(x, y);
+      g.rotate(rot);
+      g.fillStyle = "#1a100e";
+      g.beginPath();
+      g.ellipse(0, 0, rx + 8, ry + 7, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = "#ff6a1a";
+      g.beginPath();
+      g.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = "#ffd36a";
+      g.beginPath();
+      g.ellipse(-rx * 0.15, -ry * 0.1, rx * 0.45, ry * 0.4, 0, 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+    }
+    pool(70, 60, 22, 12, 0.4);
+    pool(170, 90, 16, 9, -0.3);
+    pool(120, 160, 28, 14, 0.2);
+    pool(48, 190, 14, 8, 0.6);
+    pool(200, 190, 18, 10, -0.5);
+    g.strokeStyle = "#ff8a2a";
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(40, 80);
+    g.quadraticCurveTo(110, 120, 180, 70);
+    g.stroke();
+    g.beginPath();
+    g.moveTo(30, 150);
+    g.quadraticCurveTo(90, 140, 150, 200);
+    g.stroke();
+    const tex = new K.CanvasTex(c);
+    tex.wrapS = tex.wrapT = 1000;
+    tex.needsUpdate = true;
+    return tex;
+  }
+  function lavaRibbon(K, coneAt, i, map) {
+    const steps = 26;
+    const positions = [];
+    const uvs = [];
+    const indices = [];
+    const base = 0.65 + (i - 1) * 0.58;
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      const y = coneAt.topY - 0.55 - t * (coneAt.topY - coneAt.baseY - 1.6);
+      const span = coneAt.topY - coneAt.baseY || 1;
+      const u = (y - coneAt.baseY) / span;
+      const surface = coneAt.rb + (coneAt.rt - coneAt.rb) * u;
+      const a = base + Math.sin(t * 5.4 + i * 1.8) * 0.2;
+      const width = 0.72 * (1 - t * 0.72);
+      const half = width / Math.max(1.4, surface);
+      const rad = surface + 0.32;
+      [-1, 1].forEach((side) => {
+        const aa = a + side * half;
+        positions.push(coneAt.x + Math.sin(aa) * rad, y + 0.06, coneAt.z + Math.cos(aa) * rad);
+        uvs.push(side < 0 ? 0 : 1, t * 2.4);
+      });
+      if (s < steps) {
+        const k = s * 2;
+        indices.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
+      }
+    }
+    const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
+    geo.setAttribute("uv", new K.Attr(new Float32Array(uvs), 2));
+    geo.setIndex(indices);
+    const mat = new K.Lambert({ color: 0xfff0b0, emissive: 0xff5a00, emissiveIntensity: 1.15, map });
+    mat.side = 2;
+    const mesh = new K.Mesh(geo, mat);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 2;
+    return mesh;
+  }
   function upgradeWorld(K) {
     if (!CA.scene || CA.scene.getObjectByName("v50-face")) return;
     const root = gfx && gfx.root;
@@ -1493,7 +1600,6 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
         const w = worldOf(o);
         if (w.y < 3 && Math.hypot(w.x, w.z + 81.25) < 22) o.visible = false;
       });
-      const hot = new K.Basic({ color: 0xff6a18 });
       let coneMesh = null;
       CA.scene.traverse((o) => {
         if (coneMesh || !o.isMesh || !o.geometry || o.geometry.type !== "CylinderGeometry" || !o.geometry.parameters) return;
@@ -1515,28 +1621,37 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
         rb: cp.radiusBottom * cs,
         rt: cp.radiusTop * cs
       };
+      const flowTex = lavaFlowTex(K);
+      gfx.flows = [];
       for (let i = 0; i < 3; i++) {
-        const base = 0.72 + (i - 1) * 0.42;
-        for (let s = 0; s < 9; s++) {
-          const t = s / 10;
-          const y = coneAt.topY - t * (coneAt.topY - coneAt.baseY);
-          const u = (y - coneAt.baseY) / (coneAt.topY - coneAt.baseY);
-          const surface = coneAt.rb + (coneAt.rt - coneAt.rb) * u;
-          const wob = Math.sin(t * 6.5 + i * 2.2) * 0.55;
-          const a = base + Math.sin(t * 4.2 + i) * 0.45;
-          const rad = surface + 0.16 + (1 - t) * 0.12;
-          const drop = new K.Mesh(new K.Sphere(0.46 - t * 0.24, 8, 6), hot);
-          drop.position.set(coneAt.x + Math.sin(a) * rad, y, coneAt.z + Math.cos(a) * rad);
-          drop.renderOrder = 2;
-          drop.name = "v50-lava";
-          CA.scene.add(drop);
-        }
+        const ribbon = lavaRibbon(K, coneAt, i, flowTex);
+        ribbon.name = "v50-lava";
+        CA.scene.add(ribbon);
+        gfx.flows.push(ribbon);
       }
-      const rim = new K.Mesh(new K.Torus(coneAt.rt + 0.15, 0.22, 8, 28), hot);
+      const rimMat = new K.Lambert({ color: 0xffe7a0, emissive: 0xff6a00, emissiveIntensity: 1.35 });
+      const rim = new K.Mesh(new K.Torus(coneAt.rt * 0.92, 0.1, 8, 32), rimMat);
       rim.rotation.x = Math.PI / 2;
-      rim.position.set(coneAt.x, coneAt.topY + 0.05, coneAt.z);
+      rim.position.set(coneAt.x, coneAt.topY - 0.15, coneAt.z);
       rim.name = "v50-lava";
       CA.scene.add(rim);
+      CA.scene.traverse((o) => {
+        if (!o.isMesh || !o.geometry || o.geometry.type !== "ConeGeometry" || o.name === "v50-lava") return;
+        const w = worldOf(o);
+        if (w.y > 8 && Math.hypot(w.x - coneAt.x, w.z - coneAt.z) < 8) o.visible = false;
+      });
+      CA.scene.traverse((o) => {
+        if (!o.isMesh || !o.geometry || o.geometry.type !== "PlaneGeometry" || o.userData.v50crust) return;
+        const w = worldOf(o);
+        if (w.y > 1.2 || Math.hypot(w.x, w.z + 62.5) > 22) return;
+        const bb = o.geometry.boundingBox || (o.geometry.computeBoundingBox(), o.geometry.boundingBox);
+        if (Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z) < 8) return;
+        const next = o.material.clone();
+        next.map = crustTex(K);
+        next.color.set("#ffffff");
+        o.material = next;
+        o.userData.v50crust = 1;
+      });
       CA.scene.traverse((o) => {
         if (!o.isMesh || !o.material || !o.material.color) return;
         if (o.material.color.getHexString() !== "d9d4d0") return;
@@ -1756,6 +1871,9 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       gfx.lava.material.map.offset.x = (t * 0.08) % 1;
       gfx.lava.material.map.offset.y = (t * 0.03) % 1;
     }
+    if (gfx.flows) gfx.flows.forEach((ribbon) => {
+      if (ribbon.material && ribbon.material.map) ribbon.material.map.offset.y = (t * 0.35) % 1;
+    });
     if (gfx.smoke) gfx.smoke.forEach((s, i) => {
       const phase = ((s.userData.v50puff || 0) + t * 0.12) % 1;
       s.position.y = 15.5 + phase * 12;
@@ -1785,9 +1903,10 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       const z = obj.position.z;
       const r = Math.hypot(x, z);
       const k = Math.max(0, Math.min(1, (r - 55) / 180));
-      const swell = Math.sin(x * 0.012 + z * 0.009 + t * 0.35) * 0.85 * Math.max(k, Math.hypot(x, z) > 18 ? 0.55 : 0);
-      if (obj.userData.v50baseY == null) obj.userData.v50baseY = obj.position.y;
-      obj.position.y = obj.userData.v50baseY + swell;
+      const swell = Math.sin(x * 0.012 + z * 0.009 + t * 0.35) * 0.22 * Math.max(k, Math.hypot(x, z) > 18 ? 0.85 : 0.4);
+      if (obj.userData.v50keel == null) obj.userData.v50keel = keelDrop(obj);
+      const waterY = typeof CA.waterY === "number" ? CA.waterY : -0.55;
+      obj.position.y = waterY - 0.1 - obj.userData.v50keel + swell;
     });
     const preview = document.querySelector("#shop-preview canvas");
     const shop = document.getElementById("shop");
@@ -1892,22 +2011,71 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       }
     });
   }
+  function keelDrop(obj) {
+    let min = 99;
+    obj.updateWorldMatrix(true, true);
+    const base = obj.position.y;
+    obj.traverse((o) => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      o.updateWorldMatrix(true, false);
+      const e = o.matrixWorld.elements;
+      const pos = o.geometry.attributes.position;
+      const step = Math.max(1, Math.floor(pos.count / 30));
+      for (let i = 0; i < pos.count; i += step) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const z = pos.getZ(i);
+        const wy = e[1] * x + e[5] * y + e[9] * z + e[13];
+        if (wy < min) min = wy;
+      }
+    });
+    return min - base;
+  }
+  function hudRects() {
+    const rects = [];
+    ["hud", "hint", "gear", "zoom", "touch-toggle", "act", "badges"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el || el.classList.contains("hidden")) return;
+      const r = el.getBoundingClientRect();
+      if (r.width > 4 && r.height > 4) rects.push(r);
+    });
+    document.querySelectorAll(".rbtn").forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 4 && r.height > 4) rects.push(r);
+    });
+    return rects;
+  }
   function tuckLabels() {
     const cam = CA.camera;
     if (!cam || !cam.projectionMatrix) return;
     const W = window.innerWidth;
     const H = window.innerHeight;
+    const fov = (cam.fov || 55) * Math.PI / 180;
+    const rects = hudRects();
     if (!gfx._proj) gfx._proj = new (cam.position.constructor)();
     const tmp = gfx._proj;
     CA.scene.traverse((o) => {
-      if (!o.isSprite) return;
-      if (o.name === "v50-smoke" || o.name === "v50-flame" || o.name === "v50-beam") return;
+      if (!o.isSprite || o.scale.x < 1.4) return;
+      if (o.name === "v50-smoke" || o.name === "v50-flame" || o.name === "v50-beam" || o.name === "v50-flake") return;
       o.getWorldPosition(tmp);
+      const dist = Math.max(0.4, Math.hypot(tmp.x - cam.position.x, tmp.y - cam.position.y, tmp.z - cam.position.z));
       tmp.project(cam);
       if (tmp.z < -1 || tmp.z > 1) return;
       const sx = (tmp.x * 0.5 + 0.5) * W;
       const sy = (-tmp.y * 0.5 + 0.5) * H;
-      const hit = sy < 220 || (sx > W - 110 && sy < H * 0.78);
+      const worldH = 2 * Math.tan(fov / 2) * dist;
+      const px = H / worldH;
+      const hw = o.scale.x * px * 0.5;
+      const hh = o.scale.y * px * 0.5;
+      const left = sx - hw;
+      const right = sx + hw;
+      const top = sy - hh;
+      const bot = sy + hh;
+      let hit = false;
+      for (let i = 0; i < rects.length; i++) {
+        const r = rects[i];
+        if (right > r.left - 8 && left < r.right + 8 && bot > r.top - 8 && top < r.bottom + 8) { hit = true; break; }
+      }
       if (o.userData.v50labelVis == null) o.userData.v50labelVis = true;
       o.visible = hit ? false : o.userData.v50labelVis !== false;
     });

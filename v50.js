@@ -293,9 +293,9 @@
 #learn-layer.show{display:flex}
 #learn-card{width:min(760px,100%);max-height:calc(100vh - 28px);overflow:auto;background:linear-gradient(#fffdf6,#f3f7ff);border:6px solid #ffc83d;border-radius:22px;padding:12px 14px 16px;color:#10234d;box-shadow:0 18px 40px rgba(7,20,48,.35),0 8px 0 rgba(20,40,80,.18)}
 .learn-foot{position:sticky;bottom:0;background:#fffdf6;padding-top:8px;display:flex;flex-wrap:wrap;gap:8px}
-.plan-rect{position:relative;width:180px;height:96px;margin:8px auto;border:4px solid #14336b;border-radius:6px}
-.plan-rect .plan-w{position:absolute;left:-8px;top:36px;background:#fff}
-.plan-rect .plan-l{position:absolute;left:48px;bottom:-8px;background:#fff}
+.plan-rect{position:relative;width:180px;height:96px;margin:8px auto 28px;border:4px solid #14336b;border-radius:6px}
+.plan-rect .plan-w{position:absolute;left:-8px;top:36px;background:#fff;padding:0 3px}
+.plan-rect .plan-l{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:6px;background:#fff;padding:0 4px;white-space:nowrap}
 #learn-card header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 #learn-card h2{margin:0;font-size:24px;display:flex;align-items:center;gap:8px}
 .learn-ico{width:36px;height:36px;border-radius:12px;background:linear-gradient(#fff,#d7e6ff);border:2px solid #ffc83d;display:inline-flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 0 rgba(20,40,80,.18)}
@@ -342,9 +342,11 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
   #learn-card{max-height:calc(100vh - 16px);padding:8px 10px 10px}
   #learn-card button{min-height:40px;padding:6px 8px}
   .learn-choices{grid-template-columns:1fr 1fr}
+  .learn-choices.stack{grid-template-columns:1fr}
+  .learn-choices.stack button{min-height:36px;font-size:15px;padding:6px 8px}
   .learn-prompt{font-size:17px;margin:4px 0}
   .learn-visual{min-height:0;margin:4px 0;padding:4px}
-  .plan-rect{width:140px;height:62px}
+  .plan-rect{width:160px;height:70px;margin-bottom:26px}
   .learn-story{max-height:22vh}
   #winter-banner{bottom:150px;font-size:13px;max-width:calc(100vw - 24px)}
 }
@@ -391,6 +393,10 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
   function choiceButtons(q, attr) {
     const perm = orderOf(q);
     return perm.map((src) => `<button data-${attr}="${src}"><b>${"ABCD"[perm.indexOf(src)]}</b>${esc(q.choices[src])}</button>`).join("");
+  }
+  function choicesBox(q, attr) {
+    const long = (q.choices || []).some((c) => String(c).length > 46);
+    return `<div class="learn-choices${long ? " stack" : ""}">${choiceButtons(q, attr)}</div>`;
   }
   function visualHtml(kind, n, progress, q) {
     if (kind === "read" || (q && q.visual === "read")) return "";
@@ -722,7 +728,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     if (mode === "tutor" && tutor) {
       if (tutor.phase === "practice") {
         const q = tutor.practice;
-        return `<header><h2><span class="learn-ico">✎</span>Try one like it</h2><button class="ghost" id="learn-exit">Exit</button></header><p>${esc(SKILL_NAME[tutor.skill] || tutor.skill)}. This practice does not change your coins.</p><p class="learn-prompt">${esc(q.prompt)}</p>${qVisual(q)}<div class="learn-choices">${choiceButtons(q, "tutor")}</div>${pause}`;
+        return `<header><h2><span class="learn-ico">✎</span>Try one like it</h2><button class="ghost" id="learn-exit">Exit</button></header><p>${esc(SKILL_NAME[tutor.skill] || tutor.skill)}. This practice does not change your coins.</p><p class="learn-prompt">${esc(q.prompt)}</p>${qVisual(q)}${choicesBox(q, "tutor")}${pause}`;
       }
       const step = tutor.steps[tutor.step];
       const visual = step.visual === "read"
@@ -759,7 +765,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       const reread = session.passage ? `<button id="learn-reread" class="ghost">${session.showRead ? "Hide the passage" : "Reread"}</button>` : "";
       const hint = q && q._hint ? `<div class="learn-hint"><b>Hint:</b> ${esc(q._hint)}</div>` : "";
       const hintBtn = mode === "gate" && q && !q._hint ? `<button id="learn-hint" class="ghost">Hint</button>` : "";
-      const body = q ? `${passage}<p class="learn-prompt">${esc(q.prompt)}</p>${qVisual(q)}<div class="learn-choices">${choiceButtons(q, "choice")}</div><div class="learn-foot">${hint}${hintBtn}${reread}</div>` : "<p>Done for now.</p>";
+      const body = q ? `${passage}<p class="learn-prompt">${esc(q.prompt)}</p>${qVisual(q)}${choicesBox(q, "choice")}<div class="learn-foot">${hint}${hintBtn}${reread}</div>` : "<p>Done for now.</p>";
       return `<header><h2><span class="learn-ico">${icon}</span>${esc(title)}</h2><button class="ghost" id="learn-exit">Exit</button></header><p>${step}</p>${price}${body}${pause}`;
     }
     return "";
@@ -874,6 +880,54 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     return month === 12 || (month === 1 && date <= 6);
   }
   function kit() { return CA.gfxKit; }
+  let skyBase = null;
+  function skyMaterial() {
+    let found = null;
+    if (!CA.scene) return null;
+    CA.scene.traverse((o) => {
+      if (!found && o.isMesh && o.material && o.material.uniforms && o.material.uniforms.uTop) found = o.material;
+    });
+    return found;
+  }
+  function applySky() {
+    const mat = skyMaterial();
+    if (!mat || !mat.uniforms.uTop) return;
+    if (!skyBase) {
+      skyBase = {
+        top: mat.uniforms.uTop.value.clone(),
+        mid: mat.uniforms.uMid.value.clone(),
+        hor: mat.uniforms.uHor.value.clone(),
+        fog: CA.scene.fog && CA.scene.fog.color ? CA.scene.fog.color.clone() : null
+      };
+    }
+    const win = winterOn();
+    mat.uniforms.uTop.value.copy(skyBase.top);
+    mat.uniforms.uMid.value.copy(skyBase.mid);
+    mat.uniforms.uHor.value.copy(skyBase.hor);
+    if (win) {
+      mat.uniforms.uTop.value.set("#8ea4b8");
+      mat.uniforms.uMid.value.set("#c5d4e0");
+      mat.uniforms.uHor.value.set("#e7eef3");
+    }
+    if (CA.scene.fog && CA.scene.fog.color) {
+      if (win) CA.scene.fog.color.set("#e4eef4");
+      else if (skyBase.fog) CA.scene.fog.color.copy(skyBase.fog);
+    }
+  }
+  function flakeTexture() {
+    const dot = document.createElement("canvas");
+    dot.width = dot.height = 64;
+    const g = dot.getContext("2d");
+    const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grd.addColorStop(0, "rgba(255,255,255,0.95)");
+    grd.addColorStop(0.28, "rgba(255,255,255,0.35)");
+    grd.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 64, 64);
+    const tex = new (kit().CanvasTex)(dot);
+    tex.needsUpdate = true;
+    return tex;
+  }
   function clearNamed(prefix) {
     if (!CA.scene) return;
     const gone = [];
@@ -884,45 +938,37 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     const ban = document.getElementById("winter-banner");
     if (ban) ban.classList.toggle("show", winterOn());
     ["v50-snow", "v50-cap", "v50-frost", "v50-wreath", "v50-roof", "v50-flake"].forEach((name) => { if (!winterOn()) clearNamed(name); });
+    applySky();
     if (!winterOn() || !kit() || !CA.scene) return;
     if (CA.scene.getObjectByName("v50-snow")) return;
     const K = kit();
-    const count = 280;
+    const count = 1600;
     const pos = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 56;
-      pos[i * 3 + 1] = 7 + Math.random() * 16;
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 56;
+      pos[i * 3] = (Math.random() - 0.5) * 90;
+      pos[i * 3 + 1] = 3 + Math.random() * 28;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 90;
     }
     const geo = new K.Geo();
     geo.setAttribute("position", new K.Attr(pos, 3));
-    const dot = document.createElement("canvas");
-    dot.width = dot.height = 64;
-    const g = dot.getContext("2d");
-    const grd = g.createRadialGradient(32, 32, 4, 32, 32, 30);
-    grd.addColorStop(0, "rgba(255,255,255,1)");
-    grd.addColorStop(0.45, "rgba(255,255,255,0.95)");
-    grd.addColorStop(1, "rgba(255,255,255,0)");
-    g.fillStyle = grd;
-    g.beginPath();
-    g.arc(32, 32, 30, 0, Math.PI * 2);
-    g.fill();
-    const tex = new K.CanvasTex(dot);
-    const mat = new K.PointsMat({ color: 0xffffff, size: 1.15, map: tex, transparent: true, depthWrite: false, sizeAttenuation: true });
+    const tex = flakeTexture();
+    const mat = new K.PointsMat({ color: 0xffffff, size: 0.42, map: tex, transparent: true, depthWrite: false, sizeAttenuation: true, opacity: 0.9 });
     const pts = new K.Points(geo, mat);
     pts.name = "v50-snow";
     pts.frustumCulled = false;
     CA.scene.add(pts);
-    const flakeMat = new K.Basic({ color: 0xffffff, transparent: true, opacity: 0.92, depthWrite: false });
-    for (let i = 0; i < 22; i++) {
-      const flake = new K.Mesh(new K.Sphere(0.09, 8, 6), flakeMat);
+    const spriteMat = new K.SpriteMat({ map: tex, color: 0xffffff, transparent: true, depthWrite: false, opacity: 0.8 });
+    for (let i = 0; i < 16; i++) {
+      const flake = new K.Sprite(spriteMat);
       const ang = Math.random() * Math.PI * 2;
-      const rad = 4 + Math.random() * 18;
-      flake.position.set(Math.cos(ang) * rad, 8 + Math.random() * 10, Math.sin(ang) * rad);
+      const rad = 6 + Math.random() * 28;
+      flake.position.set(Math.cos(ang) * rad, 6 + Math.random() * 16, Math.sin(ang) * rad);
+      flake.scale.setScalar(0.16 + (i % 4) * 0.05);
       flake.name = "v50-flake";
       CA.scene.add(flake);
     }
     dressWinterSet();
+    applySky();
   }
   function dressWinterSet() {
     const K = kit();
@@ -937,7 +983,6 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     }
     frost(0, 0, 20.4, 23.55);
     [[0, -62.5], [44.2, -44.2], [62.5, 0], [44.2, 44.2], [0, 62.5], [-44.2, 44.2], [-62.5, 0], [-44.2, -44.2]].forEach(([x, z]) => frost(x, z, 14.4, 17.25));
-    let roofs = 0;
     let wreaths = 0;
     CA.scene.traverse((o) => {
       if (!o.isMesh || !o.material || !o.material.color || !o.geometry) return;
@@ -957,23 +1002,6 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       const sz = Math.abs((bb.max.z - bb.min.z) * ws.z);
       const col = o.material.color;
       const nearHome = Math.hypot(wp.x, wp.z) < 80;
-      const blueRoof = nearHome && col.b > col.r + 0.12 && col.b > 0.3 && sy < 0.8 && Math.max(sx, sz) > 1.8 && wp.y > 1.6;
-      const dome = o.name === "lair-shell";
-      if ((blueRoof || dome) && roofs < 6) {
-        const cap = new K.Mesh(new K.Box(Math.max(0.8, Math.min(sx, 5.5) * 0.7), 0.16, Math.max(0.8, Math.min(sz, 5.5) * 0.7)), new K.Lambert({ color: 0xf7fbff }));
-        cap.position.set(wp.x, wp.y + Math.max(sy, 0.4) * 0.42, wp.z);
-        cap.name = "v50-roof";
-        CA.scene.add(cap);
-        roofs += 1;
-      }
-      const gallery = nearHome && sy > 3.5 && sy < 14 && sx < 2.8 && sz < 2.8 && col.r > 0.45;
-      if (gallery && roofs < 12) {
-        const cap = new K.Mesh(new K.Cyl(Math.max(sx, sz) * 0.7, Math.max(sx, sz) * 0.7, 0.18, 10), new K.Lambert({ color: 0xf7fbff }));
-        cap.position.set(wp.x, wp.y + sy * 0.48, wp.z);
-        cap.name = "v50-roof";
-        CA.scene.add(cap);
-        roofs += 1;
-      }
       const post = nearHome && col.r > 0.28 && col.r > col.b && sy > 0.55 && sy < 2.4 && sx < 0.4 && sz < 0.4;
       if (post && wreaths < 4) {
         const wreath = new K.Mesh(new K.Torus(0.28, 0.07, 6, 14), new K.Lambert({ color: 0x2e8b46 }));
@@ -987,18 +1015,16 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       }
     });
     const snowMat = new K.Lambert({ color: 0xf7fbff });
-    function snowBox(x, y, z, w, h, d) {
-      const cap = new K.Mesh(new K.Box(w, h, d), snowMat);
+    function snowMound(x, y, z, sx, sy, sz) {
+      const cap = new K.Mesh(new K.Sphere(1, 18, 12), snowMat);
+      cap.scale.set(sx, sy, sz);
       cap.position.set(x, y, z);
       cap.name = "v50-roof";
       CA.scene.add(cap);
     }
-    snowBox(-10.9, 4.28, -10.2, 6.6, 0.28, 4.8);
-    snowBox(0, 4.55, -2, 3.7, 0.26, 4.8);
-    const lampCap = new K.Mesh(new K.Cyl(1.25, 1.35, 0.28, 12), snowMat);
-    lampCap.position.set(10.9, 10.45, -10.2);
-    lampCap.name = "v50-roof";
-    CA.scene.add(lampCap);
+    snowMound(-10.9, 4.55, -10.2, 3.5, 0.85, 2.6);
+    snowMound(0, 5.05, -2, 2.05, 0.8, 2.35);
+    snowMound(10.9, 10.85, -10.2, 1.35, 0.7, 1.35);
     const shell = CA.scene.getObjectByName("lair-shell");
     if (shell) {
       shell.updateWorldMatrix(true, false);
@@ -1030,10 +1056,10 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     CA.scene.add(root);
     gfx = { root, wakes: [], foam: [] };
     const waterY = typeof CA.waterY === "number" ? CA.waterY : -0.55;
-    const foamMat = new K.Lambert({ color: 0xffffff, transparent: true, opacity: 0.9 });
+    const foamMat = new K.Basic({ color: 0xf7fbff, transparent: true, opacity: 0.38, depthWrite: false });
     function foam(cx, cz, radius) {
       if (!(radius > 2)) return;
-      const ring = new K.Mesh(new K.Torus(radius, 0.34, 5, 22), foamMat);
+      const ring = new K.Mesh(new K.Torus(radius, 0.1, 8, 96), foamMat);
       ring.rotation.x = Math.PI / 2;
       ring.position.set(cx, waterY + 0.2, cz);
       ring.name = "v50-foam";
@@ -1110,20 +1136,9 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       tuft.name = "v50-grass";
       root.add(tuft);
     }
-    const skyCanvas = document.createElement("canvas");
-    skyCanvas.width = 8; skyCanvas.height = 256;
-    const sg = skyCanvas.getContext("2d");
-    const skyGrad = sg.createLinearGradient(0, 0, 0, 256);
-    skyGrad.addColorStop(0, "#8ec8ff");
-    skyGrad.addColorStop(0.55, "#d7ecff");
-    skyGrad.addColorStop(1, "#ffe7c4");
-    sg.fillStyle = skyGrad;
-    sg.fillRect(0, 0, 8, 256);
-    const skyTex = new K.CanvasTex(skyCanvas);
-    const sky = new K.Mesh(new K.Sphere(480, 20, 16), new K.Basic({ map: skyTex, side: 1, depthWrite: false }));
-    sky.name = "v50-sky";
-    sky.frustumCulled = false;
-    root.add(sky);
+    softenWater(K);
+    const ao = CA.scene.getObjectByName("v35-contact-ao");
+    if (ao) ao.visible = false;
     const woodCanvas = document.createElement("canvas");
     woodCanvas.width = 64; woodCanvas.height = 64;
     const wg = woodCanvas.getContext("2d");
@@ -1196,14 +1211,9 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     }
     CA.scene.traverse((o) => {
       if (!o.isLight) return;
-      if (o.isDirectionalLight && o.intensity) {
-        o.color && o.color.set("#ffd2a4");
-        if (o.intensity < 1.7) o.intensity = 1.75;
-        if (o.shadow) o.shadow.radius = 2.4;
-      }
-      if (o.isHemisphereLight) { o.color && o.color.set("#fff0dc"); o.groundColor && o.groundColor.set("#d7c09a"); }
+      if (o.isDirectionalLight && o.shadow) o.shadow.radius = 2.4;
     });
-    if (CA.scene.fog && CA.scene.fog.color) CA.scene.fog.color.set("#f3e4cc");
+    applySky();
     const poolWater = CA.scene.getObjectByName("lair-water");
     if (poolWater && poolWater.parent && !poolWater.parent.getObjectByName("v50-pool-rim")) {
       const rim = new K.Mesh(new K.Torus(1, 0.055, 8, 36), new K.Lambert({ color: 0xd5ece6 }));
@@ -1262,46 +1272,94 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
         root.add(post);
       });
     }
-    const wakeGeo = new K.Plane(2.4, 0.85);
-    wakeGeo.rotateX(-Math.PI / 2);
+    const wakeTex = wakeTexture(K);
     ["motorboat", "yacht", "sailboat"].forEach((id) => {
       const veh = CA.VEH && CA.VEH[id];
-      if (!veh || !veh.obj) return;
-      for (let i = 0; i < 7; i++) {
-        const m = new K.Mesh(wakeGeo, new K.Basic({ color: 0xffffff, transparent: true, opacity: 0.55 - i * 0.07, depthWrite: false }));
-        m.name = "v50-wake";
-        m.renderOrder = 2;
-        root.add(m);
-        gfx.wakes.push({ mesh: m, id, i });
-      }
+      if (!veh) return;
+      const m = new K.Mesh(new K.Plane(3.6, 7.2), new K.Basic({ map: wakeTex, transparent: true, depthWrite: false, color: 0xffffff }));
+      m.rotation.x = -Math.PI / 2;
+      m.name = "v50-wake";
+      m.visible = false;
+      m.renderOrder = 2;
+      root.add(m);
+      gfx.wakes.push({ mesh: m, id });
     });
-    let kayak = null;
-    let kayakDist = 1e9;
-    CA.scene.traverse((o) => {
-      if (!o.isMesh || !o.material || !o.material.color) return;
-      const col = o.material.color;
-      if (col.r < 0.7 || col.r < col.g + 0.45 || col.b > 0.25) return;
-      const p = new K.Vector3();
-      o.getWorldPosition(p);
-      const fromHome = Math.hypot(p.x, p.z);
-      const fromCam = Math.hypot(p.x - 42, p.z - 30);
-      if (fromHome < 18 || fromHome > 36 || p.y < 0.2 || p.y > 1.1) return;
-      if (fromCam < kayakDist) { kayakDist = fromCam; kayak = p.clone(); }
-    });
-    if (kayak) {
-      const out = Math.hypot(kayak.x, kayak.z) || 1;
-      const ox = kayak.x / out;
-      const oz = kayak.z / out;
-      for (let i = 0; i < 6; i++) {
-        const m = new K.Mesh(wakeGeo, new K.Basic({ color: 0xffffff, transparent: true, opacity: 0.78 - i * 0.1, depthWrite: false }));
-        const dist = 1.1 + i * 1.15;
-        m.position.set(kayak.x + ox * dist, waterY + 0.28, kayak.z + oz * dist);
-        m.rotation.y = Math.atan2(ox, oz);
-        m.scale.set(1.35, 1, 1);
-        m.name = "v50-wake";
-        root.add(m);
+  }
+  function wakeTexture(K) {
+    const c = document.createElement("canvas");
+    c.width = 128;
+    c.height = 256;
+    const g = c.getContext("2d");
+    g.clearRect(0, 0, 128, 256);
+    g.lineCap = "round";
+    g.strokeStyle = "rgba(255,255,255,0.85)";
+    g.lineWidth = 14;
+    g.beginPath();
+    g.moveTo(64, 8);
+    g.quadraticCurveTo(46, 90, 16, 236);
+    g.stroke();
+    g.beginPath();
+    g.moveTo(64, 8);
+    g.quadraticCurveTo(82, 90, 112, 236);
+    g.stroke();
+    g.globalCompositeOperation = "destination-in";
+    const fade = g.createLinearGradient(0, 0, 0, 256);
+    fade.addColorStop(0, "rgba(0,0,0,0.15)");
+    fade.addColorStop(0.18, "rgba(0,0,0,0.85)");
+    fade.addColorStop(0.62, "rgba(0,0,0,0.4)");
+    fade.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = fade;
+    g.fillRect(0, 0, 128, 256);
+    const tex = new K.CanvasTex(c);
+    tex.needsUpdate = true;
+    return tex;
+  }
+  function softenWater(K) {
+    const N = 512;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = N;
+    const g = canvas.getContext("2d");
+    const img = g.createImageData(N, N);
+    const height = (x, y) => {
+      const u = (x / N) * Math.PI * 2;
+      const v = (y / N) * Math.PI * 2;
+      return Math.sin(u * 2 + v) * 0.5 + Math.sin(u * 3 - v * 2 + 1.1) * 0.28 + Math.cos(u - v * 3 + 0.4) * 0.16;
+    };
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const hx = height(x + 1, y) - height(x - 1, y);
+        const hy = height(x, y + 1) - height(x, y - 1);
+        const nx = -hx * 0.28;
+        const ny = -hy * 0.28;
+        const nz = 1;
+        const len = Math.hypot(nx, ny, nz) || 1;
+        const i = (y * N + x) * 4;
+        img.data[i] = (nx / len * 0.5 + 0.5) * 255;
+        img.data[i + 1] = (ny / len * 0.5 + 0.5) * 255;
+        img.data[i + 2] = (nz / len * 0.5 + 0.5) * 255;
+        img.data[i + 3] = 255;
       }
     }
+    g.putImageData(img, 0, 0);
+    const tex = new K.CanvasTex(canvas);
+    tex.wrapS = tex.wrapT = 1000;
+    tex.repeat.set(42, 42);
+    tex.generateMipmaps = true;
+    tex.minFilter = 1008;
+    tex.magFilter = 1006;
+    tex.anisotropy = 8;
+    if (tex.colorSpace !== undefined) tex.colorSpace = "srgb-linear";
+    const maxA = CA.renderer && CA.renderer.capabilities && CA.renderer.capabilities.getMaxAnisotropy && CA.renderer.capabilities.getMaxAnisotropy();
+    if (maxA) tex.anisotropy = maxA;
+    tex.needsUpdate = true;
+    CA.scene.traverse((o) => {
+      if (!o.isMesh || !o.material || !o.material.normalMap) return;
+      const width = o.geometry && o.geometry.parameters && o.geometry.parameters.width;
+      if (!(width > 500)) return;
+      o.material.normalMap = tex;
+      if (o.material.normalScale) o.material.normalScale.set(0.16, 0.16);
+      o.material.needsUpdate = true;
+    });
   }
   function moveWakes() {
     if (!gfx || !CA.VEH) return;
@@ -1311,13 +1369,14 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       if (!veh || !veh.obj) return;
       const yaw = veh.yaw || veh.obj.rotation.y || 0;
       const fx = Math.sin(yaw), fz = Math.cos(yaw);
-      const dist = 1.4 + w.i * 0.85;
-      const away = Math.hypot(veh.obj.position.x, veh.obj.position.z);
-      w.mesh.visible = !!veh.obj.visible && away > 12;
-      w.mesh.position.set(veh.obj.position.x - fx * dist, waterY + 0.22, veh.obj.position.z - fz * dist);
-      w.mesh.rotation.y = -yaw;
-      const moving = Math.abs(veh.v || 0) > 0.2;
-      w.mesh.scale.set(moving ? 1.3 : 0.85, 1, moving ? 1 : 0.7);
+      const moving = !!veh.obj.visible && Math.abs(veh.v || 0) > 0.35;
+      w.mesh.visible = moving;
+      if (!moving) return;
+      const speed = Math.min(2.2, Math.abs(veh.v));
+      w.mesh.position.set(veh.obj.position.x - fx * (2.4 + speed), waterY + 0.16, veh.obj.position.z - fz * (2.4 + speed));
+      w.mesh.rotation.x = -Math.PI / 2;
+      w.mesh.rotation.z = Math.atan2(fx, fz);
+      w.mesh.scale.set(0.85 + speed * 0.2, 0.9 + speed * 0.35, 1);
     });
   }
   function fallSnow(step) {
@@ -1450,7 +1509,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
   document.addEventListener("keydown", onKey, true);
   ui();
   bag();
-  try { dress(); } catch (err) { gfx = gfx || { error: String(err && err.message || err) }; }
+  try { if (!/(?:\?|&)plain=1(?:&|$)/.test(location.search)) dress(); } catch (err) { gfx = gfx || { error: String(err && err.message || err) }; }
   try { drawWinter(); } catch (err) { /* winter can wait for a date override */ }
   requestAnimationFrame(loop);
 

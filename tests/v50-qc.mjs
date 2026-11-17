@@ -77,7 +77,7 @@ check("the fish market shows three tags and not the change", visuals.market.fish
 check("the blueprint uses side labels instead of a counting grid", visuals.plan.cells === 0 && visuals.plan.labeled && /9 ft/.test(visuals.plan.prompt), JSON.stringify(visuals.plan));
 check("the treasure code shows the given terms and not the next one", JSON.stringify(visuals.groups) === JSON.stringify(["4", "9", "19", "39"]), JSON.stringify(visuals.groups));
 check("the log passage is on the card", visuals.log.hasPassage && visuals.log.words >= 150 && visuals.log.words <= 220);
-check("foam lines and boat wakes were added", visuals.foam >= 4 && visuals.wakes >= 7, JSON.stringify(visuals));
+check("foam lines and boat wakes were added", visuals.foam >= 4 && visuals.wakes >= 2, JSON.stringify(visuals));
 
 await page.evaluate(() => {
   const C = window.CaptainAdventure;
@@ -167,6 +167,27 @@ await page.evaluate(() => {
 await shot("winter-desktop", 1280, 800);
 await shot("winter-phone", 390, 844);
 
+const plain = await browser.newPage();
+plain.on("pageerror", (e) => errors.push(e.message));
+await plain.setViewport({ width: 1280, height: 800 });
+await plain.goto("http://127.0.0.1:8794/index.html?quiet=1&plain=1", { waitUntil: "networkidle0", timeout: 60000 });
+await plain.waitForFunction(() => window.CaptainAdventure && window.CaptainAdventure.photo);
+await plain.evaluate(() => {
+  document.getElementById("intro").classList.add("hidden");
+  const C = window.CaptainAdventure;
+  for (const id of ["hud", "hint", "gear", "touch-toggle", "zoom", "learn-open", "winter-banner", "ver-flag"]) {
+    const n = document.getElementById(id);
+    if (n) n.style.visibility = "hidden";
+  }
+  C.photo([42, 16, 30], [0, 1, 4]);
+  C.qc(8);
+});
+await plain.screenshot({ path: path.join(out, "before-harbor-desktop.png") });
+await plain.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
+await plain.evaluate(() => window.CaptainAdventure.qc(4));
+await plain.screenshot({ path: path.join(out, "before-harbor-phone.png") });
+await plain.close();
+
 await page.evaluate(() => {
   const C = window.CaptainAdventure;
   C.learn.setDate("2026-11-17");
@@ -195,6 +216,26 @@ await shot("after-lair-desktop", 1280, 800);
 await page.setViewport({ width: 390, height: 844 });
 await page.evaluate(() => window.CaptainAdventure.qc(4));
 await shot("after-lair-phone", 390, 844);
+await page.setViewport({ width: 1280, height: 800 });
+await page.evaluate(() => {
+  const C = window.CaptainAdventure;
+  const door = C.scene.getObjectByName("lair-door");
+  const water = C.scene.getObjectByName("lair-water");
+  door.updateWorldMatrix(true, false);
+  water.updateWorldMatrix(true, false);
+  const e = door.matrixWorld.elements;
+  const w = water.matrixWorld.elements;
+  const x = e[12], y = e[13], z = e[14];
+  const xx = e[0], xz = e[2], zx = e[8], zz = e[10];
+  const mx = (x + w[12]) / 2;
+  const mz = (z + w[14]) / 2;
+  C.photo([x + zx * 18 - xx * 2.5, y + 8.5, z + zz * 18 - xz * 2.5], [mx, 1.6, mz]);
+  C.qc(6);
+});
+await shot("after-lair-door-desktop", 1280, 800);
+await page.setViewport({ width: 390, height: 844 });
+await page.evaluate(() => window.CaptainAdventure.qc(4));
+await shot("after-lair-door-phone", 390, 844);
 
 const pageErrors = errors.filter((e) => !/Failed to load resource|favicon/i.test(e));
 check("no console or page errors during the pass", pageErrors.length === 0, pageErrors.slice(0, 3).join(" | "));

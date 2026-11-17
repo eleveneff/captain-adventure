@@ -1883,7 +1883,6 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       if (s.material) s.material.opacity = 0.45 * (1 - phase);
     });
     fadePalms();
-    tuckLabels();
     dressBuiltLair();
     if (winterOn()) puffSnow();
     if (gfx.swell) {
@@ -1921,8 +1920,13 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       }
       const w = worldOf(CA.captain);
       const fwd = new (CA.camera.position.constructor)(0, 0, 1).applyQuaternion(CA.captain.quaternion);
-      gfx.shopCam.position.set(w.x + fwd.x * 2.7, w.y + 1.55, w.z + fwd.z * 2.7);
-      gfx.shopCam.lookAt(w.x, w.y + 1.35, w.z);
+      const span = captainSpan();
+      const mid = span ? (span.minY + span.maxY) / 2 : w.y + 1.15;
+      const height = span ? Math.max(1.2, (span.maxY - span.minY) * 1.22) : 2.4;
+      const fov = gfx.shopCam.fov * Math.PI / 180;
+      const dist = (height * 0.5) / Math.tan(fov * 0.5);
+      gfx.shopCam.position.set(w.x + fwd.x * dist, mid, w.z + fwd.z * dist);
+      gfx.shopCam.lookAt(w.x, mid, w.z);
       const hidden = [];
       CA.scene.children.forEach((ch) => {
         if (ch === CA.captain || ch.isLight) return;
@@ -2011,6 +2015,34 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       }
     });
   }
+  function captainSpan() {
+    const cap = CA.captain;
+    if (!cap) return null;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    cap.updateWorldMatrix(true, true);
+    cap.traverse((o) => {
+      if (!o.visible) return;
+      if (o.isSprite) {
+        const p = o.getWorldPosition(new CA.camera.position.constructor());
+        minY = Math.min(minY, p.y - o.scale.y * 0.5);
+        maxY = Math.max(maxY, p.y + o.scale.y * 0.5);
+        return;
+      }
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      o.updateWorldMatrix(true, false);
+      const e = o.matrixWorld.elements;
+      const pos = o.geometry.attributes.position;
+      const step = Math.max(1, Math.floor(pos.count / 24));
+      for (let i = 0; i < pos.count; i += step) {
+        const wy = e[1] * pos.getX(i) + e[5] * pos.getY(i) + e[9] * pos.getZ(i) + e[13];
+        if (wy < minY) minY = wy;
+        if (wy > maxY) maxY = wy;
+      }
+    });
+    if (!isFinite(minY) || !isFinite(maxY)) return null;
+    return { minY, maxY };
+  }
   function keelDrop(obj) {
     let min = 99;
     obj.updateWorldMatrix(true, true);
@@ -2031,18 +2063,34 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     });
     return min - base;
   }
+  function boxOf(list) {
+    let box = null;
+    list.forEach((el) => {
+      if (!el) return;
+      const style = window.getComputedStyle(el);
+      if (style.display === "none" || style.visibility === "hidden") return;
+      const r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) return;
+      if (!box) box = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+      else {
+        box.left = Math.min(box.left, r.left);
+        box.top = Math.min(box.top, r.top);
+        box.right = Math.max(box.right, r.right);
+        box.bottom = Math.max(box.bottom, r.bottom);
+      }
+    });
+    return box;
+  }
   function hudRects() {
     const rects = [];
-    ["hud", "hint", "gear", "zoom", "touch-toggle", "act", "badges"].forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el || el.classList.contains("hidden")) return;
-      const r = el.getBoundingClientRect();
-      if (r.width > 4 && r.height > 4) rects.push(r);
-    });
-    document.querySelectorAll(".rbtn").forEach((el) => {
-      const r = el.getBoundingClientRect();
-      if (r.width > 4 && r.height > 4) rects.push(r);
-    });
+    const push = (box) => { if (box) rects.push(box); };
+    push(boxOf([document.querySelector(".hud-row")]));
+    push(boxOf(document.querySelectorAll(".chip")));
+    push(boxOf([document.getElementById("prize-bar")]));
+    push(boxOf([document.getElementById("badges")]));
+    push(boxOf(document.querySelectorAll(".badge")));
+    push(boxOf([document.getElementById("learn-open"), document.getElementById("ver-flag"), document.getElementById("hint")]));
+    push(boxOf(document.querySelectorAll(".rbtn")));
     return rects;
   }
   function tuckLabels() {
@@ -2055,7 +2103,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     if (!gfx._proj) gfx._proj = new (cam.position.constructor)();
     const tmp = gfx._proj;
     CA.scene.traverse((o) => {
-      if (!o.isSprite || o.scale.x < 1.4) return;
+      if (!o.isSprite || o.scale.x < 0.45) return;
       if (o.name === "v50-smoke" || o.name === "v50-flame" || o.name === "v50-beam" || o.name === "v50-flake") return;
       o.getWorldPosition(tmp);
       const dist = Math.max(0.4, Math.hypot(tmp.x - cam.position.x, tmp.y - cam.position.y, tmp.z - cam.position.z));
@@ -2065,8 +2113,8 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       const sy = (-tmp.y * 0.5 + 0.5) * H;
       const worldH = 2 * Math.tan(fov / 2) * dist;
       const px = H / worldH;
-      const hw = o.scale.x * px * 0.5;
-      const hh = o.scale.y * px * 0.5;
+      const hw = Math.max(22, o.scale.x * px * 0.5);
+      const hh = Math.max(14, o.scale.y * px * 0.5);
       const left = sx - hw;
       const right = sx + hw;
       const top = sy - hh;
@@ -2534,6 +2582,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
         return;
       }
       if (document.body.classList.contains("mg-on")) syncMG();
+      if (gfx && gfx.ready) tuckLabels();
       return orig(scene, camera);
     };
     renderer.__v50hook = true;

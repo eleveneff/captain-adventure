@@ -928,6 +928,44 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     tex.needsUpdate = true;
     return tex;
   }
+  function paintGazeboRoof(on) {
+    if (!CA.scene) return;
+    CA.scene.traverse((o) => {
+      if (!o.isMesh || !o.geometry || o.geometry.type !== "BufferGeometry") return;
+      const pos = o.geometry.attributes && o.geometry.attributes.position;
+      const colAttr = o.geometry.attributes && o.geometry.attributes.color;
+      if (!pos || !colAttr) return;
+      if (!o.userData.v50Roof) o.userData.v50Roof = colAttr.array.slice(0);
+      const saved = o.userData.v50Roof;
+      if (!on) {
+        colAttr.array.set(saved);
+        colAttr.needsUpdate = true;
+        return;
+      }
+      o.updateWorldMatrix(true, false);
+      const e = o.matrixWorld.elements;
+      let changed = false;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        const wx = e[0] * x + e[4] * y + e[8] * z + e[12];
+        const wy = e[1] * x + e[5] * y + e[9] * z + e[13];
+        const wz = e[2] * x + e[6] * y + e[10] * z + e[14];
+        if (wx < -7.4 || wx > -4 || wz < -15.6 || wz > -12.4 || wy < 3.7) continue;
+        const lift = Math.min(1, (wy - 3.7) / 1.2);
+        const base = i * 3;
+        colAttr.setXYZ(i,
+          saved[base] + (0.96 - saved[base]) * lift,
+          saved[base + 1] + (0.98 - saved[base + 1]) * lift,
+          saved[base + 2] + (1 - saved[base + 2]) * lift);
+        changed = true;
+      }
+      if (changed) {
+        colAttr.needsUpdate = true;
+        if (o.material) o.material.vertexColors = true;
+      }
+    });
+  }
+  function restoreGazeboRoof() { paintGazeboRoof(false); }
   function clearNamed(prefix) {
     if (!CA.scene) return;
     const gone = [];
@@ -939,7 +977,8 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     if (ban) ban.classList.toggle("show", winterOn());
     ["v50-snow", "v50-cap", "v50-frost", "v50-wreath", "v50-roof", "v50-flake"].forEach((name) => { if (!winterOn()) clearNamed(name); });
     applySky();
-    if (!winterOn() || !kit() || !CA.scene) return;
+    if (!winterOn()) { restoreGazeboRoof(); return; }
+    if (!kit() || !CA.scene) return;
     if (CA.scene.getObjectByName("v50-snow")) return;
     const K = kit();
     const count = 1600;
@@ -968,6 +1007,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       CA.scene.add(flake);
     }
     dressWinterSet();
+    paintGazeboRoof(true);
     applySky();
   }
   function dressWinterSet() {
@@ -983,69 +1023,69 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     }
     frost(0, 0, 20.4, 23.55);
     [[0, -62.5], [44.2, -44.2], [62.5, 0], [44.2, 44.2], [0, 62.5], [-44.2, 44.2], [-62.5, 0], [-44.2, -44.2]].forEach(([x, z]) => frost(x, z, 14.4, 17.25));
-    let wreaths = 0;
+    const snowMat = new K.Lambert({ color: 0xf7fbff });
     CA.scene.traverse((o) => {
-      if (!o.isMesh || !o.material || !o.material.color || !o.geometry) return;
-      let parent = o.parent;
-      let onCaptain = false;
-      while (parent) { if (parent === CA.captain) onCaptain = true; parent = parent.parent; }
-      if (onCaptain) return;
+      if (!o.isMesh || !o.geometry || !o.material || !o.material.color) return;
       if (!o.geometry.boundingBox && o.geometry.computeBoundingBox) o.geometry.computeBoundingBox();
       const bb = o.geometry.boundingBox;
       if (!bb) return;
-      const ws = new K.Vector3(1, 1, 1);
-      if (o.getWorldScale) o.getWorldScale(ws);
-      const wp = new K.Vector3();
-      o.getWorldPosition(wp);
-      const sx = Math.abs((bb.max.x - bb.min.x) * ws.x);
-      const sy = Math.abs((bb.max.y - bb.min.y) * ws.y);
-      const sz = Math.abs((bb.max.z - bb.min.z) * ws.z);
+      o.updateWorldMatrix(true, false);
+      const e = o.matrixWorld.elements;
+      const x = e[12], y = e[13], z = e[14];
+      if (Math.hypot(x, z) > 20) return;
+      const sx = Math.hypot(e[0], e[1], e[2]);
+      const sy = Math.hypot(e[4], e[5], e[6]);
+      const sz = Math.hypot(e[8], e[9], e[10]);
+      const w = Math.abs(bb.max.x - bb.min.x) * sx;
+      const h = Math.abs(bb.max.y - bb.min.y) * sy;
+      const d = Math.abs(bb.max.z - bb.min.z) * sz;
       const col = o.material.color;
-      const nearHome = Math.hypot(wp.x, wp.z) < 80;
-      const post = nearHome && col.r > 0.28 && col.r > col.b && sy > 0.55 && sy < 2.4 && sx < 0.4 && sz < 0.4;
-      if (post && wreaths < 4) {
-        const wreath = new K.Mesh(new K.Torus(0.28, 0.07, 6, 14), new K.Lambert({ color: 0x2e8b46 }));
-        wreath.position.set(wp.x, wp.y + sy * 0.55, wp.z);
-        wreath.name = "v50-wreath";
-        const bulb = new K.Mesh(new K.Sphere(0.09, 6, 5), new K.Lambert({ color: 0xffe08a, emissive: 0xffc83d, emissiveIntensity: 0.8 }));
-        bulb.position.y = 0.28;
-        wreath.add(bulb);
-        CA.scene.add(wreath);
-        wreaths += 1;
+      const garage = o.geometry.type === "BoxGeometry" && col.b > col.r + 0.08 && w > 6 && h < 0.7 && y > 3;
+      const slope = o.geometry.type === "BoxGeometry" && Math.abs(o.rotation.x) > 0.6 && w > 1.2 && h < 0.4 && y < 2;
+      const gallery = o.geometry.type === "CylinderGeometry" && Math.hypot(x - 10.94, z + 10.16) < 1.2 && Math.abs(y - 8.1) < 0.4 && h < 0.4;
+      const gazebo = o.geometry.type === "ConeGeometry" && col.b > 0.45 && col.r < 0.25 && y > 2;
+      if (garage) {
+        const slab = new K.Mesh(new K.Box(w * 0.96, 0.22, d * 0.96), snowMat);
+        slab.position.y = bb.max.y + 0.11;
+        slab.name = "v50-roof";
+        o.add(slab);
+      }
+      if (slope) {
+        const slab = new K.Mesh(new K.Box((bb.max.x - bb.min.x) * 0.94, 0.1, (bb.max.z - bb.min.z) * 0.9), snowMat);
+        slab.position.y = bb.max.y + 0.05;
+        slab.name = "v50-roof";
+        o.add(slab);
+      }
+      if (gallery) {
+        const ring = new K.Mesh(new K.Torus(Math.max(w, d) * 0.46, 0.16, 8, 24), snowMat);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = bb.max.y + 0.04;
+        ring.name = "v50-roof";
+        o.add(ring);
+      }
+      if (gazebo) {
+        const height = bb.max.y - bb.min.y;
+        const radius = Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z) / 2;
+        const cap = new K.Mesh(new K.Cone(radius * 1.04, height * 0.62, 12), snowMat);
+        cap.position.y = bb.max.y - height * 0.22;
+        cap.name = "v50-roof";
+        o.add(cap);
+        const lip = new K.Mesh(new K.Torus(radius * 0.98, height * 0.08, 6, 14), snowMat);
+        lip.rotation.x = Math.PI / 2;
+        lip.position.y = bb.min.y + height * 0.2;
+        lip.name = "v50-roof";
+        o.add(lip);
       }
     });
-    const snowMat = new K.Lambert({ color: 0xf7fbff });
-    function snowMound(x, y, z, sx, sy, sz) {
-      const cap = new K.Mesh(new K.Sphere(1, 18, 12), snowMat);
-      cap.scale.set(sx, sy, sz);
-      cap.position.set(x, y, z);
-      cap.name = "v50-roof";
-      CA.scene.add(cap);
-    }
-    snowMound(-10.9, 4.55, -10.2, 3.5, 0.85, 2.6);
-    snowMound(0, 5.05, -2, 2.05, 0.8, 2.35);
-    snowMound(10.9, 10.85, -10.2, 1.35, 0.7, 1.35);
-    const shell = CA.scene.getObjectByName("lair-shell");
-    if (shell) {
-      shell.updateWorldMatrix(true, false);
-      const e = shell.matrixWorld.elements;
-      const dome = new K.Mesh(new K.Sphere(2.15, 12, 8), snowMat);
-      dome.scale.set(1.15, 0.38, 1);
-      dome.position.set(e[12], e[13] + 2.55, e[14]);
-      dome.name = "v50-roof";
-      CA.scene.add(dome);
-    }
-    [[25.9, 18], [22.7, 18], [25.9, 28], [22.7, 28], [1.7, 30], [-1.7, 30], [1.7, 38], [-1.7, 38]].forEach(([x, z]) => {
-      const post = new K.Mesh(new K.Cyl(0.08, 0.1, 1.15, 6), new K.Lambert({ color: 0x6b4224 }));
-      post.position.set(x, 0.7, z);
-      post.name = "v50-wreath";
-      const wreath = new K.Mesh(new K.Torus(0.32, 0.08, 6, 16), new K.Lambert({ color: 0x1f8a3b }));
-      wreath.position.y = 0.42;
-      const bulb = new K.Mesh(new K.Sphere(0.1, 6, 5), new K.Lambert({ color: 0xffe7a8, emissive: 0xffc83d, emissiveIntensity: 1 }));
-      bulb.position.y = 0.28;
+    [[1.75, 1.15, 25.04, 1, 0], [-1.75, 1.15, 25.04, -1, 0], [1.75, 1.15, 27.54, 1, 0], [-1.75, 1.15, 27.54, -1, 0], [17.17, 1.15, 14.7, 0.71, -0.71], [14.7, 1.15, 17.17, -0.71, 0.71], [18.94, 1.15, 16.47, 0.71, -0.71], [16.47, 1.15, 18.94, -0.71, 0.71]].forEach(([x, y, z, ox, oz]) => {
+      const wreath = new K.Mesh(new K.Torus(0.22, 0.055, 8, 16), new K.Lambert({ color: 0x1f8a3b }));
+      wreath.position.set(x, y, z);
+      wreath.rotation.y = Math.atan2(ox, oz);
+      wreath.name = "v50-wreath";
+      const bulb = new K.Mesh(new K.Sphere(0.055, 6, 5), new K.Lambert({ color: 0xffe7a8, emissive: 0xffc83d, emissiveIntensity: 0.9 }));
+      bulb.position.y = 0.14;
       wreath.add(bulb);
-      post.add(wreath);
-      CA.scene.add(post);
+      CA.scene.add(wreath);
     });
   }
   function dress() {
@@ -1215,28 +1255,30 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     });
     applySky();
     const poolWater = CA.scene.getObjectByName("lair-water");
-    if (poolWater && poolWater.parent && !poolWater.parent.getObjectByName("v50-pool-rim")) {
-      const rim = new K.Mesh(new K.Torus(1, 0.055, 8, 36), new K.Lambert({ color: 0xd5ece6 }));
-      rim.rotation.x = Math.PI / 2;
-      rim.position.copy(poolWater.position);
-      rim.position.y += 0.2;
-      rim.scale.set(poolWater.scale.x * 1.08, poolWater.scale.z * 1.08, 1);
-      rim.name = "v50-pool-rim";
-      poolWater.parent.add(rim);
-      const tile = new K.Mesh(new K.Torus(1, 0.03, 6, 36), new K.Lambert({ color: 0xf4efe4 }));
-      tile.rotation.x = Math.PI / 2;
-      tile.position.copy(rim.position);
-      tile.position.y += 0.04;
-      tile.scale.set(poolWater.scale.x * 0.96, poolWater.scale.z * 0.96, 1);
-      tile.name = "v50-pool-rim";
-      poolWater.parent.add(tile);
-      const shimmer = new K.Mesh(new K.Circle(1, 28), new K.Basic({ color: 0xe8fbff, transparent: true, opacity: 0.45, depthWrite: false, side: 2 }));
+    if (poolWater && !poolWater.getObjectByName("v50-shimmer")) {
+      const c = document.createElement("canvas");
+      c.width = c.height = 128;
+      const g = c.getContext("2d");
+      g.clearRect(0, 0, 128, 128);
+      for (let i = 0; i < 18; i++) {
+        const cx = 16 + (i * 37) % 96;
+        const cy = 16 + (i * 53) % 96;
+        const grd = g.createRadialGradient(cx, cy, 1, cx, cy, 14);
+        grd.addColorStop(0, "rgba(255,255,255,0.55)");
+        grd.addColorStop(1, "rgba(255,255,255,0)");
+        g.fillStyle = grd;
+        g.beginPath();
+        g.arc(cx, cy, 14, 0, Math.PI * 2);
+        g.fill();
+      }
+      const tex = new K.CanvasTex(c);
+      tex.wrapS = tex.wrapT = 1000;
+      tex.needsUpdate = true;
+      const shimmer = new K.Mesh(new K.Circle(0.68, 28), new K.Basic({ map: tex, transparent: true, opacity: 0.32, depthWrite: false, color: 0xdff6ff }));
       shimmer.rotation.x = -Math.PI / 2;
-      shimmer.position.copy(poolWater.position);
-      shimmer.position.y += 0.28;
-      shimmer.scale.set(poolWater.scale.x * 0.72, poolWater.scale.z * 0.72, 1);
+      shimmer.position.y = 0.16;
       shimmer.name = "v50-shimmer";
-      poolWater.parent.add(shimmer);
+      poolWater.add(shimmer);
       gfx.shimmer = shimmer;
     }
     const doorPivot = CA.scene.getObjectByName("lair-door");
@@ -1244,17 +1286,34 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       const frame = new K.Group();
       frame.name = "v50-door";
       const wood = new K.Lambert({ color: 0x6a3e22 });
+      const iron = new K.Lambert({ color: 0x2a241e });
       [[0, 2.15, 1.15, 3.5, 0.4, 0.32], [-1.6, 0.45, 1.15, 0.36, 3.8, 0.32], [1.6, 0.45, 1.15, 0.36, 3.8, 0.32]].forEach(([x, y, z, w, h, d]) => {
         const bar = new K.Mesh(new K.Box(w, h, d), wood);
         bar.position.set(x, y, z);
         frame.add(bar);
       });
-      [-2.15, 2.15].forEach((x) => {
-        const torch = new K.Mesh(new K.Cyl(0.1, 0.12, 2.1, 6), new K.Lambert({ color: 0x4a3424 }));
-        torch.position.set(x, 0.7, 1.45);
-        const flame = new K.Mesh(new K.Sphere(0.42, 8, 6), new K.Lambert({ color: 0xffb03a, emissive: 0xff6a00, emissiveIntensity: 1.4 }));
-        flame.position.y = 1.25;
+      const glowTex = flakeTexture();
+      [-2.05, 2.05].forEach((x) => {
+        const torch = new K.Group();
+        torch.position.set(x, 0, 1.4);
+        const post = new K.Mesh(new K.Cyl(0.06, 0.075, 1.25, 6), wood);
+        post.position.y = 0.5;
+        const bracket = new K.Mesh(new K.Box(0.05, 0.32, 0.18), iron);
+        bracket.position.set(0, 1.05, 0.08);
+        const cup = new K.Mesh(new K.Cyl(0.13, 0.1, 0.14, 8), iron);
+        cup.position.y = 1.22;
+        const flame = new K.Mesh(new K.Cone(0.09, 0.32, 8), new K.Lambert({ color: 0xffb03a, emissive: 0xff6a00, emissiveIntensity: 1.15 }));
+        flame.position.y = 1.48;
+        flame.name = "v50-flame";
+        const glow = new K.Sprite(new K.SpriteMat({ map: glowTex, color: 0xffd27a, transparent: true, depthWrite: false, opacity: 0.55 }));
+        glow.position.y = 1.5;
+        glow.scale.setScalar(0.18);
+        glow.name = "v50-flame";
+        torch.add(post);
+        torch.add(bracket);
+        torch.add(cup);
         torch.add(flame);
+        torch.add(glow);
         frame.add(torch);
       });
       doorPivot.add(frame);
@@ -1382,7 +1441,16 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
   function fallSnow(step) {
     const snow = CA.scene && CA.scene.getObjectByName("v50-snow");
     if (gfx && gfx.foam) gfx.foam.forEach((ring, i) => { ring.rotation.z = clockMs / 900 + i; });
-    if (gfx && gfx.shimmer) gfx.shimmer.material.opacity = 0.55 + Math.sin(clockMs / 280) * 0.15;
+    if (gfx && gfx.shimmer && gfx.shimmer.material && gfx.shimmer.material.map) {
+      gfx.shimmer.material.map.offset.x = (clockMs / 4000) % 1;
+      gfx.shimmer.material.map.offset.y = (clockMs / 5300) % 1;
+      gfx.shimmer.material.opacity = 0.22 + Math.sin(clockMs / 280) * 0.08;
+    }
+    if (CA.scene) CA.scene.traverse((o) => {
+      if (o.name !== "v50-flame" || !o.isMesh) return;
+      const flick = 0.85 + Math.sin(clockMs / 70 + o.id) * 0.2;
+      o.scale.set(1, flick, 1);
+    });
     const flakes = [];
     if (CA.scene) CA.scene.traverse((o) => { if (o.name === "v50-flake") flakes.push(o); });
     flakes.forEach((flake, i) => {

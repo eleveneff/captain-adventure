@@ -166,6 +166,13 @@ await page.evaluate(() => {
 });
 await shot("winter-desktop", 1280, 800);
 await shot("winter-phone", 390, 844);
+await page.setViewport({ width: 1280, height: 800 });
+await page.evaluate(() => {
+  const C = window.CaptainAdventure;
+  C.photo([-6, 6.5, -1], [-9, 3.4, -9]);
+  C.qc(4);
+});
+await shot("winter-roofs-desktop", 1280, 800);
 
 const plain = await browser.newPage();
 plain.on("pageerror", (e) => errors.push(e.message));

@@ -50,24 +50,16 @@ const visuals = await page.evaluate(() => {
   const L = window.CaptainAdventure.learn;
   L.setDate("2026-11-02");
   L.play("nav");
-  const nav = {
-    east: document.querySelectorAll(".sq.e").length,
-    north: document.querySelectorAll(".sq.n").length,
-    visual: document.querySelector(".learn-visual").innerText
-  };
+  const nav = { visual: document.querySelector(".learn-visual").innerText, blocks: [...document.querySelectorAll(".hblk")].map((el) => el.innerText.replace(/\s+/g, " ")) };
   document.getElementById("learn-exit").click();
   L.play("market");
-  const market = {
-    fish: document.querySelectorAll(".fish").length,
-    coins: document.querySelectorAll(".coin").length,
-    visual: document.querySelector(".learn-visual").innerText
-  };
+  const market = { fish: document.querySelectorAll(".fish").length, visual: document.querySelector(".learn-visual").innerText };
   document.getElementById("learn-exit").click();
   L.play("blueprint");
-  const plan = { cells: document.querySelectorAll(".sq.cell").length, prompt: document.querySelector(".learn-prompt").innerText };
+  const plan = { cells: document.querySelectorAll(".sq.cell").length, labeled: !!document.querySelector(".plan-rect"), prompt: document.querySelector(".learn-prompt").innerText };
   document.getElementById("learn-exit").click();
   L.play("code");
-  const groups = [...document.querySelectorAll(".hblk")].map((el) => el.querySelectorAll("b").length);
+  const groups = [...document.querySelectorAll(".hblk")].map((el) => el.textContent.trim());
   document.getElementById("learn-exit").click();
   L.play("log");
   const log = { words: L.log.words, hasPassage: document.querySelector(".learn-story").innerText.includes("red flag") };
@@ -80,10 +72,10 @@ const visuals = await page.evaluate(() => {
   });
   return { nav, market, plan, groups, log, foam: foam.length, wakes: wakes.length };
 });
-check("navigation marks match the 3 east and 4 north legs, not the answer", visuals.nav.east === 3 && visuals.nav.north === 4 && !/5 squares/.test(visuals.nav.visual), JSON.stringify(visuals.nav));
-check("the fish market shows the payment, not the change", visuals.market.fish === 1 && visuals.market.coins === 10 && !/4 coins/.test(visuals.market.visual), JSON.stringify(visuals.market));
-check("the blueprint grid has as many squares as the area answer", visuals.plan.cells === 10 && /squares/.test(visuals.plan.prompt), JSON.stringify(visuals.plan));
-check("the treasure code draws the given groups and not the next one", JSON.stringify(visuals.groups) === JSON.stringify([3, 6, 9, 12]), JSON.stringify(visuals.groups));
+check("the route visual shows the legs to add, not a shortcut", visuals.nav.blocks.join(" ").includes("5") && visuals.nav.blocks.join(" ").includes("east") && !/10/.test(visuals.nav.visual), JSON.stringify(visuals.nav));
+check("the fish market shows three tags and not the change", visuals.market.fish === 3 && /2\.45/.test(visuals.market.visual) && !/2\.65/.test(visuals.market.visual), JSON.stringify(visuals.market));
+check("the blueprint uses side labels instead of a counting grid", visuals.plan.cells === 0 && visuals.plan.labeled && /9 ft/.test(visuals.plan.prompt), JSON.stringify(visuals.plan));
+check("the treasure code shows the given terms and not the next one", JSON.stringify(visuals.groups) === JSON.stringify(["4", "9", "19", "39"]), JSON.stringify(visuals.groups));
 check("the log passage is on the card", visuals.log.hasPassage && visuals.log.words >= 150 && visuals.log.words <= 220);
 check("foam lines and boat wakes were added", visuals.foam >= 4 && visuals.wakes >= 7, JSON.stringify(visuals));
 
@@ -140,6 +132,24 @@ for (const id of ["nav", "market", "blueprint", "code", "log"]) {
   await page.evaluate((name) => window.CaptainAdventure.learn.play(name), id);
   await shot("activity-" + id + "-desktop", 1280, 800);
   await shot("activity-" + id + "-phone", 390, 844);
+  if (id === "log") {
+    const ready = await page.evaluate(() => {
+      const btn = document.getElementById("learn-ready");
+      const card = document.getElementById("learn-card").getBoundingClientRect();
+      const ok = !!btn && btn.getBoundingClientRect().bottom <= window.innerHeight + 1 && card.bottom <= window.innerHeight + 1;
+      if (btn) btn.click();
+      return ok;
+    });
+    check("the log passage screen keeps Ready on screen", ready);
+    await shot("activity-log-questions-desktop", 1280, 800);
+    await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
+    await shot("activity-log-questions-phone", 390, 844);
+    const buttons = await page.evaluate(() => {
+      const choices = [...document.querySelectorAll("[data-choice]")].map((el) => el.getBoundingClientRect());
+      return choices.length === 4 && choices.every((b) => b.top >= 0 && b.bottom <= window.innerHeight + 1 && b.right <= window.innerWidth + 1);
+    });
+    check("log answer buttons stay on the phone screen", buttons);
+  }
   await page.evaluate(() => document.getElementById("learn-exit").click());
 }
 await page.evaluate(() => window.CaptainAdventure.learn.openLore("lighthouse"));

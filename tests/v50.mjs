@@ -222,8 +222,8 @@ const acts = await page.evaluate(() => {
   const lore = ["harbor", "turtle", "parrot", "pirate", "lighthouse"].map((id) => L.lore(id));
   return { out, logWords, lore: lore.map((s) => ({ id: s.id, words: s.words, n: 3, main: s.main.choices.length, answer: s.main.answer })) };
 });
-check("each captain activity is a short set of at least 3", ["nav", "market", "blueprint", "code"].every((id) => acts.out[id].total === 3) && acts.out.log.total === 5 && acts.logWords >= 150 && acts.logWords <= 220 && /east/.test(acts.out.nav.text) && /fish/i.test(acts.out.market.text), JSON.stringify(acts.out.nav));
-check("the log covers main idea, detail, inference, vocabulary, and tone", ["main", "detail", "infer", "vocab", "tone"].every((k) => acts.out.log.kinds.includes(k)), acts.out.log.kinds.join(","));
+check("each captain activity is a short set of at least 3", ["nav", "market", "blueprint", "code", "log"].every((id) => acts.out[id].total >= 3) && acts.out.log.total === 3 && acts.logWords >= 150 && acts.logWords <= 220 && /squares east/.test(acts.out.nav.text) && /\$2\.45/.test(acts.out.market.text), JSON.stringify(acts.out.nav));
+check("the log asks main idea, inference, and tone", ["main", "infer", "tone"].every((k) => acts.out.log.kinds.includes(k)) && acts.out.log.kinds.length === 3, acts.out.log.kinds.join(","));
 check("each island and lighthouse story is 120 to 180 words with a real question", acts.lore.every((s) => s.words >= 120 && s.words <= 180 && s.n === 3 && s.main === 4 && s.answer === 0), JSON.stringify(acts.lore));
 
 const winter = await page.evaluate(() => {
@@ -260,6 +260,55 @@ const reading = await page.evaluate(() => {
   return { steps: opened.steps, skill: state.skill, hit: state.hit, quiet: L.quiet(), skip: L.tutorial.skip().ok };
 });
 check("a reading miss highlights a sentence and cannot skip the first step", reading.skill === "reading" && reading.steps >= 2 && reading.steps <= 4 && /flowers/.test(reading.hit) && reading.quiet && reading.skip === false, JSON.stringify(reading));
+
+const level = await page.evaluate(() => {
+  const L = window.CaptainAdventure.learn;
+  function solve(a) {
+    if (!a) return null;
+    if (a.op === "add") return a.inputs.reduce((s, n) => s + n, 0);
+    if (a.op === "mul") return a.inputs.reduce((s, n) => s * n, 1);
+    if (a.op === "sub") return a.inputs[0] - a.inputs[1];
+    if (a.op === "div") return a.inputs[0] / a.inputs[1];
+    if (a.op === "change") return +(a.paid - a.price * a.count).toFixed(2);
+    if (a.op === "frac") return a.whole * a.num / a.den;
+    if (a.op === "unit") return { a: a.aPrice / a.aCount, b: a.bPrice / a.bCount };
+    if (a.op === "rule") { let v = a.start; for (let i = 0; i < a.steps; i++) v = v * a.mul + a.add; return v; }
+    if (a.op === "ceil-div") return Math.ceil(a.inputs[0] / a.inputs[1] - 1e-9);
+    if (a.op === "mul-add") return a.inputs[0] * a.inputs[1] + a.inputs[2];
+    if (a.op === "lshape") return a.big[0] * a.big[1] - a.cut[0] * a.cut[1];
+    if (a.op === "scale-area") return (a.w * a.per) * (a.h * a.per);
+    return a.value;
+  }
+  const bad = [];
+  ["nav", "market", "blueprint", "code"].forEach((id) => {
+    L.activity(id).questions.forEach((q) => {
+      const got = solve(q.audit);
+      const label = String(q.choices[q.answer]);
+      const py = /pythag|straight path|hypotenuse|3-4-5/i.test(q.prompt + " " + q.explain);
+      let ok = !!q.audit && !py && got != null;
+      if (q.audit && q.audit.op === "unit") ok = ok && got.b < got.a - 0.001 && /6/.test(label);
+      else if (typeof got === "number") ok = ok && Math.abs(got - q.audit.value) < 0.02 && label.replace(/,/g, "").includes(String(got).replace(/\.0$/, ""));
+      else ok = ok && label.includes(String(got));
+      if (!ok) bad.push({ id, prompt: q.prompt.slice(0, 70), got, label });
+    });
+  });
+  const expect = { hq: "hq", pool: "pool", garage: "dock", tower: "tower", trophy: "trophy", slide: "pool", course: "course", aqua: "aqua", roof: "roof", tunnel: "tunnel" };
+  const gates = {};
+  Object.keys(expect).forEach((id) => {
+    const qs = L.gateQuestions(id);
+    gates[id] = { n: qs.length, themes: [...new Set(qs.map((q) => q.theme))], reading: qs.filter((q) => q.skill === "reading").length, first: qs[0] && qs[0].prompt.slice(0, 40) };
+  });
+  const pyAll = L.questions().some((q) => /pythag|straight path|hypotenuse/i.test(q.prompt + " " + (q.explain || "")));
+  L.setDate("2026-12-15");
+  const on = L.winter.stats();
+  L.setDate("2026-11-17");
+  const off = L.winter.stats();
+  return { bad, gates, pyAll, on, off, themesOk: Object.entries(expect).every(([id, theme]) => gates[id].n >= 3 && gates[id].n <= 5 && gates[id].themes.length === 1 && gates[id].themes[0] === theme && gates[id].reading <= 1) };
+});
+check("activity answers match the numbers in the question", level.bad.length === 0, JSON.stringify(level.bad.slice(0, 4)));
+check("no new math item uses the Pythagorean theorem", level.pyAll === false);
+check("each build gate stays on that build's theme", level.themesOk, JSON.stringify(level.gates));
+check("winter visuals turn on only inside the date window", level.on.points && level.on.count >= 150 && level.on.flakes >= 8 && level.on.frost >= 1 && level.on.roofs >= 1 && level.on.onCaptain === 0 && level.off.points === false && level.off.frost === 0, JSON.stringify({ on: level.on, off: level.off }));
 
 const pageErrors = errors.filter((e) => !/Failed to load resource|favicon/i.test(e));
 check("no page errors", pageErrors.length === 0, pageErrors.slice(0, 4).join(" | "));

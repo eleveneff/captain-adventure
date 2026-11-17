@@ -7,8 +7,12 @@
   const VER = "Captain Adventure 5.0: Learn & Build";
 
   const BUILD_SKILL = {
-    hq: "reading", pool: "area", garage: "measure", tower: "measure", trophy: "patterns",
-    slide: "area", course: "time", aqua: "data", roof: "area", tunnel: "measure"
+    hq: "area", pool: "area", garage: "measure", tower: "measure", trophy: "patterns",
+    slide: "area", course: "time", aqua: "fractions", roof: "area", tunnel: "measure"
+  };
+  const BUILD_THEME = {
+    hq: "hq", pool: "pool", garage: "dock", tower: "tower", trophy: "trophy",
+    slide: "pool", course: "course", aqua: "aqua", roof: "roof", tunnel: "tunnel"
   };
   const SKILL_NAME = {
     area: "Area and volume", money: "Money", measure: "Measurement", reading: "Reading",
@@ -20,60 +24,53 @@
     return Object.assign({ skill, level, prompt, choices, answer, hint, explain, visual: visual || "line" }, extra || {});
   }
   const BANK = [
-    item("area", "confidence", "A rug is 4 squares long and 3 squares wide. How many squares cover it?", ["12", "7", "43", "1"], 0, "Multiply the two sides.", "4 times 3 is 12.", "grid", { n: 12 }),
-    item("area", "confidence", "A pool is 5 feet long and 2 feet wide. What is its area?", ["10 square feet", "7 square feet", "52 square feet", "3 square feet"], 0, "Area is length times width.", "5 times 2 is 10.", "grid", { n: 10 }),
-    item("area", "level", "A pool is 4 feet long, 3 feet wide, and 2 feet deep. How many 1-foot cubes fill it?", ["24", "9", "14", "432"], 0, "Find the bottom layer, then the layers.", "4 times 3 is 12. Two layers make 24.", "grid", { n: 24 }),
-    item("area", "level", "A dock is 6 meters long and 2 meters wide. What is the perimeter?", ["16 meters", "12 meters", "8 meters", "62 meters"], 0, "Add all four sides.", "6 + 2 + 6 + 2 = 16.", "grid", { n: 16 }),
-    item("area", "stretch", "A rectangle has area 18 and length 6. What is the width?", ["3", "12", "24", "18"], 0, "Divide the area by the length.", "18 divided by 6 is 3.", "grid", { n: 3 }),
-    item("area", "stretch", "On a plan, 1 square stands for 2 meters. A room is 4 squares long. How many meters is that?", ["8 meters", "6 meters", "2 meters", "42 meters"], 0, "Each square is worth 2 meters.", "4 times 2 is 8.", "grid", { n: 8 }),
+    item("navigation", "confidence", "A chart route goes 5 squares east, then 3 squares north, then 2 squares east. How many squares do you travel along the route?", ["10 squares", "8 squares", "5 squares", "7 squares"], 0, "Add every leg. Do not cut across.", "5 + 3 + 2 = 10 squares along the route.", "route", { legs: [{ n: 5, dir: "east" }, { n: 3, dir: "north" }, { n: 2, dir: "east" }], caption: "Add the labeled legs.", audit: { op: "add", inputs: [5, 3, 2], value: 10 }, theme: "nav" }),
+    item("navigation", "level", "The boat sails at 12 knots for 2.5 hours. How far does it go?", ["30 nautical miles", "24 nautical miles", "14.5 nautical miles", "300 nautical miles"], 0, "Distance = speed × time. 2.5 is 2 and a half.", "12 × 2 = 24, and 12 × 0.5 = 6, so 24 + 6 = 30.", "hours", { hours: 2.5, speed: 12, caption: "12 knots for 2.5 hours.", audit: { op: "mul", inputs: [12, 2.5], value: 30 }, theme: "nav" }),
+    item("navigation", "level", "You face north. You turn 90 degrees clockwise, then 90 degrees clockwise again. Which way do you face?", ["South", "East", "West", "North"], 0, "Each turn is a quarter turn to the right.", "North to east is one turn. East to south is the second turn.", "compass", { turns: 2, caption: "Two quarter-turns clockwise from north.", audit: { op: "heading", value: "South" }, theme: "nav" }),
+    item("navigation", "stretch", "On the chart, 1 cm stands for 3 miles. A channel is drawn 4.5 cm long. How many miles is the real channel?", ["13.5 miles", "7.5 miles", "12 miles", "4.5 miles"], 0, "Multiply the drawing length by the scale.", "4 × 3 = 12, and 0.5 × 3 = 1.5, so 12 + 1.5 = 13.5.", "scale", { caption: "1 cm = 3 miles. The drawing is 4.5 cm.", audit: { op: "mul", inputs: [4.5, 3], value: 13.5 }, theme: "nav" }),
 
-    item("measure", "confidence", "A rope is 9 meters. You use 4 meters. How much is left?", ["5 meters", "13 meters", "94 meters", "4 meters"], 0, "Subtract the piece you used.", "9 minus 4 is 5.", "line", { n: 5 }),
-    item("measure", "confidence", "Which length is longer?", ["12 meters", "7 meters", "They are equal", "0 meters"], 0, "The bigger number is the longer length.", "12 is more than 7.", "line", { n: 12 }),
-    item("measure", "level", "A dock is 15 meters. The boat is 9 meters. How much longer is the dock?", ["6 meters", "24 meters", "15 meters", "4 meters"], 0, "Subtract the shorter length.", "15 minus 9 is 6.", "line", { n: 6 }),
-    item("measure", "level", "A plank is 14 feet. You saw off 5 feet. How long is it now?", ["9 feet", "19 feet", "3 feet", "145 feet"], 0, "Take the cut piece away.", "14 minus 5 is 9.", "line", { n: 9 }),
-    item("measure", "stretch", "1 meter is 100 centimeters. A rope is 1 meter and you cut off 30 centimeters. How many centimeters are left?", ["70 cm", "30 cm", "130 cm", "100 cm"], 0, "Change the meter into centimeters first.", "100 minus 30 is 70.", "line", { n: 70 }),
-    item("measure", "stretch", "How many centimeters are in 2 meters?", ["200 cm", "20 cm", "2 cm", "100 cm"], 0, "Each meter is 100 centimeters.", "2 times 100 is 200.", "line", { n: 200 }),
+    item("money", "confidence", "You buy 3 fish at $2.45 each and pay with $10. How much change do you get?", ["$2.65", "$7.35", "$5.10", "$2.55"], 0, "Find the cost of 3 fish, then subtract from $10.", "3 × $2.45 = $7.35. $10.00 − $7.35 = $2.65.", "market", { fish: 3, coins: 0, caption: "Three tags say $2.45. You pay with a $10 bill.", audit: { op: "change", price: 2.45, count: 3, paid: 10, value: 2.65 }, theme: "market" }),
+    item("money", "level", "A stand sells 4 fish for $3.00 or 6 fish for $4.20. Which is the lower price per fish?", ["6 fish for $4.20", "4 fish for $3.00", "They are the same price per fish", "4 fish, because $3.00 is less than $4.20"], 0, "Divide each price by the number of fish.", "$3.00 ÷ 4 = $0.75. $4.20 ÷ 6 = $0.70. The pack of 6 costs less per fish.", "tags", { caption: "4 for $3.00, or 6 for $4.20.", audit: { op: "unit", aCount: 4, aPrice: 3, bCount: 6, bPrice: 4.2, cheaper: 6 }, theme: "market" }),
+    item("money", "stretch", "The crew kept 2/5 of a catch of 30 fish and sold the rest. How many fish did they keep?", ["12 fish", "15 fish", "10 fish", "6 fish"], 0, "Find 1/5 of 30, then take 2 of those parts.", "30 ÷ 5 = 6, and 2 × 6 = 12.", "bars", { n: 2, caption: "2 of 5 equal parts of 30 fish.", audit: { op: "frac", num: 2, den: 5, whole: 30, value: 12 }, theme: "market" }),
 
-    item("reading", "confidence", "Mina planted seeds and watered them every day. The seeds grew into flowers. What is the main idea?", ["Mina's seeds grew into flowers.", "Mina dislikes water.", "Flowers do not need sun.", "The story is about a race."], 0, "The main idea is what the whole bit is about.", "Both sentences are about the seeds becoming flowers.", "read"),
-    item("reading", "confidence", "The captain checked the chart, then steered toward the green buoy. What is this mostly about?", ["The captain using a chart to steer.", "How to bake bread.", "A closed market.", "Counting by twos."], 0, "Ask what both parts share.", "The captain uses the chart and then steers.", "read"),
-    item("reading", "level", "Lila read the sign, checked the map, and chose the left channel. What is the main idea?", ["Lila used clues to choose a channel.", "Lila lost her map.", "The left channel was closed.", "Signs are only for decoration."], 0, "Look at what Lila did with the information.", "She used the sign and the map to decide.", "read"),
-    item("reading", "level", "The keeper filled the lamp, trimmed the wick, and lit the beam. What is the passage mainly about?", ["The keeper getting the lamp ready.", "A fish jumping a net.", "Why stars twinkle.", "A broken dock."], 0, "Who is doing the actions?", "Every sentence is about the keeper and the lamp.", "read"),
-    item("reading", "stretch", "The cove looked empty, but fresh tracks crossed the sand. Mara followed them and found the nest. What can you tell?", ["The tracks led Mara to the nest.", "Mara never entered the cove.", "The nest was in the clouds.", "There were no tracks."], 0, "Use the clues plus what she did.", "She followed the tracks and found the nest.", "read"),
-    item("reading", "stretch", "The cabin was quiet. Coils of rope hung on pegs, and a half-drawn chart waited on the table. What is the main idea?", ["Someone is in the middle of planning a trip.", "The cabin is a kitchen.", "The chart blew into the sea.", "Rope cannot be stored."], 0, "A half-drawn chart means the work is still going.", "The waiting chart is the clue.", "read"),
+    item("area", "confidence", "The secret room on the plan is 9 ft long and 6 ft wide. What is its area?", ["54 square feet", "15 square feet", "45 square feet", "96 square feet"], 0, "Area = length × width.", "9 × 6 = 54.", "labeled", { len: "9 ft", wid: "6 ft", caption: "Use the side labels. There is no grid to count.", audit: { op: "mul", inputs: [9, 6], value: 54 }, theme: "hq" }),
+    item("area", "level", "That same room is 9 ft long and 6 ft wide. What is its perimeter?", ["30 feet", "54 feet", "15 feet", "27 feet"], 0, "Perimeter adds all four sides.", "9 + 6 + 9 + 6 = 30.", "labeled", { len: "9 ft", wid: "6 ft", caption: "Add both lengths and both widths.", audit: { op: "add", inputs: [9, 6, 9, 6], value: 30 }, theme: "hq" }),
+    item("area", "level", "An L-shaped deck is a 10 ft by 8 ft rectangle with a 4 ft by 3 ft rectangle removed. What area is left?", ["68 square feet", "80 square feet", "12 square feet", "25 square feet"], 0, "Find the big rectangle, then subtract the corner that was cut away.", "10 × 8 = 80. 4 × 3 = 12. 80 − 12 = 68.", "labeled", { len: "10 ft", wid: "8 ft", caption: "Big rectangle 10 by 8, corner 4 by 3 removed.", audit: { op: "lshape", big: [10, 8], cut: [4, 3], value: 68 }, theme: "hq" }),
+    item("area", "stretch", "The plan uses 1 inch = 4 feet. The pool is drawn 3.5 inches long. How long is the real pool?", ["14 feet", "7.5 feet", "12 feet", "16 feet"], 0, "Multiply the drawing length by 4 feet per inch.", "3.5 × 4 = 14.", "scale", { caption: "1 inch = 4 feet. The drawing is 3.5 inches.", audit: { op: "mul", inputs: [3.5, 4], value: 14 }, theme: "pool" }),
+    item("area", "confidence", "The pool is 8 ft long and 5 ft wide. What is the area of the water?", ["40 square feet", "13 square feet", "26 square feet", "85 square feet"], 0, "Multiply length by width.", "8 × 5 = 40.", "labeled", { len: "8 ft", wid: "5 ft", caption: "Pool length 8 ft, width 5 ft.", audit: { op: "mul", inputs: [8, 5], value: 40 }, theme: "pool" }),
+    item("area", "level", "The pool is 8 ft long, 5 ft wide, and 2 ft deep. How many cubic feet of water fill it?", ["80 cubic feet", "40 cubic feet", "15 cubic feet", "16 cubic feet"], 0, "Volume = length × width × depth.", "8 × 5 = 40, and 40 × 2 = 80.", "labeled", { len: "8 ft", wid: "5 ft", caption: "Depth is 2 ft. Do not stop after the floor area.", audit: { op: "mul", inputs: [8, 5, 2], value: 80 }, theme: "pool" }),
+    item("money", "stretch", "Filling the pool costs $1.25 per cubic foot. The pool holds 80 cubic feet. What is the water bill?", ["$100", "$81.25", "$64", "$125"], 0, "Multiply the volume by the price of one cubic foot.", "80 × $1.25 = $100.", "tags", { caption: "$1.25 for each of 80 cubic feet.", audit: { op: "mul", inputs: [80, 1.25], value: 100 }, theme: "pool" }),
 
-    item("patterns", "confidence", "3, 6, 9, 12, ___", ["15", "13", "16", "10"], 0, "The numbers grow by 3.", "12 plus 3 is 15.", "blocks", { n: 15 }),
-    item("patterns", "confidence", "4, 8, 12, ___", ["16", "13", "20", "14"], 0, "Add 4 each time.", "12 plus 4 is 16.", "blocks", { n: 16 }),
-    item("patterns", "level", "How many hundreds are in 416?", ["4", "1", "6", "41"], 0, "The first digit shows the hundreds.", "416 is 4 hundreds, 1 ten, and 6 ones.", "blocks", { n: 4 }),
-    item("patterns", "level", "Star, shell, star, shell, ___", ["Star", "Map", "Shell", "Coin"], 0, "The pair repeats.", "After shell, the pattern starts again with star.", "blocks", { n: 2 }),
-    item("patterns", "stretch", "325 is…", ["3 hundreds, 2 tens, and 5 ones", "5 hundreds and 2 ones", "325 hundreds", "3 ones"], 0, "Say the number in hundreds, tens, and ones.", "The 3 is in the hundreds place.", "blocks", { n: 325 }),
-    item("patterns", "stretch", "300 + 40 + 6 =", ["346", "364", "436", "300"], 0, "Add hundreds, then tens, then ones.", "300 + 40 is 340, plus 6 is 346.", "blocks", { n: 346 }),
+    item("measure", "confidence", "A dock plank is 3.5 meters. You need 12 meters of planks. How many whole planks do you need at least?", ["4 planks", "3 planks", "15.5 planks", "8.5 planks"], 0, "Divide the length you need by one plank, then round up.", "12 ÷ 3.5 is a little more than 3, so 4 planks.", "line", { caption: "Each plank is 3.5 m. You need 12 m.", audit: { op: "ceil-div", inputs: [12, 3.5], value: 4 }, theme: "dock" }),
+    item("measure", "level", "The dock is 18 feet long. How many yards is that? (3 feet = 1 yard)", ["6 yards", "54 yards", "15 yards", "21 yards"], 0, "Divide feet by 3.", "18 ÷ 3 = 6.", "line", { caption: "18 feet. 3 feet make 1 yard.", audit: { op: "div", inputs: [18, 3], value: 6 }, theme: "dock" }),
+    item("measure", "stretch", "1 meter = 100 centimeters. A rope is 2.4 meters. How many centimeters is that?", ["240 cm", "24 cm", "2.4 cm", "204 cm"], 0, "Multiply the meters by 100.", "2.4 × 100 = 240.", "line", { caption: "2.4 meters, and 1 meter = 100 cm.", audit: { op: "mul", inputs: [2.4, 100], value: 240 }, theme: "dock" }),
+    item("measure", "level", "The passage is 46 meters. You have already walked 19 meters. How much is left?", ["27 meters", "65 meters", "25 meters", "37 meters"], 0, "Subtract the distance already walked.", "46 − 19 = 27.", "line", { caption: "46 m passage, 19 m already walked.", audit: { op: "sub", inputs: [46, 19], value: 27 }, theme: "tunnel" }),
+    item("measure", "stretch", "The tunnel plan says 1 cm = 2 meters. The drawing is 7.5 cm. How long is the real tunnel?", ["15 meters", "9.5 meters", "14 meters", "7.5 meters"], 0, "Multiply the drawing by 2 meters per centimeter.", "7.5 × 2 = 15.", "scale", { caption: "1 cm = 2 m. The line is 7.5 cm.", audit: { op: "mul", inputs: [7.5, 2], value: 15 }, theme: "tunnel" }),
+    item("measure", "confidence", "A ladder to the lookout is 24 feet. The first landing is 9 feet up. How much higher is the top?", ["15 feet", "33 feet", "13 feet", "216 feet"], 0, "Subtract the landing from the full height.", "24 − 9 = 15.", "line", { caption: "Tower ladder 24 ft. Landing at 9 ft.", audit: { op: "sub", inputs: [24, 9], value: 15 }, theme: "tower" }),
+    item("measure", "level", "On the tower drawing, 1 inch = 6 feet. The tower is drawn 4.5 inches tall. How tall is the real tower?", ["27 feet", "10.5 feet", "24 feet", "4.5 feet"], 0, "Multiply the drawing height by 6.", "4.5 × 6 = 27.", "scale", { caption: "1 inch = 6 feet. The drawing is 4.5 inches tall.", audit: { op: "mul", inputs: [4.5, 6], value: 27 }, theme: "tower" }),
+    item("measure", "stretch", "From the gallery you can see 2.5 miles. How many feet is that? (1 mile = 5,280 feet)", ["13,200 feet", "5,282.5 feet", "2,112 feet", "7,780 feet"], 0, "Multiply 2.5 by 5,280.", "2 × 5,280 = 10,560, and 0.5 × 5,280 = 2,640. Together that is 13,200.", "line", { caption: "2.5 miles. 1 mile = 5,280 feet.", audit: { op: "mul", inputs: [2.5, 5280], value: 13200 }, theme: "tower" }),
 
-    item("time", "confidence", "A watch starts at 2:00 and lasts 1 hour. When does it end?", ["3:00", "2:00", "1:00", "4:30"], 0, "One hour later.", "2:00 plus 1 hour is 3:00.", "line", { n: 3 }),
-    item("time", "level", "Practice starts at 1:10 and ends at 1:40. How long is it?", ["30 minutes", "40 minutes", "10 minutes", "2 minutes"], 0, "Count the minutes from 10 to 40.", "40 minus 10 is 30.", "line", { n: 30 }),
-    item("time", "stretch", "A sail starts at 3:20 and lasts 25 minutes. When does it end?", ["3:45", "3:25", "4:20", "3:05"], 0, "Add the minutes onto the start time.", "3:20 plus 25 minutes is 3:45.", "line", { n: 45 }),
+    item("patterns", "confidence", "A code starts at 4. Each step does ×2, then +1. The list is 4, 9, 19, 39, ___. What comes next?", ["79", "78", "40", "41"], 0, "Do both parts of the rule, in order.", "39 × 2 = 78, then 78 + 1 = 79.", "code", { groups: [4, 9, 19, 39], caption: "Rule: ×2, then +1. The next number is not printed.", audit: { op: "rule", start: 4, mul: 2, add: 1, steps: 4, value: 79 }, theme: "trophy" }),
+    item("patterns", "level", "In 472,815.36, what is the value of the digit 7?", ["70,000", "7,000", "700,000", "70"], 0, "Find the place. The 7 is in the ten-thousands place.", "472,815.36 has 4 hundred-thousands and 7 ten-thousands. The 7 means 70,000.", "blocks", { caption: "472,815.36", audit: { op: "place", value: 70000 }, theme: "trophy" }),
+    item("patterns", "stretch", "Round 6,482 to the nearest hundred.", ["6,500", "6,400", "6,480", "7,000"], 0, "Look at the tens digit to decide the hundreds.", "The tens digit is 8, so 6,482 rounds up to 6,500.", "line", { caption: "6,482 to the nearest hundred.", audit: { op: "round", value: 6500 }, theme: "trophy" }),
+    item("patterns", "level", "3_6 + 128 = 474. What is the missing digit?", ["4", "5", "3", "8"], 0, "Subtract to find the first number, then read the blank.", "474 − 128 = 346, so the missing digit is 4.", "line", { caption: "3 _ 6 + 128 = 474", audit: { op: "digit", value: 4 }, theme: "trophy" }),
 
-    item("data", "confidence", "A chart shows 2 turtles and 6 fish. Which group has more?", ["Fish", "Turtles", "They are equal", "Boats"], 0, "Compare the two numbers.", "6 is more than 2.", "bars", { n: 6 }),
-    item("data", "level", "The tally is 4 parrots and 3 turtles. How many animals in all?", ["7", "1", "12", "43"], 0, "Add the two groups.", "4 plus 3 is 7.", "bars", { n: 7 }),
-    item("data", "stretch", "Each shell on a chart means 2 coins. What do 4 shells mean?", ["8 coins", "4 coins", "6 coins", "2 coins"], 0, "Four groups of 2.", "4 times 2 is 8.", "bars", { n: 8 }),
+    item("time", "confidence", "The course drill starts at 2:15 and lasts 40 minutes. When does it end?", ["2:55", "3:05", "2:45", "3:15"], 0, "Add 40 minutes to 2:15.", "2:15 + 40 minutes = 2:55.", "line", { caption: "Start 2:15. Add 40 minutes.", audit: { op: "clock", value: "2:55" }, theme: "course" }),
+    item("time", "level", "Gate practice runs from 1:10 to 1:55. How many minutes is that?", ["45 minutes", "65 minutes", "40 minutes", "55 minutes"], 0, "Count from 1:10 up to 1:55.", "55 − 10 = 45 minutes.", "line", { caption: "From 1:10 to 1:55.", audit: { op: "sub", inputs: [55, 10], value: 45 }, theme: "course" }),
+    item("time", "stretch", "Each of 4 gates takes 3.5 minutes, plus a 6-minute warm-up. How long is the whole drill?", ["20 minutes", "14 minutes", "13.5 minutes", "24 minutes"], 0, "Multiply the gates first, then add the warm-up.", "4 × 3.5 = 14, and 14 + 6 = 20.", "line", { caption: "4 gates at 3.5 minutes, then 6 minutes warm-up.", audit: { op: "mul-add", inputs: [4, 3.5, 6], value: 20 }, theme: "course" }),
 
-    item("money", "confidence", "A bun costs 4 coins. You pay 10. What is your change?", ["6 coins", "14 coins", "4 coins", "40 coins"], 0, "Subtract the price from what you paid.", "10 minus 4 is 6.", "coins", { n: 6 }),
-    item("money", "confidence", "You have 3 coins and find 2 more. How many coins now?", ["5", "1", "6", "32"], 0, "Add the coins you found.", "3 plus 2 is 5.", "coins", { n: 5 }),
-    item("money", "level", "Fish costs 8 coins. You pay with 20. What is your change?", ["12 coins", "28 coins", "8 coins", "2 coins"], 0, "Subtract the price.", "20 minus 8 is 12.", "coins", { n: 12 }),
-    item("money", "level", "Two ropes cost 7 coins each. What do they cost together?", ["14 coins", "9 coins", "27 coins", "7 coins"], 0, "Two groups of 7.", "7 plus 7 is 14.", "coins", { n: 14 }),
-    item("money", "stretch", "Three fish cost 5 coins each. You pay 20. What is your change?", ["5 coins", "15 coins", "8 coins", "25 coins"], 0, "Find the total, then the change.", "3 times 5 is 15. 20 minus 15 is 5.", "coins", { n: 5 }),
-    item("money", "stretch", "A chart costs 15 coins. You pay 10, then 8. What is left?", ["3 coins", "18 coins", "15 coins", "0 coins"], 0, "Add what you paid, then subtract the price.", "10 + 8 = 18, and 18 minus 15 is 3.", "coins", { n: 3 }),
+    item("fractions", "confidence", "The tank holds 30 fish. The sign says 2/5 of them are parrotfish. How many parrotfish is that?", ["12", "15", "10", "6"], 0, "Divide by the bottom, then multiply by the top.", "30 ÷ 5 = 6, and 2 × 6 = 12.", "bars", { caption: "2/5 of 30 fish.", audit: { op: "frac", num: 2, den: 5, whole: 30, value: 12 }, theme: "aqua" }),
+    item("data", "level", "The aquarium tally is 14 blue fish and 9 yellow fish. How many more blue fish are there?", ["5", "23", "4", "126"], 0, "Subtract the smaller tally.", "14 − 9 = 5.", "bars", { caption: "14 blue and 9 yellow.", audit: { op: "sub", inputs: [14, 9], value: 5 }, theme: "aqua" }),
+    item("data", "stretch", "Each star on the tank chart means 4 fish. The chart shows 6 stars. How many fish?", ["24 fish", "10 fish", "46 fish", "64 fish"], 0, "Six groups of 4.", "6 × 4 = 24.", "bars", { caption: "Each star means 4 fish. There are 6 stars.", audit: { op: "mul", inputs: [6, 4], value: 24 }, theme: "aqua" }),
 
-    item("vocab", "confidence", "A harbor is a…", ["sheltered place for boats", "kind of storm", "math sign", "desert path"], 0, "Boats tie up in a harbor.", "A harbor is a sheltered place for boats.", "read"),
-    item("vocab", "level", "Swift means…", ["very fast", "very slow", "very salty", "very square"], 0, "A swift boat moves quickly.", "Swift means very fast.", "read"),
-    item("vocab", "stretch", "Mooring means…", ["a place to tie a boat", "a loud engine", "a kind of fish", "a coin"], 0, "You moor a boat when you tie it up.", "A mooring is a place to tie a boat.", "read"),
+    item("area", "confidence", "The roof is 12 ft long and 7 ft wide. What is its area?", ["84 square feet", "19 square feet", "74 square feet", "38 square feet"], 0, "Multiply the two sides.", "12 × 7 = 84.", "labeled", { len: "12 ft", wid: "7 ft", caption: "Roof 12 ft by 7 ft.", audit: { op: "mul", inputs: [12, 7], value: 84 }, theme: "roof" }),
+    item("area", "level", "A hammock roof is 12 ft by 7 ft. What is the perimeter of that roof?", ["38 feet", "84 feet", "19 feet", "31 feet"], 0, "Add all four sides.", "12 + 7 + 12 + 7 = 38.", "labeled", { len: "12 ft", wid: "7 ft", caption: "Add both lengths and both widths.", audit: { op: "add", inputs: [12, 7, 12, 7], value: 38 }, theme: "roof" }),
+    item("area", "stretch", "The roof plan uses 1 inch = 4 feet. The roof is drawn 3 inches by 2 inches. What is the real area?", ["96 square feet", "24 square feet", "6 square feet", "20 square feet"], 0, "Scale each side, then multiply.", "3 × 4 = 12 feet and 2 × 4 = 8 feet. 12 × 8 = 96.", "labeled", { len: "3 in", wid: "2 in", caption: "1 inch = 4 feet. Scale both sides before you multiply.", audit: { op: "scale-area", w: 3, h: 2, per: 4, value: 96 }, theme: "roof" }),
+    item("measure", "confidence", "Two tunnel sections are 18 meters and 13.5 meters. How long are they together?", ["31.5 meters", "4.5 meters", "31 meters", "22.5 meters"], 0, "Add the two sections. Line up the decimal.", "18.0 + 13.5 = 31.5.", "line", { caption: "18 m and 13.5 m.", audit: { op: "add", inputs: [18, 13.5], value: 31.5 }, theme: "tunnel" }),
 
-    item("navigation", "confidence", "A boat goes 3 squares east and 4 squares north. How long is the straight path?", ["5 squares", "7 squares", "12 squares", "1 square"], 0, "3 and 4 make a 3-4-5 triangle.", "3, 4, and 5 are a right-triangle triple. 3×3 + 4×4 = 5×5.", "legs", { east: 3, north: 4 }),
-    item("navigation", "level", "A boat sails 6 knots for 3 hours. How far does it go?", ["18 miles", "9 miles", "2 miles", "63 miles"], 0, "Distance is speed times time.", "6 times 3 is 18.", "hours", { hours: 3, speed: 6 }),
-    item("navigation", "stretch", "North is marked. The bow points to the right of north. Which way is that?", ["East", "West", "South", "North"], 0, "Right of north on a map is east.", "Clockwise from north is east.", "compass"),
-
-    item("fractions", "confidence", "One apple is shared equally by 2 friends. What fraction does each friend get?", ["1/2", "1/4", "2/1", "1/3"], 0, "Two equal shares.", "Each friend gets 1 of the 2 parts.", "bars", { n: 1 }),
-    item("fractions", "level", "What is 1/2 of 10?", ["5", "10", "2", "12"], 0, "Half means split into 2 equal groups.", "10 divided by 2 is 5.", "bars", { n: 5 }),
-    item("fractions", "stretch", "A cake is cut into 4 equal slices. Mara eats 1. What fraction is left?", ["3/4", "1/4", "4/3", "1/2"], 0, "Subtract the eaten slice from the whole.", "4 minus 1 leaves 3 slices, so 3/4.", "bars", { n: 3 })
+    item("reading", "confidence", "Mara checked the green buoy, wrote the heading, and only then cast off. What is this mostly about?", ["Mara checked the channel before she left.", "She wrote one heading in the log.", "Sailors think about safety.", "She sailed because the buoy light was broken."], 0, "The main idea covers every action, not one detail.", "Checking, writing, and then leaving are all part of getting ready.", "read", { theme: "hq" }),
+    item("reading", "level", "The keeper lit the lamp, then wrote 'channel clear, wind gentle.' What can you tell?", ["She would not sign the log until the lamp was actually lit.", "The wind was gentle.", "Keepers care about the sea.", "The lamp had been dark for a week."], 0, "Use the order of the actions.", "She lights the lamp first, and the log reports the channel she can now see.", "read", { theme: "tower" }),
+    item("reading", "stretch", "In the sentence 'Mara slowed because a red flag closed the channel to fast boats,' what does channel mean?", ["The deep path boats are supposed to follow.", "A television station.", "Any water a person can see.", "The rope that ties a boat to the dock."], 0, "Swap each meaning into the sentence.", "A channel here is the marked path for boats, which a flag can close.", "read", { theme: "dock" })
   ];
 
   const TEACH = {
@@ -113,9 +110,9 @@
       { say: "That difference is how many more.", visual: "bars", n: 2 }
     ],
     navigation: [
-      { say: "Draw the two legs of the trip.", visual: "line", n: 3 },
-      { say: "A 3-east and 4-north trip closes with 5.", visual: "line", n: 5 },
-      { say: "Speed times hours gives the distance.", visual: "line", n: 6 }
+      { say: "Add every labeled leg of the route. Stay on the path.", visual: "line", n: 5 },
+      { say: "Then add the next leg to that sum.", visual: "line", n: 8 },
+      { say: "Distance is speed times time. A half hour is 0.5.", visual: "line", n: 12 }
     ],
     fractions: [
       { say: "Split the bar into equal parts.", visual: "bars", n: 4 },
@@ -292,9 +289,13 @@
     const s = document.createElement("style");
     s.id = "v50-style";
     s.textContent = `
-#learn-layer{position:fixed;inset:0;z-index:70;display:none;align-items:flex-end;justify-content:center;background:rgba(8,24,48,.28);padding:10px}
+#learn-layer{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;background:rgba(8,24,48,.28);padding:12px}
 #learn-layer.show{display:flex}
-#learn-card{width:min(760px,100%);max-height:min(64vh,680px);overflow:auto;background:linear-gradient(#fffdf6,#f3f7ff);border:6px solid #ffc83d;border-radius:22px;padding:12px 14px 16px;color:#10234d;box-shadow:0 18px 40px rgba(7,20,48,.35),0 8px 0 rgba(20,40,80,.18)}
+#learn-card{width:min(760px,100%);max-height:calc(100vh - 28px);overflow:auto;background:linear-gradient(#fffdf6,#f3f7ff);border:6px solid #ffc83d;border-radius:22px;padding:12px 14px 16px;color:#10234d;box-shadow:0 18px 40px rgba(7,20,48,.35),0 8px 0 rgba(20,40,80,.18)}
+.learn-foot{position:sticky;bottom:0;background:#fffdf6;padding-top:8px;display:flex;flex-wrap:wrap;gap:8px}
+.plan-rect{position:relative;width:180px;height:96px;margin:8px auto;border:4px solid #14336b;border-radius:6px}
+.plan-rect .plan-w{position:absolute;left:-8px;top:36px;background:#fff}
+.plan-rect .plan-l{position:absolute;left:48px;bottom:-8px;background:#fff}
 #learn-card header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 #learn-card h2{margin:0;font-size:24px;display:flex;align-items:center;gap:8px}
 .learn-ico{width:36px;height:36px;border-radius:12px;background:linear-gradient(#fff,#d7e6ff);border:2px solid #ffc83d;display:inline-flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 0 rgba(20,40,80,.18)}
@@ -338,12 +339,14 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
   #hud .chip{font-size:15px;padding:3px 8px}
   #prize-bar{width:100% !important;max-width:100%;font-size:13px}
   #hint{white-space:normal;max-width:calc(100vw - 16px);font-size:14px}
-  #learn-card{max-height:72vh;padding:8px 10px 12px}
-  #learn-card button{min-height:38px;padding:6px 8px}
-  .learn-choices{grid-template-columns:1fr}
-  .learn-prompt{font-size:18px;margin:4px 0}
-  .learn-story{max-height:16vh}
-  #winter-banner{bottom:88px;font-size:13px;max-width:calc(100vw - 20px)}
+  #learn-card{max-height:calc(100vh - 16px);padding:8px 10px 10px}
+  #learn-card button{min-height:40px;padding:6px 8px}
+  .learn-choices{grid-template-columns:1fr 1fr}
+  .learn-prompt{font-size:17px;margin:4px 0}
+  .learn-visual{min-height:0;margin:4px 0;padding:4px}
+  .plan-rect{width:140px;height:62px}
+  .learn-story{max-height:22vh}
+  #winter-banner{bottom:150px;font-size:13px;max-width:calc(100vw - 24px)}
 }
 `;
     document.head.appendChild(s);
@@ -391,6 +394,16 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
   }
   function visualHtml(kind, n, progress, q) {
     if (kind === "read" || (q && q.visual === "read")) return "";
+    if (q && q.visual === "route") {
+      const legs = q.legs || [];
+      return `<div class="learn-visual">${legs.map((leg) => `<span class="hblk">${leg.n}<br>${esc(leg.dir)}</span>`).join("<span> then </span>")}<div>${esc(q.caption || "")}</div></div>`;
+    }
+    if (q && q.visual === "labeled") {
+      return `<div class="learn-visual"><div class="plan-rect"><b class="plan-w">${esc(q.wid || "")}</b><b class="plan-l">${esc(q.len || "")}</b></div><div>${esc(q.caption || "")}</div></div>`;
+    }
+    if (q && (q.visual === "scale" || q.visual === "tags")) {
+      return `<div class="learn-visual"><div>${esc(q.caption || "")}</div></div>`;
+    }
     const p = Math.max(0, Math.min(1, progress == null ? 0.75 : progress));
     if (q && q.visual === "legs") {
       const e = q.east || 3, north = q.north || 4;
@@ -411,7 +424,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     }
     if (q && q.visual === "code") {
       const groups = q.groups || [];
-      return `<div class="learn-visual">${groups.map((g) => `<span class="hblk">${"<b style='color:#fff'>•</b>".repeat(g)}</span>`).join("")}<div>${q.caption || ""}</div></div>`;
+      return `<div class="learn-visual">${groups.map((g) => `<span class="hblk">${g}</span>`).join("<span> , </span>")}<div>${esc(q.caption || "")}</div></div>`;
     }
     if (kind === "coins") {
       const total = Math.max(1, Math.min(12, n || 5));
@@ -484,18 +497,15 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     return null;
   }
   function makeGate(id) {
-    const skill = BUILD_SKILL[id];
+    const theme = BUILD_THEME[id];
+    const pool = BANK.filter((q) => q.theme === theme);
     const used = new Set();
     const qs = [];
-    const due = nextDue();
-    const weak = weakest();
-    if (due) qs.push(pick(due, "confidence", used));
-    else if (weak && weak !== skill) qs.push(pick(weak, "confidence", used));
-    else qs.push(pick(skill, "confidence", used));
-    if (qs[0].skill !== skill) qs.push(pick(skill, "confidence", used));
-    qs.push(pick(skill, "level", used));
-    qs.push(pick(skill, "stretch", used));
-    if (qs.length < 4) qs.push(pick(skill, "level", used));
+    pool.filter((q) => q.skill !== "reading").forEach((q) => {
+      if (qs.length < 4 && !used.has(q.prompt)) { used.add(q.prompt); qs.push(Object.assign({}, q)); }
+    });
+    const lore = pool.find((q) => q.skill === "reading");
+    if (lore && qs.length < 5) qs.push(Object.assign({}, lore));
     return qs.slice(0, 5);
   }
   function priceOf(id) {
@@ -637,48 +647,20 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     return { ok: false, reason: "hold", heldMs: holdMs };
   }
 
+  function copyTheme(theme, skill) {
+    return BANK.filter((q) => q.theme === theme && (!skill || q.skill === skill)).map((q) => Object.assign({}, q));
+  }
   const ACT = {
-    nav: {
-      title: "Navigation", icon: "🧭",
-      qs: [
-        item("navigation", "confidence", "The boat goes 3 squares east and 4 squares north. How long is the straight path?", ["5 squares", "7 squares", "12 squares", "1 square"], 0, "3 and 4 make a 3-4-5 triangle.", "3×3 + 4×4 = 25, and 5×5 = 25.", "legs", { east: 3, north: 4 }),
-        item("navigation", "level", "The boat sails at 6 knots for 3 hours. How far does it go?", ["18 miles", "9 miles", "2 miles", "63 miles"], 0, "Distance is speed times time.", "6 times 3 is 18.", "hours", { hours: 3, speed: 6 }),
-        item("navigation", "stretch", "North is the only mark. The bow points to the right. Which heading is that?", ["East", "West", "South", "North"], 0, "On a chart, right of north is east.", "The right-hand heading is east.", "compass")
-      ]
-    },
-    market: {
-      title: "Fish market", icon: "🐟",
-      qs: [
-        item("money", "confidence", "One fish costs 6 coins. You pay 10. What is your change?", ["4 coins", "16 coins", "6 coins", "60 coins"], 0, "Subtract the price from 10.", "10 minus 6 is 4.", "market", { fish: 1, coins: 10, caption: "You pay these 10 coins. The tag says 6." }),
-        item("money", "level", "Two fish cost 5 coins each. What do they cost together?", ["10 coins", "7 coins", "25 coins", "3 coins"], 0, "Two groups of 5.", "5 plus 5 is 10.", "market", { fish: 2, coins: 0, caption: "Each tag says 5. Find the total." }),
-        item("money", "stretch", "Four fish cost 12 coins together. What is the price of one fish?", ["3 coins", "12 coins", "8 coins", "4 coins"], 0, "Share 12 equally into 4.", "12 divided by 4 is 3.", "market", { fish: 4, coins: 0, caption: "Four fish. The pile of coins is 12, not the unit price." })
-      ]
-    },
-    blueprint: {
-      title: "Lair blueprints", icon: "📐",
-      qs: [
-        item("area", "confidence", "How many squares are in this plan?", ["10", "7", "15", "4"], 0, "Count the squares, or multiply 5 by 2.", "There are 5 across and 2 up, so 10.", "cells", { cells: 10, caption: "Count the squares. The total is not printed." }),
-        item("area", "level", "A deck is 6 meters long and 4 meters wide. What is the perimeter?", ["20 meters", "24 meters", "10 meters", "64 meters"], 0, "Add all four sides.", "6 + 4 + 6 + 4 = 20.", "line", { n: 6, caption: "The sides are 6 and 4. Add every side." }),
-        item("area", "stretch", "On this plan, 1 square stands for 3 meters. The dock drawing is 4 squares long. How many meters is the real dock?", ["12 meters", "7 meters", "4 meters", "43 meters"], 0, "Each square is worth 3 meters.", "4 times 3 is 12.", "cells", { cells: 4, caption: "Four squares. Each square means 3 meters." })
-      ]
-    },
-    code: {
-      title: "Treasure codes", icon: "🗝️",
-      qs: [
-        item("patterns", "confidence", "The code grows: 3, 6, 9, 12, ___", ["15", "13", "14", "10"], 0, "Add 3 each time.", "12 plus 3 is 15.", "code", { groups: [3, 6, 9, 12], caption: "Each group has 3 more dots. The next group is not drawn." }),
-        item("patterns", "level", "The chest code is 4 hundreds, 1 ten, and 6 ones. What number is that?", ["416", "146", "461", "4"], 0, "Hundreds, then tens, then ones.", "4 hundreds, 1 ten, and 6 ones is 416.", "blocks", { n: 416 }),
-        item("patterns", "stretch", "20, 17, 14, ___  What comes next?", ["11", "13", "15", "10"], 0, "The code counts down by 3.", "14 minus 3 is 11.", "line", { n: 11 })
-      ]
-    },
+    nav: { title: "Navigation", icon: "🧭", qs: copyTheme("nav") },
+    market: { title: "Fish market", icon: "🐟", qs: copyTheme("market") },
+    blueprint: { title: "Lair blueprints", icon: "📐", qs: copyTheme("hq", "area") },
+    code: { title: "Treasure codes", icon: "🗝️", qs: copyTheme("trophy") },
     log: {
-      title: "Captain's log", icon: "📖",
-      passage: LOG_TEXT,
+      title: "Captain's log", icon: "📖", passage: LOG_TEXT,
       qs: [
-        item("reading", "confidence", "What is the main idea of this log?", ["Mara kept a careful record of a safe short trip.", "The crew was lost in a storm all day.", "The lighthouse lamp was broken.", "The harbor was closed for the whole week."], 0, "What is the whole entry about?", "She checks, writes, slows down, and comes home safely.", "read", { kind: "main", passage: LOG_TEXT }),
-        item("reading", "level", "What did the red flag mean?", ["The channel is closed to fast boats.", "The fish were ready to sell.", "The tank was empty.", "A storm had already started."], 0, "Look for the sentence that tells what the flag means.", "The log says a red flag means the channel is closed to fast boats.", "read", { kind: "detail", passage: LOG_TEXT }),
-        item("reading", "level", "Why did Mara write the flag, the buoy, and the trade in the same lines?", ["So the next watch would have the important facts together.", "She had run out of pages.", "She wanted to hide the trade.", "The pencil only worked for one line."], 0, "The log says why she put them together.", "She did not want anything important to be forgotten.", "read", { kind: "infer", passage: LOG_TEXT }),
-        item("vocab", "level", "In this log, a mooring is…", ["a place to tie up a boat", "a kind of storm cloud", "a fish that lives in a well", "a coin used at the market"], 0, "She reaches the mooring at the end of the trip.", "The boat arrives and is tied up, so a mooring is that place.", "read", { kind: "vocab", passage: LOG_TEXT }),
-        item("reading", "stretch", "What is the tone of this log?", ["Careful and calm.", "Angry and rushed.", "Silly and teasing.", "Frightened and lost."], 0, "How does Mara sound while she works?", "She slows down, writes clearly, and calls the voyage careful and kind.", "read", { kind: "tone", passage: LOG_TEXT })
+        item("reading", "level", "What is the main idea of this log?", ["Mara kept a careful record of a calm run so the next watch would know the channel.", "A child on the dock waved a red flag.", "Captains write about the sea.", "The crew turned back because the tank ran dry."], 0, "The main idea covers the whole entry, not one detail.", "She checks the sky, slows for the flag, records the trade, and comes home with the lamp already bright.", "read", { kind: "main", passage: LOG_TEXT }),
+        item("reading", "stretch", "What can you tell about the next watch from this log?", ["They can use Mara's notes about the flag, the buoy, and the trade.", "She traded four fish for a coil of rope.", "A log is useful on every ship.", "The next watch had already left before she returned."], 0, "Ask what the notes are for, not just one fact she wrote.", "She says she wrote those facts so nothing important would be forgotten for the next watch.", "read", { kind: "infer", passage: LOG_TEXT }),
+        item("reading", "level", "What is the tone of this log?", ["Careful and steady.", "She mentions a red flag.", "The log is mostly about feelings.", "She sounds angry that the channel was closed."], 0, "Tone is how the writer sounds, not one object in the story.", "She slows down, writes the facts, checks the knot twice, and calls the voyage careful and kind.", "read", { kind: "tone", passage: LOG_TEXT })
       ]
     }
   };
@@ -687,7 +669,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     const pack = ACT[id];
     if (!pack) return { ok: false, reason: "missing" };
     const qs = pack.qs.map((q) => Object.assign({}, q, { passage: pack.passage || q.passage }));
-    act = { id, qs, i: 0, misses: 0, passage: pack.passage || "" };
+    act = { id, qs, i: 0, misses: 0, passage: pack.passage || "", phase: pack.passage ? "read" : "ask", showRead: false, title: pack.title };
     openMode("act");
     return { ok: true, total: qs.length, id, skills: qs.map((q) => q.kind || q.skill) };
   }
@@ -695,25 +677,25 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     const text = LORE[id];
     if (!text) return null;
     const pack = {
-      harbor: ["Home harbor asks a captain to look, count, and then move.", "Children sell lemonade on the pier.", "Harbors are busy.", "The lighthouse was dark all afternoon."],
-      turtle: ["Turtle Cove is a place for watching nests, not for landing on them.", "Mara counted tracks in the sand.", "Turtles live in the sea.", "She started the motor beside the nest."],
-      parrot: ["Parrot Palms is for looking and listening, and for leaving the shells where they are.", "A parrot said the word rope.", "Birds can be loud.", "Mara fed the parrots from her hand."],
-      pirate: ["Pirate Point is where careful measuring turns into rooms a captain can walk through.", "Most pirates spent what they earned.", "Islands have beaches.", "The hidden door was already a finished castle."],
-      lighthouse: ["The lighthouse keeps its promise only if someone climbs, lights the lamp, and writes the log.", "The tower has a spiral stair.", "Bricks are red.", "The beam pointed into the palms."]
+      harbor: ["A careful captain matches the buoys to the chart before leaving the harbor.", "Children on the pier sell cold lemonade.", "Harbors are places where boats come and go.", "The crew left without looking at the buoys."],
+      turtle: ["Turtle Cove is for watching the nests, not for landing on them.", "Mara counted the tracks from the grass to the water.", "People should be kind to animals.", "She carried a nest back to the boat."],
+      parrot: ["Parrot Palms is a place to look and listen, and to leave the shells where they are.", "A blue parrot said the word rope.", "Islands with trees are pleasant to visit.", "Mara fed the birds so they would stay."],
+      pirate: ["Pirate Point is where measuring a rock becomes rooms a captain can walk through.", "Most crews spent what they earned instead of burying it.", "Building takes planning.", "The hidden door was already a finished hall."],
+      lighthouse: ["The lighthouse promise is kept only when someone climbs, lights the lamp, and writes the truth.", "Mara signed that the channel was clear and the wind was gentle.", "Lights help people at night.", "She left the lamp dark because the sky was clear."]
     }[id];
     const infer = {
-      harbor: ["A captain who skips the buoy count may have to turn back.", "Lemonade is required before every trip.", "The red buoy is the safe side.", "Sunset unties every knot."],
-      turtle: ["A bright lamp on the beach could lead the hatchlings the wrong way.", "Mara took a baby turtle onto the boat.", "The fence was built to block the water.", "Tracks mean the cove has no nests."],
-      parrot: ["Feeding the parrots would change how they find their own fruit.", "Mara filled her pockets with shells.", "The path was underwater.", "The parrot refused every word."],
-      pirate: ["Mara will use her measurements when she builds the next room.", "She dug up a real chest that afternoon.", "The lookout faces only the rock.", "A pool does not need depth."],
-      lighthouse: ["On a moonless night, the step count would still help her climb down.", "She left the lamp dark on purpose.", "The log was blank at the end.", "The beam was aimed at the palms."]
+      harbor: ["Skipping the buoy check could send the boat back to the dock.", "A green buoy marks the safe side of the channel.", "Good captains are careful people.", "The red buoy is the one boats should follow."],
+      turtle: ["A bright lamp on that beach could lead hatchlings away from the water.", "Baby turtles follow the brightest path.", "Wildlife needs quiet places.", "Mara took a hatchling aboard to keep it safe."],
+      parrot: ["Feeding the parrots would change how they look for their own fruit.", "Mara counted twelve shells and left every one.", "Wild birds are interesting.", "The shells were a buried chest of coins."],
+      pirate: ["Mara's measurements are notes she can use when the next room is built.", "A pool plan needs length, width, and depth.", "Math is part of construction.", "She dug up a real chest before she left the beach."],
+      lighthouse: ["On a moonless night, the step count would still help her come down.", "The beam pointed down the channel, not into the palms.", "A lighthouse is a tall building.", "The log was still blank when she reached the bottom."]
     }[id];
     const detail = {
-      harbor: ["A green buoy marks the safe side of the channel.", "The red buoy is the safe side.", "The crew skips the tank check.", "The log is written after the cup, never before."],
-      turtle: ["Baby turtles follow the brightest path toward the sea.", "Mara moved a nest into the boat.", "The pier lights should shine on the sand.", "She counted no tracks at all."],
-      parrot: ["Mara left all twelve shells under the tree.", "She brought a bag of food up the path.", "The shells were a buried chest.", "The bow line did not matter."],
-      pirate: ["A pool plan needs length, width, and depth.", "The X always marks a real hole.", "The hidden door is a finished hall.", "The lookout cannot see the bay."],
-      lighthouse: ["Mara signed that the lamp was lit and the channel was clear.", "The beam pointed into the palms.", "She ran up the stairs with both hands free.", "A dark lamp is safe on a clear evening."]
+      harbor: ["A green buoy marks the safe side of the channel.", "The red buoy is the safe side.", "The crew skips the tank check.", "The heading is written after the lemonade, never before."],
+      turtle: ["A low driftwood fence keeps the pier lights off the sand.", "Mara moved a nest above the tide line.", "The cove has no tracks in the evening.", "She started the motor beside the nests."],
+      parrot: ["Mara left all twelve shells under the largest tree.", "She carried a bag of fruit up the path.", "The parrot would not repeat a word.", "The path was still wet from the tide."],
+      pirate: ["Lanterns along the dry path show the way so nobody steps into the pool.", "The X on the map marked a hole she dug that day.", "The lookout glass cannot see the bay.", "The hidden door was a finished hall with windows."],
+      lighthouse: ["Mara signed: lamp lit, channel clear, wind gentle.", "The beam was aimed into the palms.", "She climbed with both hands off the rail.", "A dark lamp is safe on a clear evening."]
     }[id];
     const ask = (prompt, choices) => ({ prompt, choices, answer: 0 });
     return {
@@ -728,7 +710,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     loreId = LORE[id] ? id : loreId;
     const story = loreFor(loreId);
     const qs = ["main", "detail", "infer"].map((kind) => item("reading", "level", story[kind].prompt, story[kind].choices, 0, "Look back at the story.", story.text, "read", { kind, passage: story.text }));
-    act = { id: "lore", loreId, qs, i: 0, misses: 0, passage: story.text, title: story.title };
+    act = { id: "lore", loreId, qs, i: 0, misses: 0, passage: story.text, title: story.title, phase: "read", showRead: false };
     openMode("act");
     return { ok: true, total: 3, words: story.words, id: loreId };
   }
@@ -770,10 +752,14 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       const icon = mode === "daily" ? "☀" : mode === "gate" ? "🏗" : "⚓";
       const step = q ? `Question ${Math.min(session.i + 1, session.qs.length)} of ${session.qs.length}` : "Done";
       const price = mode === "gate" ? `<p>The price stays <b>${gate.price} coins</b>. A perfect first try, with no hint, gives <b>1 coin</b> back.</p>` : "";
-      const passage = session.passage && q ? `<div class="learn-story">${esc(session.passage)}</div>` : "";
+      if (session.passage && session.phase === "read") {
+        return `<header><h2><span class="learn-ico">${icon}</span>${esc(title)}</h2><button class="ghost" id="learn-exit">Exit</button></header><div class="learn-story">${esc(session.passage)}</div><div class="learn-foot"><button id="learn-ready">Ready for questions</button></div>${pause}`;
+      }
+      const passage = session.passage && session.showRead ? `<div class="learn-story">${esc(session.passage)}</div>` : "";
+      const reread = session.passage ? `<button id="learn-reread" class="ghost">${session.showRead ? "Hide the passage" : "Reread"}</button>` : "";
       const hint = q && q._hint ? `<div class="learn-hint"><b>Hint:</b> ${esc(q._hint)}</div>` : "";
       const hintBtn = mode === "gate" && q && !q._hint ? `<button id="learn-hint" class="ghost">Hint</button>` : "";
-      const body = q ? `${passage}<p class="learn-prompt">${esc(q.prompt)}</p>${qVisual(q)}<div class="learn-choices">${choiceButtons(q, "choice")}</div>${hint}${hintBtn}` : "<p>Done for now.</p>";
+      const body = q ? `${passage}<p class="learn-prompt">${esc(q.prompt)}</p>${qVisual(q)}<div class="learn-choices">${choiceButtons(q, "choice")}</div><div class="learn-foot">${hint}${hintBtn}${reread}</div>` : "<p>Done for now.</p>";
       return `<header><h2><span class="learn-ico">${icon}</span>${esc(title)}</h2><button class="ghost" id="learn-exit">Exit</button></header><p>${step}</p>${price}${body}${pause}`;
     }
     return "";
@@ -790,6 +776,8 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       if (b.id === "learn-resume") { mode = pausedFrom; pausedFrom = null; show(); return; }
       if (b.id === "learn-skip") { tutorSkip(); return; }
       if (b.id === "learn-next") { tutorAdvance(); return; }
+      if (b.id === "learn-ready" && act) { act.phase = "ask"; show(); return; }
+      if (b.id === "learn-reread" && act) { act.showRead = !act.showRead; show(); return; }
       if (b.id === "learn-hint" && gate) {
         const q = gate.qs[gate.i];
         if (q) { q._hint = q.hint; gate.hinted = 1; show(); }
@@ -895,76 +883,144 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
   function drawWinter() {
     const ban = document.getElementById("winter-banner");
     if (ban) ban.classList.toggle("show", winterOn());
-    if (!winterOn() || !kit() || !CA.scene) { clearNamed("v50-snow"); clearNamed("v50-cap"); return; }
+    ["v50-snow", "v50-cap", "v50-frost", "v50-wreath", "v50-roof", "v50-flake"].forEach((name) => { if (!winterOn()) clearNamed(name); });
+    if (!winterOn() || !kit() || !CA.scene) return;
     if (CA.scene.getObjectByName("v50-snow")) return;
     const K = kit();
-    const count = 160;
+    const count = 280;
     const pos = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 80;
-      pos[i * 3 + 1] = 2 + Math.random() * 18;
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 80;
+      pos[i * 3] = (Math.random() - 0.5) * 56;
+      pos[i * 3 + 1] = 7 + Math.random() * 16;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 56;
     }
     const geo = new K.Geo();
     geo.setAttribute("position", new K.Attr(pos, 3));
     const dot = document.createElement("canvas");
-    dot.width = dot.height = 32;
+    dot.width = dot.height = 64;
     const g = dot.getContext("2d");
-    const grd = g.createRadialGradient(16, 16, 2, 16, 16, 15);
+    const grd = g.createRadialGradient(32, 32, 4, 32, 32, 30);
     grd.addColorStop(0, "rgba(255,255,255,1)");
+    grd.addColorStop(0.45, "rgba(255,255,255,0.95)");
     grd.addColorStop(1, "rgba(255,255,255,0)");
     g.fillStyle = grd;
     g.beginPath();
-    g.arc(16, 16, 15, 0, Math.PI * 2);
+    g.arc(32, 32, 30, 0, Math.PI * 2);
     g.fill();
     const tex = new K.CanvasTex(dot);
-    const mat = new K.PointsMat({ color: 0xffffff, size: 0.45, map: tex, transparent: true, depthWrite: false, sizeAttenuation: true });
+    const mat = new K.PointsMat({ color: 0xffffff, size: 1.15, map: tex, transparent: true, depthWrite: false, sizeAttenuation: true });
     const pts = new K.Points(geo, mat);
     pts.name = "v50-snow";
     pts.frustumCulled = false;
     CA.scene.add(pts);
-    snowCaps();
+    const flakeMat = new K.Basic({ color: 0xffffff, transparent: true, opacity: 0.92, depthWrite: false });
+    for (let i = 0; i < 22; i++) {
+      const flake = new K.Mesh(new K.Sphere(0.09, 8, 6), flakeMat);
+      const ang = Math.random() * Math.PI * 2;
+      const rad = 4 + Math.random() * 18;
+      flake.position.set(Math.cos(ang) * rad, 8 + Math.random() * 10, Math.sin(ang) * rad);
+      flake.name = "v50-flake";
+      CA.scene.add(flake);
+    }
+    dressWinterSet();
   }
-  function snowCaps() {
+  function dressWinterSet() {
     const K = kit();
-    if (!K || CA.scene.getObjectByName("v50-cap")) return;
-    let n = 0;
-    const list = [];
-    CA.scene.updateMatrixWorld(true);
-    CA.scene.traverse((o) => { if (o.isMesh && o.geometry) list.push(o); });
-    list.forEach((o) => {
-      if (n > 28) return;
-      try { capOne(o); } catch (err) { /* skip a mesh that has no bounds */ }
-    });
-    function capOne(o) {
-      let parent = o.parent, onCaptain = false;
-      while (parent) {
-        if (parent === CA.captain) onCaptain = true;
-        parent = parent.parent;
-      }
+    if (!K || CA.scene.getObjectByName("v50-frost")) return;
+    const frostMat = new K.Basic({ color: 0xe9f6ff, transparent: true, opacity: 0.72, depthWrite: false, side: 2 });
+    function frost(cx, cz, inner, outer) {
+      const ring = new K.Mesh(new K.Ring(inner, outer, 40), frostMat);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(cx, 0.06, cz);
+      ring.name = "v50-frost";
+      CA.scene.add(ring);
+    }
+    frost(0, 0, 20.4, 23.55);
+    [[0, -62.5], [44.2, -44.2], [62.5, 0], [44.2, 44.2], [0, 62.5], [-44.2, 44.2], [-62.5, 0], [-44.2, -44.2]].forEach(([x, z]) => frost(x, z, 14.4, 17.25));
+    let roofs = 0;
+    let wreaths = 0;
+    CA.scene.traverse((o) => {
+      if (!o.isMesh || !o.material || !o.material.color || !o.geometry) return;
+      let parent = o.parent;
+      let onCaptain = false;
+      while (parent) { if (parent === CA.captain) onCaptain = true; parent = parent.parent; }
       if (onCaptain) return;
       if (!o.geometry.boundingBox && o.geometry.computeBoundingBox) o.geometry.computeBoundingBox();
       const bb = o.geometry.boundingBox;
       if (!bb) return;
       const ws = new K.Vector3(1, 1, 1);
       if (o.getWorldScale) o.getWorldScale(ws);
-      const sx = Math.abs(bb.max.x - bb.min.x) * Math.abs(ws.x || 1);
-      const sy = Math.abs(bb.max.y - bb.min.y) * Math.abs(ws.y || 1);
-      const sz = Math.abs(bb.max.z - bb.min.z) * Math.abs(ws.z || 1);
-      const palmish = sy > 2.4 && sy < 8 && sx < 2.4 && sz < 2.4;
-      const roof = /lair|tower|roof|lh-/i.test(String(o.name || "") + String(o.parent && o.parent.name || "")) && sy > 0.4 && sy < 6 && Math.max(sx, sz) < 5;
-      if (!palmist && !roof) return;
-      const r = Math.max(0.18, Math.min(0.55, Math.min(sx, sz, sy) * 0.28));
-      const cap = new K.Mesh(new K.Sphere(r, 10, 8), new K.Lambert({ color: 0xf4f7ff }));
-      cap.scale.y = 0.45;
       const wp = new K.Vector3();
       o.getWorldPosition(wp);
-      if (CA.captain && wp.distanceTo(CA.captain.position) < 1.4) return;
-      cap.position.set(wp.x, wp.y + sy * 0.45, wp.z);
-      cap.name = "v50-cap";
+      const sx = Math.abs((bb.max.x - bb.min.x) * ws.x);
+      const sy = Math.abs((bb.max.y - bb.min.y) * ws.y);
+      const sz = Math.abs((bb.max.z - bb.min.z) * ws.z);
+      const col = o.material.color;
+      const nearHome = Math.hypot(wp.x, wp.z) < 80;
+      const blueRoof = nearHome && col.b > col.r + 0.12 && col.b > 0.3 && sy < 0.8 && Math.max(sx, sz) > 1.8 && wp.y > 1.6;
+      const dome = o.name === "lair-shell";
+      if ((blueRoof || dome) && roofs < 6) {
+        const cap = new K.Mesh(new K.Box(Math.max(0.8, Math.min(sx, 5.5) * 0.7), 0.16, Math.max(0.8, Math.min(sz, 5.5) * 0.7)), new K.Lambert({ color: 0xf7fbff }));
+        cap.position.set(wp.x, wp.y + Math.max(sy, 0.4) * 0.42, wp.z);
+        cap.name = "v50-roof";
+        CA.scene.add(cap);
+        roofs += 1;
+      }
+      const gallery = nearHome && sy > 3.5 && sy < 14 && sx < 2.8 && sz < 2.8 && col.r > 0.45;
+      if (gallery && roofs < 12) {
+        const cap = new K.Mesh(new K.Cyl(Math.max(sx, sz) * 0.7, Math.max(sx, sz) * 0.7, 0.18, 10), new K.Lambert({ color: 0xf7fbff }));
+        cap.position.set(wp.x, wp.y + sy * 0.48, wp.z);
+        cap.name = "v50-roof";
+        CA.scene.add(cap);
+        roofs += 1;
+      }
+      const post = nearHome && col.r > 0.28 && col.r > col.b && sy > 0.55 && sy < 2.4 && sx < 0.4 && sz < 0.4;
+      if (post && wreaths < 4) {
+        const wreath = new K.Mesh(new K.Torus(0.28, 0.07, 6, 14), new K.Lambert({ color: 0x2e8b46 }));
+        wreath.position.set(wp.x, wp.y + sy * 0.55, wp.z);
+        wreath.name = "v50-wreath";
+        const bulb = new K.Mesh(new K.Sphere(0.09, 6, 5), new K.Lambert({ color: 0xffe08a, emissive: 0xffc83d, emissiveIntensity: 0.8 }));
+        bulb.position.y = 0.28;
+        wreath.add(bulb);
+        CA.scene.add(wreath);
+        wreaths += 1;
+      }
+    });
+    const snowMat = new K.Lambert({ color: 0xf7fbff });
+    function snowBox(x, y, z, w, h, d) {
+      const cap = new K.Mesh(new K.Box(w, h, d), snowMat);
+      cap.position.set(x, y, z);
+      cap.name = "v50-roof";
       CA.scene.add(cap);
-      n += 1;
     }
+    snowBox(-10.9, 4.28, -10.2, 6.6, 0.28, 4.8);
+    snowBox(0, 4.55, -2, 3.7, 0.26, 4.8);
+    const lampCap = new K.Mesh(new K.Cyl(1.25, 1.35, 0.28, 12), snowMat);
+    lampCap.position.set(10.9, 10.45, -10.2);
+    lampCap.name = "v50-roof";
+    CA.scene.add(lampCap);
+    const shell = CA.scene.getObjectByName("lair-shell");
+    if (shell) {
+      shell.updateWorldMatrix(true, false);
+      const e = shell.matrixWorld.elements;
+      const dome = new K.Mesh(new K.Sphere(2.15, 12, 8), snowMat);
+      dome.scale.set(1.15, 0.38, 1);
+      dome.position.set(e[12], e[13] + 2.55, e[14]);
+      dome.name = "v50-roof";
+      CA.scene.add(dome);
+    }
+    [[25.9, 18], [22.7, 18], [25.9, 28], [22.7, 28], [1.7, 30], [-1.7, 30], [1.7, 38], [-1.7, 38]].forEach(([x, z]) => {
+      const post = new K.Mesh(new K.Cyl(0.08, 0.1, 1.15, 6), new K.Lambert({ color: 0x6b4224 }));
+      post.position.set(x, 0.7, z);
+      post.name = "v50-wreath";
+      const wreath = new K.Mesh(new K.Torus(0.32, 0.08, 6, 16), new K.Lambert({ color: 0x1f8a3b }));
+      wreath.position.y = 0.42;
+      const bulb = new K.Mesh(new K.Sphere(0.1, 6, 5), new K.Lambert({ color: 0xffe7a8, emissive: 0xffc83d, emissiveIntensity: 1 }));
+      bulb.position.y = 0.28;
+      wreath.add(bulb);
+      post.add(wreath);
+      CA.scene.add(post);
+    });
   }
   function dress() {
     const K = kit();
@@ -972,16 +1028,17 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     const root = new K.Group();
     root.name = "v50-gfx";
     CA.scene.add(root);
-    gfx = { root, wakes: [] };
+    gfx = { root, wakes: [], foam: [] };
     const waterY = typeof CA.waterY === "number" ? CA.waterY : -0.55;
-    const foamMat = new K.Lambert({ color: 0xf7fbff, transparent: true, opacity: 0.92 });
+    const foamMat = new K.Lambert({ color: 0xffffff, transparent: true, opacity: 0.9 });
     function foam(cx, cz, radius) {
       if (!(radius > 2)) return;
-      const ring = new K.Mesh(new K.Torus(radius, 0.16, 6, 64), foamMat);
+      const ring = new K.Mesh(new K.Torus(radius, 0.34, 5, 22), foamMat);
       ring.rotation.x = Math.PI / 2;
       ring.position.set(cx, waterY + 0.2, cz);
       ring.name = "v50-foam";
       root.add(ring);
+      gfx.foam.push(ring);
     }
     foam(0, 0, 24.15);
     [[0, -62.5], [44.2, -44.2], [62.5, 0], [44.2, 44.2], [0, 62.5], [-44.2, 44.2], [-62.5, 0], [-44.2, -44.2]].forEach(([x, z]) => foam(x, z, 17.7));
@@ -1007,13 +1064,96 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
         root.add(tuft);
       }
     });
+    const wet = new K.Basic({ color: 0x8a6840, transparent: true, opacity: 0.82, depthWrite: false, side: 2 });
+    function wetBand(cx, cz, inner, outer) {
+      const band = new K.Mesh(new K.Ring(inner, outer, 48), wet);
+      band.rotation.x = -Math.PI / 2;
+      band.position.set(cx, 0.035, cz);
+      band.name = "v50-wetsand";
+      root.add(band);
+    }
+    wetBand(0, 0, 21.7, 23.5);
+    [[0, -62.5], [44.2, -44.2], [62.5, 0], [44.2, 44.2], [0, 62.5], [-44.2, 44.2], [-62.5, 0], [-44.2, -44.2]].forEach(([x, z]) => wetBand(x, z, 15.5, 17.25));
+    const flowerColors = [0xff5fa2, 0xffd24a, 0xffffff];
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      const rad = 8 + (i % 3) * 2.2;
+      const rock = new K.Mesh(new K.Sphere(0.22 + (i % 3) * 0.08, 7, 5), new K.Lambert({ color: i % 2 ? 0x9aa098 : 0xc4b8a4 }));
+      rock.scale.set(1.15, 0.55, 0.9);
+      rock.position.set(Math.cos(a) * rad, 0.16, Math.sin(a) * rad);
+      rock.name = "v50-rock";
+      root.add(rock);
+      const tuft = new K.Mesh(new K.Cone(0.1, 0.28, 5), new K.Lambert({ color: 0x3c9a46 }));
+      tuft.position.set(Math.cos(a + 0.3) * (rad + 1.1), 0.14, Math.sin(a + 0.3) * (rad + 1.1));
+      tuft.name = "v50-grass";
+      root.add(tuft);
+      const bloom = new K.Mesh(new K.Sphere(0.16, 6, 5), new K.Lambert({ color: flowerColors[i % 3] }));
+      bloom.position.set(Math.cos(a + 0.5) * (rad - 0.6), 0.28, Math.sin(a + 0.5) * (rad - 0.6));
+      bloom.name = "v50-flower";
+      root.add(bloom);
+    }
+    const shore = Math.atan2(30, 42);
+    for (let i = 0; i < 7; i++) {
+      const a = shore - 0.35 + i * 0.11;
+      const rad = 17.5 + (i % 3) * 1.1;
+      const rock = new K.Mesh(new K.Sphere(0.35 + (i % 4) * 0.16, 7, 5), new K.Lambert({ color: i % 2 ? 0x8e877c : 0xb7aa96 }));
+      rock.scale.set(1.2, 0.55, 0.95);
+      rock.position.set(Math.cos(a) * rad, 0.22, Math.sin(a) * rad);
+      rock.name = "v50-rock";
+      root.add(rock);
+      const bloom = new K.Mesh(new K.Sphere(0.2, 6, 5), new K.Lambert({ color: flowerColors[i % 3] }));
+      bloom.position.set(Math.cos(a + 0.06) * (rad - 1.3), 0.32, Math.sin(a + 0.06) * (rad - 1.3));
+      bloom.name = "v50-flower";
+      root.add(bloom);
+      const tuft = new K.Mesh(new K.Cone(0.16, 0.42, 5), new K.Lambert({ color: 0x3c9a46 }));
+      tuft.position.set(Math.cos(a - 0.05) * (rad - 1.6), 0.2, Math.sin(a - 0.05) * (rad - 1.6));
+      tuft.name = "v50-grass";
+      root.add(tuft);
+    }
+    const skyCanvas = document.createElement("canvas");
+    skyCanvas.width = 8; skyCanvas.height = 256;
+    const sg = skyCanvas.getContext("2d");
+    const skyGrad = sg.createLinearGradient(0, 0, 0, 256);
+    skyGrad.addColorStop(0, "#8ec8ff");
+    skyGrad.addColorStop(0.55, "#d7ecff");
+    skyGrad.addColorStop(1, "#ffe7c4");
+    sg.fillStyle = skyGrad;
+    sg.fillRect(0, 0, 8, 256);
+    const skyTex = new K.CanvasTex(skyCanvas);
+    const sky = new K.Mesh(new K.Sphere(480, 20, 16), new K.Basic({ map: skyTex, side: 1, depthWrite: false }));
+    sky.name = "v50-sky";
+    sky.frustumCulled = false;
+    root.add(sky);
+    const woodCanvas = document.createElement("canvas");
+    woodCanvas.width = 64; woodCanvas.height = 64;
+    const wg = woodCanvas.getContext("2d");
+    wg.fillStyle = "#c4894a";
+    wg.fillRect(0, 0, 64, 64);
+    for (let y = 0; y < 64; y += 10) {
+      wg.fillStyle = y % 20 ? "#a86b32" : "#e0a86a";
+      wg.fillRect(0, y, 64, 8);
+      wg.fillStyle = "rgba(90,50,20,.35)";
+      wg.fillRect(0, y + 7, 64, 2);
+    }
+    const woodTex = new K.CanvasTex(woodCanvas);
+    woodTex.wrapS = woodTex.wrapT = 1000;
+    let planks = 0;
     CA.scene.traverse((o) => {
-      if (!o.isMesh || !o.material || !o.material.normalMap || !o.geometry || !o.geometry.parameters) return;
-      if ((o.geometry.parameters.width || 0) < 400) return;
-      o.material.normalMap.repeat.set(18, 18);
-      if (o.material.normalScale) o.material.normalScale.set(0.1, 0.1);
-      if (o.material.shininess) o.material.shininess = 24;
-      if (o.material.color) o.material.color.set("#217fc4");
+      if (planks > 18 || !o.isMesh || !o.material || !o.material.color || !o.geometry || o.material.map) return;
+      if (!o.geometry.boundingBox && o.geometry.computeBoundingBox) o.geometry.computeBoundingBox();
+      const bb = o.geometry.boundingBox;
+      if (!bb) return;
+      const sx = Math.abs(bb.max.x - bb.min.x);
+      const sy = Math.abs(bb.max.y - bb.min.y);
+      const sz = Math.abs(bb.max.z - bb.min.z);
+      const col = o.material.color;
+      const flat = o.geometry.type === "BoxGeometry" && sy < 0.4 && Math.max(sx, sz) > 4 && Math.min(sx, sz) < 8 && col.r > 0.35 && col.r > col.b;
+      if (!flat) return;
+      const next = o.material.clone();
+      next.map = woodTex;
+      next.color.set("#ffffff");
+      o.material = next;
+      planks += 1;
     });
     const shell = CA.scene.getObjectByName("lair-shell");
     if (shell && shell.material) {
@@ -1056,11 +1196,73 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     }
     CA.scene.traverse((o) => {
       if (!o.isLight) return;
-      if (o.isDirectionalLight && o.intensity) { o.color && o.color.set("#ffe0b0"); o.intensity = Math.min(o.intensity, 1.35); }
-      if (o.isHemisphereLight) { o.color && o.color.set("#e7f2ff"); o.groundColor && o.groundColor.set("#c6b48a"); }
+      if (o.isDirectionalLight && o.intensity) {
+        o.color && o.color.set("#ffd2a4");
+        if (o.intensity < 1.7) o.intensity = 1.75;
+        if (o.shadow) o.shadow.radius = 2.4;
+      }
+      if (o.isHemisphereLight) { o.color && o.color.set("#fff0dc"); o.groundColor && o.groundColor.set("#d7c09a"); }
     });
-    if (CA.scene.fog && CA.scene.fog.color) CA.scene.fog.color.set("#d5ecff");
-    const wakeGeo = new K.Plane(1.1, 0.45);
+    if (CA.scene.fog && CA.scene.fog.color) CA.scene.fog.color.set("#f3e4cc");
+    const poolWater = CA.scene.getObjectByName("lair-water");
+    if (poolWater && poolWater.parent && !poolWater.parent.getObjectByName("v50-pool-rim")) {
+      const rim = new K.Mesh(new K.Torus(1, 0.055, 8, 36), new K.Lambert({ color: 0xd5ece6 }));
+      rim.rotation.x = Math.PI / 2;
+      rim.position.copy(poolWater.position);
+      rim.position.y += 0.2;
+      rim.scale.set(poolWater.scale.x * 1.08, poolWater.scale.z * 1.08, 1);
+      rim.name = "v50-pool-rim";
+      poolWater.parent.add(rim);
+      const tile = new K.Mesh(new K.Torus(1, 0.03, 6, 36), new K.Lambert({ color: 0xf4efe4 }));
+      tile.rotation.x = Math.PI / 2;
+      tile.position.copy(rim.position);
+      tile.position.y += 0.04;
+      tile.scale.set(poolWater.scale.x * 0.96, poolWater.scale.z * 0.96, 1);
+      tile.name = "v50-pool-rim";
+      poolWater.parent.add(tile);
+      const shimmer = new K.Mesh(new K.Circle(1, 28), new K.Basic({ color: 0xe8fbff, transparent: true, opacity: 0.45, depthWrite: false, side: 2 }));
+      shimmer.rotation.x = -Math.PI / 2;
+      shimmer.position.copy(poolWater.position);
+      shimmer.position.y += 0.28;
+      shimmer.scale.set(poolWater.scale.x * 0.72, poolWater.scale.z * 0.72, 1);
+      shimmer.name = "v50-shimmer";
+      poolWater.parent.add(shimmer);
+      gfx.shimmer = shimmer;
+    }
+    const doorPivot = CA.scene.getObjectByName("lair-door");
+    if (doorPivot && !doorPivot.getObjectByName("v50-door")) {
+      const frame = new K.Group();
+      frame.name = "v50-door";
+      const wood = new K.Lambert({ color: 0x6a3e22 });
+      [[0, 2.15, 1.15, 3.5, 0.4, 0.32], [-1.6, 0.45, 1.15, 0.36, 3.8, 0.32], [1.6, 0.45, 1.15, 0.36, 3.8, 0.32]].forEach(([x, y, z, w, h, d]) => {
+        const bar = new K.Mesh(new K.Box(w, h, d), wood);
+        bar.position.set(x, y, z);
+        frame.add(bar);
+      });
+      [-2.15, 2.15].forEach((x) => {
+        const torch = new K.Mesh(new K.Cyl(0.1, 0.12, 2.1, 6), new K.Lambert({ color: 0x4a3424 }));
+        torch.position.set(x, 0.7, 1.45);
+        const flame = new K.Mesh(new K.Sphere(0.42, 8, 6), new K.Lambert({ color: 0xffb03a, emissive: 0xff6a00, emissiveIntensity: 1.4 }));
+        flame.position.y = 1.25;
+        torch.add(flame);
+        frame.add(torch);
+      });
+      doorPivot.add(frame);
+    }
+    if (CA.lair && CA.lair.world && !CA.scene.getObjectByName("v50-lantern")) {
+      [[2.2, 8.2], [4.4, 10.6], [6.6, 12.4]].forEach(([ie, ge], i) => {
+        const p = CA.lair.world(ie, ge, 0);
+        const ground = CA.lair.gy ? CA.lair.gy(ie, ge) : 0.6;
+        const post = new K.Mesh(new K.Cyl(0.08, 0.1, 1.7, 6), new K.Lambert({ color: 0x5c4030 }));
+        post.position.set(p.x, ground + 0.85, p.z);
+        const lamp = new K.Mesh(new K.Sphere(0.22, 8, 6), new K.Lambert({ color: 0xffe7a0, emissive: 0xffc83d, emissiveIntensity: 1 }));
+        lamp.position.y = 1.05;
+        post.add(lamp);
+        post.name = i === 0 ? "v50-lantern" : "v50-lantern";
+        root.add(post);
+      });
+    }
+    const wakeGeo = new K.Plane(2.4, 0.85);
     wakeGeo.rotateX(-Math.PI / 2);
     ["motorboat", "yacht", "sailboat"].forEach((id) => {
       const veh = CA.VEH && CA.VEH[id];
@@ -1073,6 +1275,33 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
         gfx.wakes.push({ mesh: m, id, i });
       }
     });
+    let kayak = null;
+    let kayakDist = 1e9;
+    CA.scene.traverse((o) => {
+      if (!o.isMesh || !o.material || !o.material.color) return;
+      const col = o.material.color;
+      if (col.r < 0.7 || col.r < col.g + 0.45 || col.b > 0.25) return;
+      const p = new K.Vector3();
+      o.getWorldPosition(p);
+      const fromHome = Math.hypot(p.x, p.z);
+      const fromCam = Math.hypot(p.x - 42, p.z - 30);
+      if (fromHome < 18 || fromHome > 36 || p.y < 0.2 || p.y > 1.1) return;
+      if (fromCam < kayakDist) { kayakDist = fromCam; kayak = p.clone(); }
+    });
+    if (kayak) {
+      const out = Math.hypot(kayak.x, kayak.z) || 1;
+      const ox = kayak.x / out;
+      const oz = kayak.z / out;
+      for (let i = 0; i < 6; i++) {
+        const m = new K.Mesh(wakeGeo, new K.Basic({ color: 0xffffff, transparent: true, opacity: 0.78 - i * 0.1, depthWrite: false }));
+        const dist = 1.1 + i * 1.15;
+        m.position.set(kayak.x + ox * dist, waterY + 0.28, kayak.z + oz * dist);
+        m.rotation.y = Math.atan2(ox, oz);
+        m.scale.set(1.35, 1, 1);
+        m.name = "v50-wake";
+        root.add(m);
+      }
+    }
   }
   function moveWakes() {
     if (!gfx || !CA.VEH) return;
@@ -1093,6 +1322,15 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
   }
   function fallSnow(step) {
     const snow = CA.scene && CA.scene.getObjectByName("v50-snow");
+    if (gfx && gfx.foam) gfx.foam.forEach((ring, i) => { ring.rotation.z = clockMs / 900 + i; });
+    if (gfx && gfx.shimmer) gfx.shimmer.material.opacity = 0.55 + Math.sin(clockMs / 280) * 0.15;
+    const flakes = [];
+    if (CA.scene) CA.scene.traverse((o) => { if (o.name === "v50-flake") flakes.push(o); });
+    flakes.forEach((flake, i) => {
+      flake.position.y -= step * 1.3;
+      if (flake.position.y < 0.4) flake.position.y = 18;
+      flake.position.x += Math.sin(clockMs / 400 + i) * 0.02;
+    });
     if (!snow || !snow.geometry) return;
     const arr = snow.geometry.attributes.position.array;
     for (let i = 0; i < arr.length; i += 3) {
@@ -1248,21 +1486,25 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     lore: loreFor,
     openLore,
     log: { text: LOG_TEXT, words: wordCount(LOG_TEXT), questions: ACT.log.qs },
-    activity: (id) => ACT[id] ? { total: ACT[id].qs.length, kinds: ACT[id].qs.map((q) => q.kind || q.skill) } : null,
+    activity: (id) => ACT[id] ? { total: ACT[id].qs.length, kinds: ACT[id].qs.map((q) => q.kind || q.skill), questions: ACT[id].qs } : null,
+    gateQuestions: (id) => makeGate(id).map((q) => ({ theme: q.theme, skill: q.skill, prompt: q.prompt, choices: q.choices, answer: q.answer })),
+    questions: () => BANK.concat(ACT.log.qs),
     winter: {
       on: winterOn,
       draw: drawWinter,
       stats: () => {
-        let points = false, cones = 0, onCaptain = 0;
+        let points = false, cones = 0, onCaptain = 0, flakes = 0, frost = 0, roofs = 0, wreaths = 0, count = 0;
         if (CA.scene) CA.scene.traverse((o) => {
-          if (o.name === "v50-snow") points = o.isPoints === true;
-          if (o.name === "v50-cap") {
-            let p = o.parent;
-            while (p) { if (p === CA.captain) onCaptain += 1; p = p.parent; }
-          }
+          if (o.name === "v50-snow" && o.isPoints) { points = true; count = o.geometry.attributes.position.count; }
+          if (o.name === "v50-flake") flakes += 1;
+          if (o.name === "v50-frost") frost += 1;
+          if (o.name === "v50-roof") roofs += 1;
+          if (o.name === "v50-wreath") wreaths += 1;
+          let p = o.parent;
+          while (p) { if (p === CA.captain && (o.name === "v50-roof" || o.name === "v50-flake" || o.name === "v50-snow")) onCaptain += 1; p = p.parent; }
           if (o.name && o.name.indexOf("v50-snow") === 0 && o.geometry && o.geometry.type === "ConeGeometry") cones += 1;
         });
-        return { on: winterOn(), points, cones, onCaptain };
+        return { on: winterOn(), points, cones, onCaptain, flakes, frost, roofs, wreaths, count };
       }
     },
     celebrate,

@@ -53,7 +53,7 @@ const report = await page.evaluate(() => {
   const prices = { tank: C.fuel && C.fuel.PRICE, big: C.MG_COST_BIG, other: C.MG_COST };
   return { names, shingle, swell, court, lava, cones, prices, hooked: !!(C.renderer && C.renderer.__v50hook) };
 });
-const need = ["v50-face", "v50-joint", "v50-doorframe", "v50-rail", "v50-beam", "v50-frond", "v50-foam", "v50-slide-lip", "v50-path", "v50-smoke", "v50-rope", "v50-shadow", "v50-cloud", "v50-buoy", "v50-seat", "v50-wall", "v50-dirt", "v50-court"];
+const need = ["v50-doorframe", "v50-rail", "v50-beam", "v50-frond", "v50-foam", "v50-slide-lip", "v50-path", "v50-smoke", "v50-rope", "v50-shadow", "v50-cloud", "v50-buoy", "v50-seat", "v50-wall", "v50-dirt", "v50-court"];
 need.forEach((name) => check(name + " is in the world", (report.names[name] || 0) > 0, String(report.names[name] || 0)));
 check("roofs carry shingles", report.shingle >= 1, String(report.shingle));
 check("the ocean shader has the slow swell", report.swell >= 1, String(report.swell));

@@ -975,11 +975,59 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     CA.scene.traverse((o) => { if (o.name && o.name.indexOf(prefix) === 0) gone.push(o); });
     gone.forEach((o) => { if (o.parent) o.parent.remove(o); });
   }
+  let landTint = null;
+  function tintWinterLand(on) {
+    if (landTint === on) return;
+    landTint = on;
+    const K = kit();
+    if (!K || !CA.scene) { landTint = null; return; }
+    const cool = new K.Color(0xe7eef2);
+    const seen = new Set();
+    CA.scene.traverse((o) => {
+      if (!o.isMesh) return;
+      const col = o.geometry && o.geometry.attributes && o.geometry.attributes.color;
+      if (col && !o.userData.v50roof) {
+        if (!o.userData.v50cols) {
+          let green = 0;
+          let n = 0;
+          const step = Math.max(1, Math.floor(col.count / 300));
+          for (let i = 0; i < col.count; i += step) {
+            n += 1;
+            if (col.getY(i) > col.getX(i) + 0.04 && col.getY(i) > 0.25) green += 1;
+          }
+          if (n && green / n > 0.2) o.userData.v50cols = new Float32Array(col.array);
+        }
+        if (o.userData.v50cols) {
+          const src = o.userData.v50cols;
+          for (let i = 0; i < col.count; i++) {
+            const r = src[i * 3];
+            const g = src[i * 3 + 1];
+            const b = src[i * 3 + 2];
+            if (on && g > r + 0.02 && g > 0.2) col.setXYZ(i, r * 0.25 + 0.66, g * 0.25 + 0.74, b * 0.25 + 0.76);
+            else col.setXYZ(i, r, g, b);
+          }
+          col.needsUpdate = true;
+        }
+      }
+      if (!o.material || !o.material.color) return;
+      const m = o.material;
+      if (seen.has(m.uuid)) return;
+      const c = m.color;
+      if (m.userData.v50base == null) {
+        if (!(c.g > 0.32 && c.g > c.r + 0.05 && c.g > c.b * 0.85)) return;
+        m.userData.v50base = c.getHex();
+      }
+      seen.add(m.uuid);
+      c.setHex(m.userData.v50base);
+      if (on) c.lerp(cool, 0.72);
+    });
+  }
   function drawWinter() {
     const ban = document.getElementById("winter-banner");
     if (ban) ban.classList.toggle("show", winterOn());
     ["v50-snow", "v50-cap", "v50-frost", "v50-wreath", "v50-roof", "v50-flake"].forEach((name) => { if (!winterOn()) clearNamed(name); });
     applySky();
+    tintWinterLand(winterOn());
     if (!winterOn()) { restoreGazeboRoof(); return; }
     if (!kit() || !CA.scene) return;
     if (CA.scene.getObjectByName("v50-snow")) return;
@@ -994,7 +1042,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     const geo = new K.Geo();
     geo.setAttribute("position", new K.Attr(pos, 3));
     const tex = flakeTexture();
-    const mat = new K.PointsMat({ color: 0xffffff, size: 0.95, map: tex, transparent: true, depthWrite: false, sizeAttenuation: true, opacity: 0.95 });
+    const mat = new K.PointsMat({ color: 0xffffff, size: 0.85, map: tex, transparent: true, depthWrite: false, sizeAttenuation: true, opacity: 0.82 });
     const pts = new K.Points(geo, mat);
     pts.name = "v50-snow";
     pts.frustumCulled = false;
@@ -1048,8 +1096,8 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       const gallery = o.geometry.type === "CylinderGeometry" && Math.hypot(x - 10.94, z + 10.16) < 1.2 && Math.abs(y - 8.1) < 0.4 && h < 0.4;
       const gazebo = o.geometry.type === "ConeGeometry" && col.b > 0.45 && col.r < 0.25 && y > 2;
       if (garage) {
-        const slab = new K.Mesh(new K.Box(w * 0.98, 0.42, d * 0.98), snowMat);
-        slab.position.y = bb.max.y + 0.24;
+        const slab = new K.Mesh(new K.Box(w * 1.08, 0.14, d * 1.08), new K.Lambert({ color: 0xf7fbff }));
+        slab.position.y = bb.max.y + 0.1;
         slab.name = "v50-roof";
         o.add(slab);
       }
@@ -1169,41 +1217,10 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     const lamb = (hex) => new K.Lambert({ color: hex });
     const basic = (hex, opacity) => new K.Basic({ color: hex, transparent: true, opacity: opacity, depthWrite: false });
 
-    if (CA.captain && !CA.captain.getObjectByName("v50-face")) {
-      const face = new K.Group();
-      face.name = "v50-face";
-      face.position.set(0, 1.28, 0.34);
-      [-1, 1].forEach((side) => {
-        const eye = new K.Mesh(new K.Sphere(0.05, 10, 8), lamb(0xffffff));
-        eye.position.set(side * 0.11, 0.08, 0.02);
-        const pupil = new K.Mesh(new K.Sphere(0.03, 8, 6), lamb(0x16325c));
-        pupil.position.set(0, 0, -0.04);
-        const glint = new K.Mesh(new K.Sphere(0.012, 6, 4), lamb(0xffffff));
-        glint.position.set(side * -0.012, 0.014, -0.055);
-        eye.add(pupil);
-        eye.add(glint);
-        const brow = new K.Mesh(new K.Box(0.09, 0.018, 0.02), lamb(0xc48a3a));
-        brow.position.set(side * 0.095, 0.15, 0.01);
-        brow.rotation.z = side * -0.2;
-        const cheek = new K.Mesh(new K.Sphere(0.045, 8, 6), lamb(0xff8b8b));
-        cheek.position.set(side * 0.13, -0.02, 0.02);
-        face.add(eye);
-        face.add(brow);
-        face.add(cheek);
-      });
-      for (let i = 0; i < 7; i++) {
-        const t = Math.PI * (0.15 + 0.7 * (i / 6));
-        const smile = new K.Mesh(new K.Sphere(0.016, 6, 4), lamb(0xd4534a));
-        smile.position.set(Math.cos(t) * 0.07, -0.1 - Math.sin(t) * 0.035, 0.01);
-        face.add(smile);
-      }
-      CA.captain.add(face);
-      [[-0.2, 1.02, 0.06, 0.1, 0x1a356e], [0.2, 1.02, 0.06, 0.1, 0x1a356e], [-0.3, 0.72, 0.05, 0.07, 0xffd0b0], [0.3, 0.72, 0.05, 0.07, 0xffd0b0], [-0.09, 0.2, 0.06, 0.08, 0xffd0b0], [0.09, 0.2, 0.06, 0.08, 0xffd0b0]].forEach(([x, y, z, r, color]) => {
-        const joint = new K.Mesh(new K.Sphere(r, 10, 8), lamb(color));
-        joint.position.set(x, y, z);
-        joint.name = "v50-joint";
-        CA.captain.add(joint);
-      });
+    if (CA.captain) {
+      const gone = [];
+      CA.captain.traverse((o) => { if (o.name === "v50-face" || o.name === "v50-joint") gone.push(o); });
+      gone.forEach((o) => { if (o.parent) o.parent.remove(o); });
     }
 
     const roofTex = shingleTex(K, "#1d4e9e", "#163872");
@@ -1241,11 +1258,10 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
         o.add(frame);
         const front = new K.Group();
         front.name = "v50-doorframe";
-        front.position.set(-10.94, 1.55, -7.05);
-        const cream = lamb(0xfff6e4);
-        const navy = lamb(0x10224d);
-        [[0, 1.45, 5.7, 0.28, 0.18, cream], [0, -1.4, 5.5, 0.22, 0.16, cream], [-2.7, 0, 0.32, 2.9, 0.2, navy], [2.7, 0, 0.32, 2.9, 0.2, navy]].forEach(([x, y, bw, bh, bd, mat]) => {
-          const bar = new K.Mesh(new K.Box(bw, bh, bd), mat);
+        front.position.set(-10.94, 1.5, -7.28);
+        const cream = lamb(0xfff8ee);
+        [[0, 1.42, 5.15, 0.1, 0.08], [0, -1.38, 5.05, 0.08, 0.07], [-2.52, 0, 0.1, 2.75, 0.08], [2.52, 0, 0.1, 2.75, 0.08]].forEach(([x, y, bw, bh, bd]) => {
+          const bar = new K.Mesh(new K.Box(bw, bh, bd), cream);
           bar.position.set(x, y, 0);
           front.add(bar);
         });
@@ -1299,17 +1315,10 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     CA.scene.add(rail);
     const beamPivot = new K.Group();
     beamPivot.name = "v50-beam";
-    beamPivot.position.set(10.94, 9.05, -10.16);
-    const cone = new K.Mesh(new K.Cone(1.35, 7.2, 18, 1, true), basic(0xffe7a0, 0.22));
-    cone.material.blending = 2;
-    cone.material.side = 2;
-    cone.material.depthWrite = false;
-    cone.rotation.z = Math.PI / 2;
-    cone.position.x = 3.6;
-    const halo = new K.Sprite(new K.SpriteMat({ map: flakeTexture(), color: 0xfff1c4, transparent: true, depthWrite: false, opacity: 0.55 }));
-    halo.scale.setScalar(1.6);
+    beamPivot.position.set(10.94, 9.15, -10.16);
+    const halo = new K.Sprite(new K.SpriteMat({ map: flakeTexture(), color: 0xffe08a, transparent: true, depthWrite: false, opacity: 0.42 }));
+    halo.scale.setScalar(1.15);
     halo.name = "v50-beam";
-    beamPivot.add(cone);
     beamPivot.add(halo);
     CA.scene.add(beamPivot);
     gfx.beam = beamPivot;
@@ -1466,27 +1475,66 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
         lava.material = next;
         lava.userData.v50lava = 1;
         lava.name = "v50-lava";
+        lava.visible = false;
         gfx.lava = lava;
       }
-      const hot = new K.Lambert({ color: 0xff5a1f, emissive: 0xff6a00, emissiveIntensity: 1.1 });
-      const coneAt = { x: 0, z: -81.3, top: 15.2 };
-      const V = CA.camera.position.constructor;
-      const up = new V(0, 1, 0);
-      for (let i = 0; i < 4; i++) {
-        const a = (i / 4) * Math.PI * 2 + 0.6;
-        const top = new V(Math.sin(a) * 1.4, 13.4, coneAt.z + Math.cos(a) * 1.4);
-        const bot = new V(Math.sin(a) * 6.2, 1.6, coneAt.z + Math.cos(a) * 6.2);
-        const len = top.distanceTo(bot);
-        const stream = new K.Mesh(new K.Box(0.55, len, 0.14), hot);
-        stream.position.copy(top).add(bot).multiplyScalar(0.5);
-        const dir = bot.clone().sub(top).normalize();
-        stream.quaternion.setFromUnitVectors(up, dir);
-        stream.name = "v50-lava";
-        CA.scene.add(stream);
+      CA.scene.traverse((o) => {
+        if (!o.isMesh || !o.geometry || o.geometry.type !== "BoxGeometry") return;
+        const w = worldOf(o);
+        if (Math.hypot(w.x, w.z + 81.25) > 16 || w.y < 2 || w.y > 14) return;
+        const bb = o.geometry.boundingBox || (o.geometry.computeBoundingBox(), o.geometry.boundingBox);
+        const sx = bb.max.x - bb.min.x;
+        const sy = bb.max.y - bb.min.y;
+        const sz = bb.max.z - bb.min.z;
+        if (Math.max(sx, sz) > 4 && Math.min(sx, sy, sz) < 0.45) o.visible = false;
+      });
+      CA.scene.traverse((o) => {
+        if (!o.isMesh || !o.geometry || o.geometry.type !== "TorusGeometry" || o.name) return;
+        const w = worldOf(o);
+        if (w.y < 3 && Math.hypot(w.x, w.z + 81.25) < 22) o.visible = false;
+      });
+      const hot = new K.Basic({ color: 0xff6a18 });
+      let coneMesh = null;
+      CA.scene.traverse((o) => {
+        if (coneMesh || !o.isMesh || !o.geometry || o.geometry.type !== "CylinderGeometry" || !o.geometry.parameters) return;
+        const p = o.geometry.parameters;
+        if (p.radiusBottom < 5 || p.height < 8) return;
+        o.updateWorldMatrix(true, false);
+        const e = o.matrixWorld.elements;
+        if (Math.hypot(e[12], e[14] + 81.25) > 8) return;
+        coneMesh = o;
+      });
+      const ce = coneMesh.matrixWorld.elements;
+      const cs = Math.hypot(ce[0], ce[1], ce[2]) || 1;
+      const cp = coneMesh.geometry.parameters;
+      const coneAt = {
+        x: ce[12],
+        z: ce[14],
+        baseY: ce[13] - cp.height * cs * 0.5,
+        topY: ce[13] + cp.height * cs * 0.5,
+        rb: cp.radiusBottom * cs,
+        rt: cp.radiusTop * cs
+      };
+      for (let i = 0; i < 3; i++) {
+        const base = 0.72 + (i - 1) * 0.42;
+        for (let s = 0; s < 9; s++) {
+          const t = s / 10;
+          const y = coneAt.topY - t * (coneAt.topY - coneAt.baseY);
+          const u = (y - coneAt.baseY) / (coneAt.topY - coneAt.baseY);
+          const surface = coneAt.rb + (coneAt.rt - coneAt.rb) * u;
+          const wob = Math.sin(t * 6.5 + i * 2.2) * 0.55;
+          const a = base + Math.sin(t * 4.2 + i) * 0.45;
+          const rad = surface + 0.16 + (1 - t) * 0.12;
+          const drop = new K.Mesh(new K.Sphere(0.46 - t * 0.24, 8, 6), hot);
+          drop.position.set(coneAt.x + Math.sin(a) * rad, y, coneAt.z + Math.cos(a) * rad);
+          drop.renderOrder = 2;
+          drop.name = "v50-lava";
+          CA.scene.add(drop);
+        }
       }
-      const rim = new K.Mesh(new K.Torus(2.15, 0.22, 8, 18), hot);
+      const rim = new K.Mesh(new K.Torus(coneAt.rt + 0.15, 0.22, 8, 28), hot);
       rim.rotation.x = Math.PI / 2;
-      rim.position.set(coneAt.x, coneAt.top, coneAt.z);
+      rim.position.set(coneAt.x, coneAt.topY + 0.05, coneAt.z);
       rim.name = "v50-lava";
       CA.scene.add(rim);
       CA.scene.traverse((o) => {
@@ -1499,8 +1547,8 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       gfx.smoke = [0, 1, 2, 3].map((i) => {
         const smokeMat = new K.SpriteMat({ map: smokeMap, color: 0xe7edf2, transparent: true, depthWrite: false, opacity: 0.4 });
         const s = new K.Sprite(smokeMat);
-        s.position.set(coneAt.x + (i - 1.5) * 0.7, 16 + i * 1.4, coneAt.z + 0.4);
-        s.scale.setScalar(1.6 + i * 0.45);
+        s.position.set(coneAt.x + (i - 1.5) * 0.85, 15.2, coneAt.z + 2.2);
+        s.scale.setScalar(2.2 + i * 0.35);
         s.userData.v50puff = i / 4;
         s.name = "v50-smoke";
         CA.scene.add(s);

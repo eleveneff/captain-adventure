@@ -201,33 +201,168 @@ await page.evaluate(() => {
 });
 await shot("gfx-13-lighthouse.png");
 
-const mgs = ["volcano", "minefield", "laser", "football", "baseball", "tennis", "fishing"];
-for (const id of mgs) {
-  const result = await page.evaluate(async (name) => {
-    const C = window.CaptainAdventure;
-    let opened = false;
-    try { C.openMG(name); opened = true; } catch (err) { return { opened: false, error: String(err.message || err) }; }
-    await new Promise((r) => setTimeout(r, 250));
-    const mg = document.getElementById("mg");
-    const visible = !!(mg && !mg.classList.contains("hidden"));
-    const worldHidden = document.body.classList.contains("mg-on");
-    const hud = document.getElementById("hud");
-    const hudHidden = !hud || getComputedStyle(hud).visibility === "hidden" || document.body.classList.contains("mg-on");
-    const exit = !!(mg && (mg.querySelector(".mg-x") || mg.querySelector(".mg-back") || mg.querySelector("button")));
-    return { opened, visible, worldHidden, hudHidden, exit };
-  }, id);
-  note("mini-game " + id, result.visible && result.exit ? "fixed" : "open", JSON.stringify(result));
-  if (id === "baseball" && result.visible) await shot("gfx-14-baseball-mg.png");
-  if (id === "laser" && result.visible) await shot("gfx-15-laser-mg.png");
-  await page.evaluate(() => document.querySelector("#mg .mg-x")?.click());
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+async function poll(fn, ms = 3000) {
+  const start = Date.now();
+  let last = null;
+  while (Date.now() - start < ms) {
+    last = await page.evaluate(fn);
+    if (last && last.done) return last;
+    await sleep(40);
+  }
+  return Object.assign({ done: false, timedOut: true }, last || {});
 }
+const mgIds = ["football", "tecmo", "baseball", "tennis", "fishing", "powerboat", "sailboat", "laser", "lava"];
+const unlocks = await page.evaluate((ids) => {
+  const C = window.CaptainAdventure;
+  const mg = C.v3 && C.v3.mg;
+  if (!mg) return { missing: true };
+  const at = {};
+  ids.forEach((id) => { at[id] = mg.unlockAt(id); });
+  C.setScore(0);
+  const lockedAtZero = { laser: mg.unlocked("laser"), lava: mg.unlocked("lava"), fishing: mg.unlocked("fishing") };
+  C.setScore(900);
+  return { at, lockedAtZero, ids: mg.ids.slice(), scoreNow: C.state().score, hooked: !!(C.renderer && C.renderer.__v50hook) };
+}, mgIds);
+const rulesOk = !unlocks.missing && unlocks.hooked
+  && unlocks.at.laser === 350 && unlocks.at.lava === 400 && unlocks.at.fishing === 0
+  && unlocks.lockedAtZero.laser === false && unlocks.lockedAtZero.lava === false && unlocks.lockedAtZero.fishing === true
+  && mgIds.every((id) => unlocks.ids.includes(id));
+note("mini-game unlock rules", rulesOk ? "fixed" : "open", JSON.stringify(unlocks));
 
-await page.evaluate(() => document.querySelector("#mg .mg-x")?.click());
-const restored = await page.evaluate(() => {
-  const mg = document.getElementById("mg");
-  return { hidden: !mg || mg.classList.contains("hidden"), world: !document.body.classList.contains("mg-on") };
-});
-note("mini-game exit restores the world", restored.hidden && restored.world ? "fixed" : "open", JSON.stringify(restored));
+const mgTable = [];
+for (const id of mgIds) {
+  const row = { id, opens: false, playable: false, worldHidden: false, restored: false };
+  const opened = await page.evaluate((name) => {
+    const C = window.CaptainAdventure;
+    const frames = C.renderer.info.render.frame;
+    let api = false;
+    let error = "";
+    try { api = C.openMG(name) !== false; } catch (err) { error = String(err && err.message || err); }
+    const mg = document.getElementById("mg");
+    const hud = document.getElementById("hud");
+    const scene = document.getElementById("scene");
+    const panel = !!(mg && !mg.classList.contains("hidden") && (mg.querySelector(".mg-card:not(.hidden)") || mg.querySelector("canvas")));
+    return {
+      api, error, panel,
+      phase: C.v3.mg.phase,
+      title: (mg && mg.querySelector(".mg-title") && mg.querySelector(".mg-title").textContent) || "",
+      immediate: document.body.classList.contains("mg-on"),
+      hudHidden: !hud || getComputedStyle(hud).visibility === "hidden",
+      sceneHidden: !scene || getComputedStyle(scene).visibility === "hidden",
+      frames
+    };
+  }, id);
+  row.opens = !!(opened.api && opened.panel);
+  row.worldHidden = !!(opened.immediate && opened.hudHidden && opened.sceneHidden);
+  if (opened.phase === "choose") {
+    await page.evaluate((name) => {
+      const btn = document.querySelector('#mg .opts button[data-id="' + name + '"]');
+      if (btn) btn.click();
+    }, id);
+  }
+  await page.evaluate(() => document.querySelector("#mg .mg-start")?.click());
+  for (let step = 0; step < 8; step++) {
+    const phase = await page.evaluate(() => {
+      const mg = window.CaptainAdventure.v3.mg;
+      if (mg.phase === "gate") {
+        mg.gateAnswer(true);
+        const go = document.querySelector("#mg .mg-go");
+        const next = document.querySelector("#mg .mg-next");
+        if (go) go.click();
+        else if (next) next.click();
+      } else if (mg.phase === "card") {
+        document.querySelector("#mg .mg-start")?.click();
+      }
+      return mg.phase;
+    });
+    if (phase === "count" || phase === "play" || phase === "end") break;
+    await sleep(80);
+  }
+  const playing = await poll(() => {
+    const phase = window.CaptainAdventure.v3.mg.phase;
+    return { done: phase === "play" || phase === "end", phase };
+  }, 6000);
+  if (playing.phase === "play") {
+    await page.evaluate(() => {
+      const mg = window.CaptainAdventure.v3.mg;
+      mg.debugPress("action");
+      mg.debugSetTime(0.05);
+    });
+  }
+  const ended = await poll(() => {
+    const mg = window.CaptainAdventure.v3.mg;
+    const card = document.querySelector("#mg .mg-card");
+    const text = card ? card.innerText : "";
+    const done = mg.phase === "end" && /Score/.test(text) && !!document.querySelector("#mg .mg-back");
+    return { done, phase: mg.phase, text: text.slice(0, 140) };
+  }, 4000);
+  row.playable = !!ended.done;
+  const quiet = await page.evaluate(() => {
+    const frame = window.CaptainAdventure.renderer.info.render.frame;
+    return frame;
+  });
+  await sleep(280);
+  const still = await page.evaluate((start) => {
+    const C = window.CaptainAdventure;
+    const hud = document.getElementById("hud");
+    const scene = document.getElementById("scene");
+    return {
+      frames: C.renderer.info.render.frame - start,
+      mgOn: document.body.classList.contains("mg-on"),
+      hudHidden: !hud || getComputedStyle(hud).visibility === "hidden",
+      sceneHidden: !scene || getComputedStyle(scene).visibility === "hidden"
+    };
+  }, quiet);
+  row.worldHidden = row.worldHidden && still.frames === 0 && still.mgOn && still.hudHidden && still.sceneHidden;
+  if (id === "baseball" && row.opens) await shot("gfx-14-baseball-mg.png");
+  if (id === "laser" && row.opens) await shot("gfx-15-laser-mg.png");
+  await page.evaluate(() => {
+    const back = document.querySelector("#mg .mg-back");
+    if (back) back.click();
+    else document.querySelector("#mg .mg-x")?.click();
+  });
+  const back = await poll(() => {
+    const mg = document.getElementById("mg");
+    const hud = document.getElementById("hud");
+    const scene = document.getElementById("scene");
+    const hidden = !mg || mg.classList.contains("hidden");
+    const world = !document.body.classList.contains("mg-on");
+    const hudShown = !!hud && getComputedStyle(hud).visibility !== "hidden";
+    const sceneShown = !!scene && getComputedStyle(scene).visibility !== "hidden";
+    const frames = window.CaptainAdventure.renderer.info.render.frame;
+    return { done: hidden && world && hudShown && sceneShown, hidden, world, hudShown, sceneShown, frames };
+  }, 3000);
+  let resumed = back.frames;
+  if (back.done) {
+    await sleep(250);
+    resumed = await page.evaluate((start) => window.CaptainAdventure.renderer.info.render.frame - start, back.frames);
+  }
+  row.restored = !!(back.done && resumed > 0);
+  row.detail = { phase: ended.phase || playing.phase || opened.phase, framesWhileOpen: still.frames, resumed, error: opened.error || "" };
+  mgTable.push(row);
+  const ok = row.opens && row.playable && row.worldHidden && row.restored;
+  note("mini-game " + id, ok ? "fixed" : "open", JSON.stringify(row));
+}
+fs.writeFileSync(path.join(out, "mg-table.json"), JSON.stringify(mgTable, null, 2));
+const allMg = mgTable.length === mgIds.length && mgTable.every((row) => row.opens && row.playable && row.worldHidden && row.restored);
+note("every mini-game hides the world and restores it", allMg ? "fixed" : "open", mgTable.map((row) => row.id + ":" + (row.opens && row.playable && row.worldHidden && row.restored ? "ok" : "no")).join(", "));
+
+for (const id of ["minefield", "volcano"]) {
+  const station = await page.evaluate((name) => {
+    const C = window.CaptainAdventure;
+    C.openPanel(name);
+    const panel = document.getElementById("panel");
+    const body = document.getElementById("panel-body");
+    const open = !!(panel && !panel.classList.contains("hidden"));
+    const text = body ? body.innerText : "";
+    const question = /Question \d+ of \d+/.test(text) && text.length > 40;
+    document.getElementById("close")?.click();
+    const closed = !document.getElementById("panel") || document.getElementById("panel").classList.contains("hidden");
+    return { open, question, closed, sample: text.slice(0, 120) };
+  }, id);
+  note("station " + id, station.open && station.question && station.closed ? "fixed" : "open", JSON.stringify(station));
+}
 
 const esc = await page.evaluate(() => {
   const before = document.body.classList.contains("mg-on");
@@ -337,4 +472,4 @@ note("console", errors.filter((e) => !/favicon|Failed to load resource/i.test(e)
 fs.writeFileSync(path.join(out, "final-qc.json"), JSON.stringify({ findings, fps: rate, errors: errors.slice(0, 8) }, null, 2));
 await browser.close();
 server.close();
-if (findings.some((f) => f.status === "open")) process.exitCode = 0;
+if (findings.some((f) => f.status === "open")) process.exitCode = 1;

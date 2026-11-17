@@ -331,7 +331,7 @@ mark.learn-hit{background:#ffe08a;border-radius:6px;padding:0 3px}
 #winter-banner.show{display:block}
 #ver-flag{font-size:12px;font-weight:800;color:#ffc83d;background:#14336b;border:2px solid #ffc83d;border-radius:10px;padding:3px 8px;max-width:100%;margin-top:4px}
 #learn-open{position:static;border:3px solid #ffc83d;background:#14336b;color:#fff;font-weight:800;border-radius:12px;padding:6px 10px;box-shadow:0 3px 0 rgba(0,0,0,.25)}
-body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-toggle,body.learn-on #hint,body.learn-on #settings,body.learn-on #prompt,body.learn-on #act,body.learn-on #joy,body.learn-on #learn-open,body.mg-on #hud,body.mg-on #hint,body.mg-on #gear,body.mg-on #zoom,body.mg-on #touch-toggle{visibility:hidden !important;pointer-events:none !important}
+body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-toggle,body.learn-on #hint,body.learn-on #settings,body.learn-on #prompt,body.learn-on #act,body.learn-on #joy,body.learn-on #learn-open,body.mg-on #hud,body.mg-on #hint,body.mg-on #gear,body.mg-on #zoom,body.mg-on #touch-toggle,body.mg-on #scene,body.mg-on #confetti,body.mg-on #winter-banner{visibility:hidden !important;pointer-events:none !important}
 .card,.pcard{box-shadow:0 16px 36px rgba(7,20,48,.28)}
 @media (max-width:430px) and (min-height:700px){
   #hud{max-width:calc(100vw - 78px)}
@@ -1489,18 +1489,39 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       worldHidden = null;
     }
   }
+  function mgOpen() {
+    const mg = document.getElementById("mg");
+    return !!(mg && !mg.classList.contains("hidden"));
+  }
   function watchMG() {
     const mg = document.getElementById("mg");
     if (!mg || mg.dataset.v50watch) return;
     mg.dataset.v50watch = "1";
+    const list = mg.classList;
+    ["add", "remove", "toggle"].forEach((name) => {
+      const orig = list[name];
+      if (typeof orig !== "function") return;
+      try {
+        list[name] = function (...args) {
+          const result = orig.apply(this, args);
+          syncMG();
+          return result;
+        };
+      } catch (err) { /* the observer still hides the world before the next paint */ }
+    });
     new MutationObserver(() => syncMG()).observe(mg, { attributes: true, attributeFilter: ["class"] });
+    syncMG();
   }
   function hookRender() {
     const renderer = CA.renderer;
     if (!renderer || renderer.__v50hook) return;
     const orig = renderer.render.bind(renderer);
     renderer.render = function (scene, camera) {
-      if (document.body.classList.contains("mg-on")) return;
+      if (mgOpen()) {
+        if (!document.body.classList.contains("mg-on")) syncMG();
+        return;
+      }
+      if (document.body.classList.contains("mg-on")) syncMG();
       return orig(scene, camera);
     };
     renderer.__v50hook = true;

@@ -1489,6 +1489,22 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       worldHidden = null;
     }
   }
+  function watchMG() {
+    const mg = document.getElementById("mg");
+    if (!mg || mg.dataset.v50watch) return;
+    mg.dataset.v50watch = "1";
+    new MutationObserver(() => syncMG()).observe(mg, { attributes: true, attributeFilter: ["class"] });
+  }
+  function hookRender() {
+    const renderer = CA.renderer;
+    if (!renderer || renderer.__v50hook) return;
+    const orig = renderer.render.bind(renderer);
+    renderer.render = function (scene, camera) {
+      if (document.body.classList.contains("mg-on")) return;
+      return orig(scene, camera);
+    };
+    renderer.__v50hook = true;
+  }
   function onKey(e) {
     if (e.key !== "Escape" || !mode) return;
     e.preventDefault();
@@ -1552,7 +1568,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       dueJobs.forEach((job) => job.fn());
     }
     drawBits();
-    try { syncMG(); } catch (err) { /* leave the world as it is */ }
+    try { watchMG(); hookRender(); syncMG(); } catch (err) { /* leave the world as it is */ }
     try { moveWakes(); fallSnow(step); } catch (err) { /* a missing boat is skipped */ }
     const cam = CA.camera;
     const cap = CA.captain;

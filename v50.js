@@ -344,6 +344,9 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
   .learn-choices{grid-template-columns:1fr 1fr}
   .learn-choices.stack{grid-template-columns:1fr}
   .learn-choices.stack button{min-height:36px;font-size:15px;padding:6px 8px}
+  #learn-open{font-size:0;width:44px;height:36px;padding:4px}
+  #learn-open:before{content:"📘";font-size:18px}
+  #ver-flag{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
   .learn-prompt{font-size:17px;margin:4px 0}
   .learn-visual{min-height:0;margin:4px 0;padding:4px}
   .plan-rect{width:160px;height:70px;margin-bottom:26px}
@@ -1088,6 +1091,638 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       CA.scene.add(wreath);
     });
   }
+  function worldOf(o) {
+    o.updateWorldMatrix(true, false);
+    const e = o.matrixWorld.elements;
+    return { x: e[12], y: e[13], z: e[14] };
+  }
+  function shingleTex(K, a, b) {
+    const c = document.createElement("canvas");
+    c.width = 128; c.height = 128;
+    const g = c.getContext("2d");
+    for (let y = 0; y < 128; y += 16) {
+      g.fillStyle = ((y / 16) % 2) ? a : b;
+      g.fillRect(0, y, 128, 16);
+      g.strokeStyle = "rgba(0,0,0,.28)";
+      g.beginPath();
+      const off = ((y / 16) % 2) ? 0 : 16;
+      for (let x = off; x < 128; x += 32) { g.moveTo(x, y); g.lineTo(x, y + 16); }
+      g.stroke();
+    }
+    const tex = new K.CanvasTex(c);
+    tex.wrapS = tex.wrapT = 1000;
+    tex.needsUpdate = true;
+    return tex;
+  }
+  function courtTex(K, base, lines) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 256;
+    const g = c.getContext("2d");
+    g.fillStyle = base;
+    g.fillRect(0, 0, 256, 256);
+    g.strokeStyle = "#f4fff6";
+    g.lineWidth = lines;
+    for (let y = 28; y < 256; y += 32) { g.beginPath(); g.moveTo(8, y); g.lineTo(248, y); g.stroke(); }
+    g.lineWidth = lines + 2;
+    g.strokeRect(18, 18, 220, 220);
+    g.beginPath(); g.moveTo(128, 18); g.lineTo(128, 238); g.stroke();
+    const tex = new K.CanvasTex(c);
+    tex.needsUpdate = true;
+    return tex;
+  }
+  function lavaTex(K) {
+    const c = document.createElement("canvas");
+    c.width = 128; c.height = 64;
+    const g = c.getContext("2d");
+    for (let y = 0; y < 64; y++) {
+      for (let x = 0; x < 128; x++) {
+        const n = Math.sin(x * 0.18) * 0.5 + Math.sin(y * 0.35 + x * 0.05) * 0.5;
+        const hot = n > 0.15;
+        g.fillStyle = hot ? "#ffb03a" : (n > -0.2 ? "#e25822" : "#9a2208");
+        g.fillRect(x, y, 1, 1);
+      }
+    }
+    const tex = new K.CanvasTex(c);
+    tex.wrapS = tex.wrapT = 1000;
+    tex.needsUpdate = true;
+    return tex;
+  }
+  function upgradeWorld(K) {
+    if (!CA.scene || CA.scene.getObjectByName("v50-face")) return;
+    const root = gfx && gfx.root;
+    const lamb = (hex) => new K.Lambert({ color: hex });
+    const basic = (hex, opacity) => new K.Basic({ color: hex, transparent: true, opacity: opacity, depthWrite: false });
+
+    let head = null;
+    let headY = -1;
+    if (CA.captain) CA.captain.traverse((o) => {
+      if (!o.isMesh || !o.geometry || o.geometry.type !== "SphereGeometry" || !o.material || !o.material.color) return;
+      const col = o.material.color;
+      if (col.r < 0.9 || col.g < 0.7 || col.b < 0.55) return;
+      const w = worldOf(o);
+      if (w.y > headY && w.y > 1.7) { headY = w.y; head = o; }
+    });
+    if (head) {
+      const bb = head.geometry.boundingBox || (head.geometry.computeBoundingBox(), head.geometry.boundingBox);
+      const face = new K.Group();
+      face.name = "v50-face";
+      const z = bb.min.z * 0.82;
+      const midY = (bb.min.y + bb.max.y) * 0.08;
+      const eyeY = midY + (bb.max.y - bb.min.y) * 0.08;
+      const eyeX = (bb.max.x - bb.min.x) * 0.22;
+      [-1, 1].forEach((side) => {
+        const eye = new K.Mesh(new K.Sphere(0.07, 8, 6), lamb(0xf7fbff));
+        eye.position.set(side * eyeX, eyeY, z);
+        const pupil = new K.Mesh(new K.Sphere(0.032, 6, 5), lamb(0x16325c));
+        pupil.position.set(0, 0, -0.03);
+        eye.add(pupil);
+        const brow = new K.Mesh(new K.Box(0.07, 0.015, 0.02), lamb(0xc48a3a));
+        brow.position.set(side * eyeX, eyeY + 0.055, z + 0.01);
+        brow.rotation.z = side * -0.25;
+        face.add(eye);
+        face.add(brow);
+      });
+      for (let i = 0; i < 5; i++) {
+        const t = (i / 4) * Math.PI;
+        const smile = new K.Mesh(new K.Sphere(0.012, 5, 4), lamb(0xc45a4a));
+        smile.position.set(Math.cos(t) * eyeX * 0.7 - eyeX * 0.35, midY - 0.06 - Math.sin(t) * 0.02, z);
+        face.add(smile);
+      }
+      head.add(face);
+    }
+    if (CA.captain) CA.captain.traverse((o) => {
+      if (!o.isMesh || !o.geometry || o.geometry.type !== "SphereGeometry" || !o.material || !o.material.color) return;
+      if (o.getObjectByName("v50-joint")) return;
+      const w = worldOf(o);
+      const hex = o.material.color.getHexString();
+      const shoulder = hex === "ffc83d" && w.y > 1.45 && w.y < 1.8 && Math.abs(w.x) > 0.12;
+      const elbow = hex === "ffd7b8" && w.y > 0.8 && w.y < 1.25 && Math.abs(w.x) > 0.18;
+      const knee = (hex === "6b4226" || hex === "f4f6fa") && w.y < 0.3 && Math.abs(w.x) > 0.04 && Math.abs(w.x) < 0.45;
+      if (!shoulder && !elbow && !knee) return;
+      const joint = new K.Mesh(new K.Sphere(shoulder ? 0.1 : 0.075, 8, 6), lamb(shoulder ? 0x24468f : 0xffe0c4));
+      joint.name = "v50-joint";
+      o.add(joint);
+    });
+
+    const roofTex = shingleTex(K, "#1d4e9e", "#163872");
+    const gazeboTex = shingleTex(K, "#2f86d6", "#1c5fa3");
+    CA.scene.traverse((o) => {
+      if (!o.isMesh || !o.geometry || !o.material || !o.material.color || o.userData.v50Shingle) return;
+      const w = worldOf(o);
+      const bb = o.geometry.boundingBox || (o.geometry.computeBoundingBox(), o.geometry.boundingBox);
+      if (!bb) return;
+      const sx = Math.abs(bb.max.x - bb.min.x);
+      const sy = Math.abs(bb.max.y - bb.min.y);
+      const sz = Math.abs(bb.max.z - bb.min.z);
+      const hex = o.material.color.getHexString();
+      const garageRoof = o.geometry.type === "BoxGeometry" && hex === "14336b" && sy < 0.7 && sx > 6;
+      if (garageRoof) {
+        const next = o.material.clone();
+        next.map = roofTex;
+        next.color.set("#ffffff");
+        o.material = next;
+        o.userData.v50Shingle = 1;
+      }
+      const door = o.geometry.type === "BoxGeometry" && hex === "3c6fd1" && sy > 2 && sz < 0.4;
+      if (door && !o.getObjectByName("v50-doorframe")) {
+        const frame = new K.Group();
+        frame.name = "v50-doorframe";
+        const trim = lamb(0xf4efe4);
+        const x0 = bb.min.x, x1 = bb.max.x, y0 = bb.min.y, y1 = bb.max.y, zf = bb.max.z + 0.04;
+        [[(x0 + x1) / 2, y1 + 0.08, zf, x1 - x0 + 0.35, 0.16, 0.12], [(x0 + x1) / 2, y0 - 0.04, zf, x1 - x0 + 0.2, 0.1, 0.1], [x0 - 0.08, (y0 + y1) / 2, zf, 0.14, y1 - y0, 0.1], [x1 + 0.08, (y0 + y1) / 2, zf, 0.14, y1 - y0, 0.1]].forEach(([x, y, z, bw, bh, bd]) => {
+          const bar = new K.Mesh(new K.Box(bw, bh, bd), trim);
+          bar.position.set(x, y, z);
+          frame.add(bar);
+        });
+        o.add(frame);
+        const front = new K.Group();
+        front.name = "v50-doorframe";
+        front.position.set(-10.94, 1.45, -7.32);
+        [[0, 1.35, 5.4, 0.16, 0.12], [0, -1.35, 5.2, 0.12, 0.1], [-2.55, 0, 0.16, 2.7, 0.12], [2.55, 0, 0.16, 2.7, 0.12]].forEach(([x, y, bw, bh, bd]) => {
+          const bar = new K.Mesh(new K.Box(bw, bh, bd), lamb(0xf4efe4));
+          bar.position.set(x, y, 0);
+          front.add(bar);
+        });
+        CA.scene.add(front);
+      }
+      if (o.geometry.attributes && o.geometry.attributes.color && o.geometry.attributes.position && !o.userData.v50Shingle) {
+        const pos = o.geometry.attributes.position;
+        const col = o.geometry.attributes.color;
+        let painted = 0;
+        for (let i = 0; i < pos.count; i++) {
+          const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+          const e = o.matrixWorld.elements;
+          const wx = e[0] * x + e[4] * y + e[8] * z + e[12];
+          const wy = e[1] * x + e[5] * y + e[9] * z + e[13];
+          const wz = e[2] * x + e[6] * y + e[10] * z + e[14];
+          if (wx < -7.5 || wx > -3.8 || wz < -15.8 || wz > -12.2 || wy < 3.6) continue;
+          const band = Math.floor((wy - 3.6) * 4.5) % 2;
+          col.setXYZ(i, band ? 0.45 : 0.12, band ? 0.78 : 0.36, band ? 0.98 : 0.7);
+          painted += 1;
+        }
+        if (painted) {
+          col.needsUpdate = true;
+          if (o.material) { o.material.vertexColors = true; o.material.needsUpdate = true; }
+          o.userData.v50Roof = col.array.slice();
+          o.userData.v50Shingle = 1;
+        }
+      }
+      if (o.geometry.type === "ConeGeometry" && hex === "1e88e5" && w.y > 4 && Math.hypot(w.x, w.z) < 40 && !o.userData.v50Shingle) {
+        const next = o.material.clone();
+        next.map = gazeboTex;
+        next.color.set("#ffffff");
+        o.material = next;
+        o.userData.v50Shingle = 1;
+      }
+    });
+
+    const railMat = lamb(0xf7f4ee);
+    const rail = new K.Group();
+    rail.name = "v50-rail";
+    rail.position.set(10.94, 8.28, -10.16);
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2;
+      const post = new K.Mesh(new K.Cyl(0.035, 0.035, 0.48, 5), railMat);
+      post.position.set(Math.cos(a) * 1.05, 0.2, Math.sin(a) * 1.05);
+      rail.add(post);
+    }
+    const hoop = new K.Mesh(new K.Torus(1.05, 0.03, 6, 20), railMat);
+    hoop.rotation.x = Math.PI / 2;
+    hoop.position.y = 0.42;
+    rail.add(hoop);
+    CA.scene.add(rail);
+    const beamPivot = new K.Group();
+    beamPivot.name = "v50-beam";
+    beamPivot.position.set(10.94, 9.15, -10.16);
+    const shaft = new K.Mesh(new K.Box(7, 0.08, 0.26), basic(0xfff1c2, 0.14));
+    shaft.material.blending = 2;
+    shaft.position.x = 3.6;
+    beamPivot.add(shaft);
+    CA.scene.add(beamPivot);
+    gfx.beam = beamPivot;
+    const deepBeam = CA.scene.getObjectByName("lighthouse-beam");
+    if (deepBeam) gfx.deepBeam = deepBeam;
+
+    CA.scene.traverse((o) => {
+      if (o.name !== "leaf" || o.userData.v50frond || !o.parent) return;
+      o.userData.v50frond = 1;
+      const twin = o.clone();
+      twin.rotation.y += Math.PI / 2;
+      twin.position.y += 0.05;
+      twin.name = "v50-frond";
+      twin.userData.v50frond = 1;
+      o.parent.add(twin);
+    });
+    let rocks = 0;
+    CA.scene.traverse((o) => {
+      if (rocks > 36 || !o.isMesh || o.name === "v50-rock" || !o.geometry || o.geometry.type !== "SphereGeometry" || !o.material || !o.material.color) return;
+      const hex = o.material.color.getHexString();
+      const gray = hex[0] === hex[2] || (parseInt(hex.slice(0, 2), 16) > 120 && parseInt(hex.slice(4, 6), 16) > 110 && parseInt(hex.slice(2, 4), 16) > 110);
+      if (!gray) return;
+      const w = worldOf(o);
+      if (w.y > 2 || w.y < -0.2) return;
+      const k = 0.72 + ((rocks * 17) % 10) / 18;
+      o.scale.multiplyScalar(k);
+      rocks += 1;
+    });
+
+    const waterMeshes = [];
+    CA.scene.traverse((o) => {
+      if (!o.isMesh || !o.material || !o.material.normalMap) return;
+      const width = o.geometry && o.geometry.parameters && o.geometry.parameters.width;
+      if (width > 500) waterMeshes.push(o);
+    });
+    waterMeshes.forEach((o) => {
+      const mat = o.material;
+      if (mat.userData.v50swell) return;
+      const prev = mat.onBeforeCompile;
+      const oldKey = mat.customProgramCacheKey;
+      mat.customProgramCacheKey = function () {
+        return (oldKey ? oldKey.call(this) : "water") + "|v50swell";
+      };
+      mat.onBeforeCompile = function (shader, renderer) {
+        if (prev) prev.call(this, shader, renderer);
+        if (shader.vertexShader.indexOf("return h * calmK") !== -1) {
+          shader.vertexShader = shader.vertexShader.replace(
+            "return h * calmK(x, z);",
+            "h += sin(x * 0.0065 + z * 0.0048 + t * 0.11) * 0.22 * smoothstep(55.0, 240.0, r);\n    return h * calmK(x, z);"
+          );
+        }
+      };
+      mat.userData.v50swell = 1;
+      mat.needsUpdate = true;
+    });
+    gfx.boats = [];
+    Object.keys(CA.VEH || {}).forEach((id) => {
+      const veh = CA.VEH[id];
+      if (!veh || !veh.obj || veh.obj.getObjectByName("v50-seat")) return;
+      const seat = new K.Mesh(new K.Box(0.42, 0.16, 0.36), lamb(0xf2efe6));
+      seat.position.set(0, 0.55, -0.15);
+      seat.name = "v50-seat";
+      const wheel = new K.Mesh(new K.Torus(0.12, 0.025, 6, 10), lamb(0x22262c));
+      wheel.position.set(0, 0.78, 0.35);
+      wheel.rotation.x = Math.PI / 2.4;
+      wheel.name = "v50-seat";
+      veh.obj.add(seat);
+      veh.obj.add(wheel);
+      gfx.boats.push(veh);
+    });
+
+    const slide = CA.scene.getObjectByName("lair-slide");
+    if (slide) {
+      let top = null;
+      let topY = -99;
+      slide.traverse((o) => {
+        if (!o.isMesh) return;
+        const w = worldOf(o);
+        if (w.y > topY) { topY = w.y; top = o; }
+      });
+      if (top && !top.getObjectByName("v50-slide-lip")) {
+        const bb = top.geometry.boundingBox || (top.geometry.computeBoundingBox(), top.geometry.boundingBox);
+        const lip = new K.Mesh(new K.Box(Math.max(0.4, bb.max.x - bb.min.x), 0.1, 0.28), lamb(0x0d47a1));
+        lip.position.set(0, bb.max.y + 0.04, bb.max.z);
+        lip.name = "v50-slide-lip";
+        top.add(lip);
+        [-0.35, 0.35].forEach((x) => {
+          const post = new K.Mesh(new K.Cyl(0.06, 0.07, 1.1, 6), lamb(0x6d4c41));
+          post.position.set(x, bb.min.y - 0.4, 0);
+          post.name = "v50-slide-lip";
+          top.add(post);
+        });
+      }
+    }
+    const pirate = (CA.isl && CA.isl.L || []).find((isle) => isle.id === "pirate");
+    if (pirate && root) {
+      const stones = lamb(0xb7aa96);
+      const path = new K.Mesh(new K.Box(1.1, 0.08, 6.5), stones);
+      const p = CA.lair && CA.lair.world ? CA.lair.world(2.2, 6, 0) : { x: pirate.cx + 4, y: 0.2, z: pirate.cz };
+      path.position.set(p.x, (p.y || 0.4) + 0.05, p.z);
+      path.name = "v50-path";
+      root.add(path);
+      const path2 = new K.Mesh(new K.Box(0.9, 0.08, 3.2), lamb(0xa89884));
+      path2.position.set(p.x + 1.6, path.position.y, p.z + 1.2);
+      path2.rotation.y = 0.4;
+      path2.name = "v50-path";
+      root.add(path2);
+    }
+    let warm = null;
+    CA.scene.traverse((o) => { if (!warm && o.isPointLight) warm = o; });
+    if (warm && CA.lair && CA.lair.world && !CA.scene.getObjectByName("v50-lamp")) {
+      const lamp = warm.clone();
+      lamp.name = "v50-lamp";
+      lamp.intensity = 0.85;
+      lamp.distance = 9;
+      lamp.decay = 2;
+      if (lamp.color) lamp.color.set("#ffb060");
+      const at = CA.lair.world(0.4, 1.2, 0.6);
+      lamp.position.set(at.x, (at.y || 0) + 1.8, at.z);
+      CA.scene.add(lamp);
+    }
+
+    function nearDisc(x, z) {
+      let best = null;
+      let bestD = 12;
+      CA.scene.traverse((o) => {
+        if (!o.isMesh || !o.geometry || o.geometry.type !== "CircleGeometry") return;
+        const w = worldOf(o);
+        const d = Math.hypot(w.x - x, w.z - z);
+        if (d < bestD) { bestD = d; best = o; }
+      });
+      return best;
+    }
+    const zones = CA.zones || {};
+    const lavaSpot = zones.volcano && zones.volcano.spot;
+    if (lavaSpot) {
+      const lava = nearDisc(lavaSpot.x, lavaSpot.z);
+      if (lava && lava.material && !lava.userData.v50lava) {
+        const next = lava.material.clone();
+        next.map = lavaTex(K);
+        next.color.set("#ffffff");
+        lava.material = next;
+        lava.userData.v50lava = 1;
+        lava.name = lava.name || "v50-lava";
+        gfx.lava = lava;
+        const smokeMat = new K.SpriteMat({ map: flakeTexture(), color: 0xd5dbe2, transparent: true, depthWrite: false, opacity: 0.45 });
+        gfx.smoke = [0, 1].map((i) => {
+          const s = new K.Sprite(smokeMat);
+          s.position.set(lavaSpot.x + (i ? 0.8 : -0.4), 2.2 + i * 0.6, lavaSpot.z);
+          s.scale.setScalar(0.9 + i * 0.4);
+          s.name = "v50-smoke";
+          CA.scene.add(s);
+          return s;
+        });
+      }
+    }
+    const mine = zones.minefield && zones.minefield.spot;
+    if (mine) {
+      let n = 0;
+      CA.scene.traverse((o) => {
+        if (!o.isMesh || n > 10) return;
+        const w = worldOf(o);
+        if (Math.hypot(w.x - mine.x, w.z - mine.z) > 8 || w.y > 1.2) return;
+        if (o.geometry.type === "CircleGeometry") return;
+        o.scale.multiplyScalar(0.75 + (n % 5) * 0.12);
+        n += 1;
+      });
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2;
+        const dirt = new K.Mesh(new K.Circle(0.55, 10), basic(0x8a5a32, 0.7));
+        dirt.rotation.x = -Math.PI / 2;
+        dirt.position.set(mine.x + Math.cos(a) * 2.2, 0.05, mine.z + Math.sin(a) * 2.2);
+        dirt.name = "v50-dirt";
+        CA.scene.add(dirt);
+      }
+    }
+    [["football", "#2fb14a"], ["tennis", "#0e8f86"]].forEach(([id, color]) => {
+      const spot = zones[id] && zones[id].spot;
+      if (!spot) return;
+      const disc = nearDisc(spot.x, spot.z);
+      if (!disc || !disc.material || disc.userData.v50court) return;
+      const next = disc.material.clone();
+      next.map = courtTex(K, color, 4);
+      next.color.set("#ffffff");
+      disc.material = next;
+      disc.userData.v50court = 1;
+      disc.name = "v50-court";
+    });
+    const laser = zones.laser && zones.laser.spot;
+    if (laser) {
+      for (let i = 0; i < 3; i++) {
+        const wall = new K.Mesh(new K.Box(0.35, 0.85, 2.2), lamb(0x241428));
+        const a = -0.8 + i * 0.7;
+        wall.position.set(laser.x + Math.cos(a) * 3.2, 0.45, laser.z + Math.sin(a) * 3.2);
+        wall.rotation.y = a;
+        wall.name = "v50-wall";
+        CA.scene.add(wall);
+      }
+      CA.scene.traverse((o) => {
+        if (!o.isMesh || !o.material || !o.material.emissive) return;
+        const w = worldOf(o);
+        if (Math.hypot(w.x - laser.x, w.z - laser.z) > 16) return;
+        if (o.material.emissiveIntensity > 0.4) o.material.emissiveIntensity *= 0.45;
+      });
+    }
+
+    const ropeMat = lamb(0x6b4a32);
+    [[1.75, 25.04, -1.75, 25.04], [1.75, 27.54, -1.75, 27.54], [17.17, 14.7, 14.7, 17.17], [18.94, 16.47, 16.47, 18.94]].forEach(([x1, z1, x2, z2]) => {
+      const steps = 7;
+      for (let i = 1; i < steps; i++) {
+        const t = i / steps;
+        const bead = new K.Mesh(new K.Sphere(0.045, 6, 4), ropeMat);
+        bead.position.set(x1 + (x2 - x1) * t, 0.95 - Math.sin(t * Math.PI) * 0.32, z1 + (z2 - z1) * t);
+        bead.name = "v50-rope";
+        CA.scene.add(bead);
+      }
+    });
+    const shadowMat = basic(0x14301c, 0.28);
+    shadowMat.blending = 4;
+    shadowMat.premultipliedAlpha = true;
+    let shades = 0;
+    CA.scene.traverse((o) => {
+      if (shades > 14 || o.name !== "leaf") return;
+      const w = worldOf(o);
+      const disc = new K.Mesh(new K.Circle(1.15, 12), shadowMat);
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.set(w.x, 0.035, w.z);
+      disc.name = "v50-shadow";
+      CA.scene.add(disc);
+      shades += 1;
+    });
+    gfx.clouds = [];
+    CA.scene.traverse((o) => {
+      if (!o.isMesh || !o.geometry || o.geometry.type !== "SphereGeometry" || !o.material || !o.material.color) return;
+      if (o.material.color.getHexString() !== "ffffff") return;
+      const w = worldOf(o);
+      if (w.y < 24) return;
+      o.userData.v50cloud = { x: o.position.x, z: o.position.z };
+      gfx.clouds.push(o);
+    });
+    if (root) {
+      const puff = new K.Group();
+      puff.name = "v50-cloud";
+      puff.position.set(24, 26, 6);
+      [[0, 0, 0, 3.2], [2.4, 0.4, 0.2, 2.4], [-2.2, 0.2, -0.3, 2.1]].forEach(([x, y, z, s]) => {
+        const ball = new K.Mesh(new K.Sphere(1, 8, 6), lamb(0xffffff));
+        ball.position.set(x, y, z);
+        ball.scale.set(s, s * 0.62, s);
+        puff.add(ball);
+      });
+      puff.userData.v50cloud = { x: 24, z: 6 };
+      root.add(puff);
+      gfx.clouds.push(puff);
+    }
+    let blooms = 0;
+    CA.scene.traverse((o) => {
+      if (blooms > 16 || o.name !== "v50-flower" || o.getObjectByName("v50-petal")) return;
+      const petal = new K.Mesh(new K.Sphere(0.1, 6, 4), o.material);
+      petal.position.set(0.1, 0.02, 0);
+      petal.scale.set(1.3, 0.7, 0.5);
+      petal.name = "v50-petal";
+      o.add(petal);
+      blooms += 1;
+    });
+    let bushes = 0;
+    CA.scene.traverse((o) => {
+      if (bushes > 12 || !o.isMesh || !o.material || !o.material.color || o.name === "v50-bush") return;
+      const col = o.material.color;
+      if (!(col.g > 0.35 && col.g > col.r + 0.08 && col.g > col.b)) return;
+      if (o.geometry.type !== "SphereGeometry") return;
+      const w = worldOf(o);
+      if (w.y > 2) return;
+      for (let i = 0; i < 2; i++) {
+        const bit = new K.Mesh(new K.Sphere(0.22, 6, 5), lamb(0x347a3c));
+        bit.position.set(i ? 0.2 : -0.16, 0.12, 0.05);
+        bit.name = "v50-bush";
+        o.add(bit);
+      }
+      bushes += 1;
+    });
+    const buoys = CA.scene.getObjectByName("deep-buoys");
+    if (buoys) {
+      const mesh = buoys.isMesh ? buoys : null;
+      let geoMesh = mesh;
+      if (!geoMesh) buoys.traverse((o) => { if (!geoMesh && o.isMesh) geoMesh = o; });
+      if (geoMesh && geoMesh.geometry && geoMesh.geometry.attributes.position) {
+        const pos = geoMesh.geometry.attributes.position;
+        geoMesh.updateWorldMatrix(true, false);
+        const e = geoMesh.matrixWorld.elements;
+        const centers = [];
+        for (let i = 0; i < pos.count; i += 12) {
+          const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+          const wx = e[0] * x + e[4] * y + e[8] * z + e[12];
+          const wy = e[1] * x + e[5] * y + e[9] * z + e[13];
+          const wz = e[2] * x + e[6] * y + e[10] * z + e[14];
+          if (wy < -1 || wy > 4) continue;
+          let hit = null;
+          for (let c = 0; c < centers.length; c++) {
+            const p = centers[c];
+            if ((p[0] - wx) ** 2 + (p[2] - wz) ** 2 < 6) { hit = p; break; }
+          }
+          if (!hit) centers.push([wx, wy, wz, 1]);
+          else {
+            hit[0] = (hit[0] * hit[3] + wx) / (hit[3] + 1);
+            hit[2] = (hit[2] * hit[3] + wz) / (hit[3] + 1);
+            hit[3] += 1;
+          }
+        }
+        const stripe = lamb(0xf7f7f2);
+        const top = lamb(0xe53935);
+        centers.filter((c) => c[3] > 1).slice(0, 16).forEach((c) => {
+          const band = new K.Mesh(new K.Cyl(0.22, 0.22, 0.12, 8), stripe);
+          band.position.set(c[0], Math.max(0.35, c[1]), c[2]);
+          band.name = "v50-buoy";
+          const cap = new K.Mesh(new K.Sphere(0.16, 7, 5), top);
+          cap.position.y = 0.28;
+          cap.name = "v50-buoy";
+          band.add(cap);
+          CA.scene.add(band);
+        });
+      }
+    }
+    const lairBuoy = CA.scene.getObjectByName("lair-buoy");
+    if (lairBuoy && !lairBuoy.getObjectByName("v50-buoy")) {
+      const band = new K.Mesh(new K.Cyl(0.28, 0.28, 0.12, 8), lamb(0xfff8e8));
+      band.position.y = 0.15;
+      band.name = "v50-buoy";
+      lairBuoy.add(band);
+    }
+
+    const shop = document.getElementById("shop");
+    if (shop && !document.getElementById("shop-preview")) {
+      const card = shop.querySelector(".shop-card");
+      if (card) {
+        const wrap = document.createElement("div");
+        wrap.id = "shop-preview";
+        wrap.style.cssText = "display:flex;justify-content:center;padding:6px 0 0";
+        const canvas = document.createElement("canvas");
+        canvas.width = 168;
+        canvas.height = 196;
+        canvas.style.cssText = "width:120px;height:140px;background:#e7f2ff;border:4px solid #1e88e5;border-radius:18px";
+        wrap.appendChild(canvas);
+        const tabs = card.querySelector("#shop-tabs");
+        if (tabs) card.insertBefore(wrap, tabs);
+        else card.appendChild(wrap);
+      }
+    }
+    gfx.ready = true;
+  }
+  function animateWorld(step) {
+    if (!gfx || !gfx.ready) return;
+    const t = clockMs / 1000;
+    if (gfx.beam) gfx.beam.rotation.y = t * 0.35;
+    if (gfx.deepBeam) gfx.deepBeam.rotation.y = t * 0.22;
+    if (gfx.lava && gfx.lava.material && gfx.lava.material.map) {
+      gfx.lava.material.map.offset.x = (t * 0.05) % 1;
+      gfx.lava.material.map.offset.y = (t * 0.02) % 1;
+    }
+    if (gfx.smoke) gfx.smoke.forEach((s, i) => {
+      const puff = 0.85 + Math.sin(t * 1.4 + i) * 0.25;
+      s.scale.setScalar(puff + i * 0.25);
+      s.position.y = 2.1 + i * 0.55 + Math.sin(t * 0.8 + i) * 0.15;
+      if (s.material) s.material.opacity = 0.28 + Math.sin(t + i) * 0.08;
+    });
+    if (gfx.clouds) gfx.clouds.forEach((cloud, i) => {
+      const base = cloud.userData.v50cloud;
+      if (!base) return;
+      cloud.position.x = base.x + Math.sin(t * 0.05 + i) * 3.2;
+      cloud.position.z = base.z + Math.cos(t * 0.04 + i * 0.7) * 1.4;
+    });
+    if (gfx.boats) gfx.boats.forEach((veh) => {
+      const obj = veh.obj;
+      if (!obj || !obj.visible) return;
+      const x = obj.position.x;
+      const z = obj.position.z;
+      const r = Math.hypot(x, z);
+      const k = Math.max(0, Math.min(1, (r - 55) / 180));
+      const swell = Math.sin(x * 0.0065 + z * 0.0048 + t * 0.11) * 0.22 * k;
+      if (obj.userData.v50baseY == null) obj.userData.v50baseY = obj.position.y;
+      obj.position.y = obj.userData.v50baseY + swell;
+    });
+    const preview = document.querySelector("#shop-preview canvas");
+    const shop = document.getElementById("shop");
+    if (preview && shop && !shop.classList.contains("hidden")) {
+      const g = preview.getContext("2d");
+      const equip = (CA.state().shop && CA.state().shop.equip) || {};
+      g.clearRect(0, 0, 168, 196);
+      g.fillStyle = "#d7ecff";
+      g.fillRect(0, 0, 168, 196);
+      const jacket = equip.outfit === "uniform-red" ? "#c62828" : equip.outfit === "uniform-teal" ? "#00897b" : equip.outfit === "uniform-white" ? "#e8eef5" : "#1a356e";
+      const hair = equip.hair === "hair-sandy" ? "#e0c070" : equip.hair === "hair-spiky" ? "#ffe082" : "#f2cf5b";
+      g.fillStyle = "#f4f6fa";
+      g.fillRect(68, 118, 14, 48);
+      g.fillRect(86, 118, 14, 48);
+      g.fillStyle = jacket;
+      g.fillRect(58, 78, 52, 52);
+      g.fillStyle = "#ffd7b8";
+      g.beginPath();
+      g.arc(84, 62, 22, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = "#16325c";
+      g.beginPath();
+      g.arc(76, 60, 3, 0, Math.PI * 2);
+      g.arc(92, 60, 3, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = "#c45a4a";
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(84, 68, 7, 0.15 * Math.PI, 0.85 * Math.PI);
+      g.stroke();
+      g.fillStyle = hair;
+      g.beginPath();
+      g.arc(84, 52, 18, Math.PI, 0);
+      g.fill();
+      g.fillStyle = "#f8f9fc";
+      g.fillRect(62, 34, 44, 16);
+      g.fillStyle = "#16161c";
+      g.fillRect(70, 28, 28, 10);
+      g.fillStyle = "#ffc83d";
+      g.fillRect(80, 40, 8, 8);
+      if (equip.hat && equip.hat !== "captain") {
+        g.fillStyle = "#e53935";
+        g.fillRect(64, 30, 40, 8);
+      }
+    }
+  }
   function dress() {
     const K = kit();
     if (!K || !CA.scene || CA.scene.getObjectByName("v50-gfx")) return;
@@ -1099,12 +1734,20 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     const foamMat = new K.Basic({ color: 0xf7fbff, transparent: true, opacity: 0.38, depthWrite: false });
     function foam(cx, cz, radius) {
       if (!(radius > 2)) return;
-      const ring = new K.Mesh(new K.Torus(radius, 0.1, 8, 96), foamMat);
-      ring.rotation.x = Math.PI / 2;
-      ring.position.set(cx, waterY + 0.2, cz);
-      ring.name = "v50-foam";
-      root.add(ring);
-      gfx.foam.push(ring);
+      const bits = 4;
+      for (let i = 0; i < bits; i++) {
+        const a = (i / bits) * Math.PI * 2 + ((cx * 0.13 + cz * 0.07) % 1) * 1.4;
+        const gap = 0.55 + (i % 3) * 0.18;
+        const mid = a + gap * 0.5;
+        const r = radius * (0.96 + (i % 2) * 0.05);
+        const len = Math.min(1.15, Math.max(0.45, radius * gap * 0.28));
+        const bit = new K.Mesh(new K.Box(len, 0.045, 0.16 + (i % 2) * 0.06), foamMat);
+        bit.position.set(cx + Math.cos(mid) * r, waterY + 0.07, cz + Math.sin(mid) * r);
+        bit.rotation.y = -mid + Math.PI / 2;
+        bit.name = "v50-foam";
+        root.add(bit);
+        gfx.foam.push(bit);
+      }
     }
     foam(0, 0, 24.15);
     [[0, -62.5], [44.2, -44.2], [62.5, 0], [44.2, 44.2], [0, 62.5], [-44.2, 44.2], [-62.5, 0], [-44.2, -44.2]].forEach(([x, z]) => foam(x, z, 17.7));
@@ -1300,7 +1943,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
         post.position.y = 0.5;
         const bracket = new K.Mesh(new K.Box(0.05, 0.32, 0.18), iron);
         bracket.position.set(0, 1.05, 0.08);
-        const cup = new K.Mesh(new K.Cyl(0.13, 0.1, 0.14, 8), iron);
+        const cup = new K.Mesh(new K.Cyl(0.2, 0.14, 0.16, 8), iron);
         cup.position.y = 1.22;
         const flame = new K.Mesh(new K.Cone(0.09, 0.32, 8), new K.Lambert({ color: 0xffb03a, emissive: 0xff6a00, emissiveIntensity: 1.15 }));
         flame.position.y = 1.48;
@@ -1343,6 +1986,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       root.add(m);
       gfx.wakes.push({ mesh: m, id });
     });
+    try { upgradeWorld(K); } catch (err) { gfx.error = String(err && err.message || err); }
   }
   function wakeTexture(K) {
     const c = document.createElement("canvas");
@@ -1440,7 +2084,9 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
   }
   function fallSnow(step) {
     const snow = CA.scene && CA.scene.getObjectByName("v50-snow");
-    if (gfx && gfx.foam) gfx.foam.forEach((ring, i) => { ring.rotation.z = clockMs / 900 + i; });
+    if (gfx && gfx.foam) gfx.foam.forEach((bit, i) => {
+      if (bit.material) bit.material.opacity = 0.32 + Math.sin(clockMs / 800 + i) * 0.08;
+    });
     if (gfx && gfx.shimmer && gfx.shimmer.material && gfx.shimmer.material.map) {
       gfx.shimmer.material.map.offset.x = (clockMs / 4000) % 1;
       gfx.shimmer.material.map.offset.y = (clockMs / 5300) % 1;
@@ -1590,7 +2236,7 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
     }
     drawBits();
     try { watchMG(); hookRender(); syncMG(); } catch (err) { /* leave the world as it is */ }
-    try { moveWakes(); fallSnow(step); } catch (err) { /* a missing boat is skipped */ }
+    try { moveWakes(); fallSnow(step); animateWorld(step); } catch (err) { /* a missing boat is skipped */ }
     const cam = CA.camera;
     const cap = CA.captain;
     if (cam && cap && CA.mode === "walk" && !mode) {

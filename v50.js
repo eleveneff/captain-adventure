@@ -1404,6 +1404,21 @@ body.learn-on #hud,body.learn-on #gear,body.learn-on #zoom,body.learn-on #touch-
       path2.rotation.y = 0.4;
       path2.name = "v50-path";
       root.add(path2);
+      CA.scene.traverse((o) => {
+        if (!o.isMesh || !o.material || !o.material.color || o.geometry.type !== "BoxGeometry") return;
+        const hex = o.material.color.getHexString();
+        if (hex !== "ffffff" && hex !== "f7f7f7" && hex !== "eeeeee") return;
+        const w = worldOf(o);
+        if (Math.hypot(w.x - pirate.cx, w.z - pirate.cz) > 22 || w.y > 0.7 || w.y < -0.2) return;
+        const bb = o.geometry.boundingBox || (o.geometry.computeBoundingBox(), o.geometry.boundingBox);
+        const span = Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z);
+        if (span > 2.2 || span < 0.3) return;
+        const next = o.material.clone();
+        next.color.set("#b7aa96");
+        next.map = null;
+        o.material = next;
+        o.name = "v50-path";
+      });
     }
     let warm = null;
     CA.scene.traverse((o) => { if (!warm && o.isPointLight) warm = o; });

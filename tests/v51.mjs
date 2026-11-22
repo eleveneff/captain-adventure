@@ -131,6 +131,7 @@ async function playSet() {
       return { phase: s.phase, i: s.i, type: s.qs[s.i] && s.qs[s.i].type, answer: s.qs[s.i] && s.qs[s.i].answer, order: s.qs[s.i] && s.qs[s.i].correctOrder, picked: s.order && s.order.length, n: s.qs.length };
     });
     if (view.done || view.phase == null) break;
+    const mark = view.phase + ":" + view.i + ":" + (view.picked || 0);
     if (view.phase === "ask") {
       if (view.type === "order") {
         const next = view.order[view.picked || 0];
@@ -144,7 +145,14 @@ async function playSet() {
       await page.click("#liberty-card button[data-i=\"0\"]");
     } else break;
     steps.push(view.phase);
-    await new Promise((r) => setTimeout(r, 40));
+    // A fixed pause reads the next question before the click has landed when
+    // the machine is busy with the other suites. Wait until this step moves.
+    await page.waitForFunction((seen) => {
+      const s = window.CaptainLiberty.session();
+      if (!s) return true;
+      const now = s.phase + ":" + s.i + ":" + ((s.order && s.order.length) || 0);
+      return now !== seen;
+    }, { timeout: 4000 }, mark).catch(() => {});
   }
   return steps;
 }

@@ -92,21 +92,36 @@ async function stand(spot) {
     const C = window.CaptainAdventure;
     if (p.name === "lair") {
       C.lair.enter();
-      C.lair.place(-7, 1);
+      // Open floor. (-7, 1) is a step from the west wall, so a real stride
+      // slides along it, and a longer right step crosses into the corner
+      // where the lair camera swaps and the walk direction bends.
+      C.lair.place(-3.6, 0.2);
     } else if (C.lair.inside()) {
       C.lair.leave();
     }
     C.mode = "walk";
     if (p.name !== "lair") C.teleport(p.x, p.z);
     const cap = C.captain.position;
-    if (p.name !== "liberty") {
+    if (p.name !== "liberty" && p.name !== "lair") {
       C.camera.position.set(cap.x, cap.y + 9, cap.z + 12.5);
       C.camera.lookAt(cap.x, cap.y + 1.6, cap.z);
+      if (C.snapCam) C.snapCam();
     }
-    if (C.snapCam) C.snapCam();
     if (C.captain) C.captain.visible = true;
   }, spot);
-  await new Promise((r) => setTimeout(r, 350));
+  await page.waitForFunction((name) => {
+    const C = window.CaptainAdventure;
+    const cam = C.camera;
+    const cap = C.captain.position;
+    cam.updateMatrixWorld(true);
+    const dx = cam.position.x - cap.x;
+    const dz = cam.position.z - cap.z;
+    const dist = Math.hypot(dx, dz);
+    if (name === "lair") return dist > 3 && Math.hypot(dx, dz - 12.5) > 4;
+    if (name === "liberty") return dist > 6;
+    return Math.hypot(dx, dz - 12.5) < 2.5;
+  }, { timeout: 4000 }, spot.name);
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
 }
 
 async function readMove() {
@@ -133,11 +148,43 @@ async function readMove() {
   });
 }
 
+async function frames(count) {
+  await page.evaluate((n) => new Promise((resolve) => {
+    let left = n;
+    function step() {
+      left -= 1;
+      if (left <= 0) resolve();
+      else requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }), count);
+}
+
+async function pumpUntilMoved() {
+  await page.evaluate(() => new Promise((resolve) => {
+    const C = window.CaptainAdventure;
+    const x0 = C.captain.position.x;
+    const z0 = C.captain.position.z;
+    let n = 0;
+    const t0 = performance.now();
+    function step() {
+      n += 1;
+      const dist = Math.hypot(C.captain.position.x - x0, C.captain.position.z - z0);
+      // Score a short stride, then let go. Wall-clock holds miss frames when
+      // the other suites load the machine. A long hold inside the lair hits
+      // the room wall or the camera-corner circle and the path bends.
+      if ((dist > 1.15 && n >= 2) || n >= 40 || performance.now() - t0 > 4000) resolve();
+      else requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }));
+}
+
 async function holdKey(code) {
   await page.keyboard.down(code);
-  await new Promise((r) => setTimeout(r, 380));
+  await pumpUntilMoved();
   await page.keyboard.up(code);
-  await new Promise((r) => setTimeout(r, 30));
+  await frames(2);
 }
 
 async function holdStick(dir) {
@@ -153,12 +200,12 @@ async function holdStick(dir) {
     joy.dispatchEvent(down);
     joy.dispatchEvent(move);
   }, dir);
-  await new Promise((r) => setTimeout(r, 420));
+  await pumpUntilMoved();
   await page.evaluate(() => {
     const joy = document.getElementById("joy");
     joy.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 7, clientX: 0, clientY: 0 }));
   });
-  await new Promise((r) => setTimeout(r, 40));
+  await frames(2);
 }
 
 function scoreMove(before, after, want) {
@@ -194,14 +241,7 @@ async function attemptKey(spot, code) {
   let before = await readMove();
   await holdKey(code);
   let after = await readMove();
-  let scored = scoreMove(before, after, expectOf(codeToName(code)));
-  if (scored.dist < 0.25) {
-    await stand(spot);
-    before = await readMove();
-    await holdKey(code);
-    after = await readMove();
-    scored = scoreMove(before, after, expectOf(codeToName(code)));
-  }
+  const scored = scoreMove(before, after, expectOf(codeToName(code)));
   return { before, after, scored };
 }
 

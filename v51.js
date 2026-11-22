@@ -658,7 +658,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     };
     const here = {
       map: lay.at(9, 6),
-      tunnel: lay.at(5.6, 0),
+      tunnel: lay.at(7.2, 4),
       rally: lay.at(-2, 11),
       builder: lay.at(2, -11),
       quiz: lay.at(11, -7)
@@ -715,19 +715,26 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   function dressMountain(K, root, add, lamb) {
     const rock = lamb(0x7d8b78);
     const snow = lamb(0xf4f7fb);
-    const cone = new K.Mesh(new K.Cone(6.2, 9.2, 10), rock);
-    add(cone, 0, 0, 4.2);
-    const cap = new K.Mesh(new K.Cone(1.5, 1.6, 8), snow);
-    cap.position.set(cone.position.x, cone.position.y + 4.6, cone.position.z);
+    const cone = new K.Mesh(new K.Cone(4.4, 8.4, 16), rock);
+    add(cone, 0, 0, 3.8);
+    const cap = new K.Mesh(new K.Cone(1.15, 1.4, 10), snow);
+    cap.position.set(cone.position.x, cone.position.y + 4.4, cone.position.z);
     root.add(cap);
-    mountainBlock = { x: isle.cx, z: isle.cz, r: 4.6 };
-    const mouth = lay.at(5.4, 0);
-    const arch = new K.Mesh(new K.Torus(1.7, 0.38, 8, 18, Math.PI), lamb(0x5f6b62));
+    mountainBlock = { x: isle.cx, z: isle.cz, r: 3.3, meshes: [cone, cap] };
+    const mouth = lay.at(7.2, 4);
     const p = worldPos(mouth.x, mouth.z);
-    arch.position.set(p.x, p.y + 1.7, p.z);
-    arch.rotation.y = lay.yaw;
-    arch.rotation.z = Math.PI;
-    root.add(arch);
+    const rockMat = lamb(0x5f6b62);
+    const left = new K.Mesh(new K.Box(0.45, 2.6, 0.55), rockMat);
+    const right = new K.Mesh(new K.Box(0.45, 2.6, 0.55), rockMat);
+    const lintel = new K.Mesh(new K.Box(2.8, 0.45, 0.6), rockMat);
+    left.position.set(-1.15, 1.3, 0);
+    right.position.set(1.15, 1.3, 0);
+    lintel.position.set(0, 2.7, 0);
+    const gate = new K.Group();
+    gate.add(left); gate.add(right); gate.add(lintel);
+    gate.position.set(p.x, p.y, p.z);
+    gate.rotation.y = lay.yaw;
+    root.add(gate);
     const lamp = new K.Mesh(new K.Sphere(0.16, 8, 6), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 0.9 }));
     lamp.position.set(p.x, p.y + 2.7, p.z);
     root.add(lamp);
@@ -968,7 +975,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const colors = [0x8d6e63, 0x6d4c41, 0x795548, 0x5d4037, 0x4e342e, 0x8d6e63, 0x6d4c41, 0x795548];
     const props = ["📜", "⚓", "⚖", "🚂", "🕊", "⚙", "✈", "🚀"];
     rooms = ERAS.map((era, i) => {
-      const spot = lay.at(4.6 - i * 0.15, (i - 3.5) * 1.15);
+      const spot = lay.at(7.2, 4 + (i - 3.5) * 1.35);
       const x = spot.x;
       const z = spot.z;
       const p = worldPos(x, z);
@@ -988,10 +995,13 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const floor = new K.Mesh(new K.Cyl(1.15, 1.15, 0.08, 8), lamb(0x6d5c4d));
       floor.position.y = 0.04;
       group.add(floor);
-      const arch = new K.Mesh(new K.Torus(1.05, 0.22, 8, 14, Math.PI), lamb(colors[i % colors.length]));
-      arch.position.y = 1.15;
-      arch.rotation.y = lay.yaw;
-      group.add(arch);
+      const jambL = new K.Mesh(new K.Box(0.28, 1.8, 0.35), lamb(colors[i % colors.length]));
+      const jambR = new K.Mesh(new K.Box(0.28, 1.8, 0.35), lamb(colors[i % colors.length]));
+      const lintel = new K.Mesh(new K.Box(1.8, 0.28, 0.4), lamb(colors[i % colors.length]));
+      jambL.position.set(-0.7, 0.9, 0);
+      jambR.position.set(0.7, 0.9, 0);
+      lintel.position.set(0, 1.85, 0);
+      group.add(jambL); group.add(jambR); group.add(lintel);
       const lantern = new K.Mesh(new K.Sphere(0.12, 8, 6), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 0.85 }));
       lantern.position.set(0.7, 1.7, 0);
       group.add(lantern);
@@ -1283,7 +1293,16 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const s = 1 + Math.sin(Date.now() / 280) * 0.06;
       st.ring.scale.set(s, s, s);
     });
-    if (monuments.wheel) monuments.wheel.rotation.y += 0.01;
+    if (monuments.wheel) monuments.wheel.rotation.y += session && session.mode === "wheel" ? 0.03 : 0.008;
+    if (mountainBlock && mountainBlock.meshes && cam) {
+      const close = Math.hypot(cam.position.x - mountainBlock.x, cam.position.z - mountainBlock.z) < 14;
+      mountainBlock.meshes.forEach((mesh) => {
+        if (!mesh.material) return;
+        mesh.material.transparent = true;
+        mesh.material.opacity = close ? 0.2 : 1;
+        mesh.material.depthWrite = !close;
+      });
+    }
     const cam = CA.camera;
     rooms.forEach((room) => {
       const nearCam = cam && Math.hypot(cam.position.x - room.x, cam.position.z - room.z) < 8;

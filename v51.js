@@ -43,6 +43,8 @@
   let monuments = {};
   let session = null;
   let nearest = null;
+  let lay = null;
+  let mountainBlock = null;
   const ui = { layer: null, prompt: null };
 
   function worldPos(x, z) {
@@ -59,8 +61,9 @@
     const s = document.createElement("style");
     s.id = "v51-style";
     s.textContent = `
-#liberty-layer{position:fixed;top:16px;right:96px;bottom:16px;width:min(420px,calc(100vw - 180px));z-index:18;display:none}
+#liberty-layer{position:fixed;top:16px;right:118px;bottom:16px;width:min(420px,calc(100vw - 200px));z-index:18;display:none}
 #liberty-layer.show{display:block}
+body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty-prompt{visibility:hidden !important}
 #liberty-card{height:100%;overflow:auto;background:#fffdf6;color:#10234d;border:6px solid #ffc83d;border-radius:22px;padding:12px 14px 16px;box-shadow:0 16px 36px rgba(7,20,48,.28)}
 #liberty-card h2{margin:0 0 6px;font-size:22px}
 #liberty-card p{margin:6px 0}
@@ -71,7 +74,10 @@
 .postcard{position:relative;background:#fff8e8;border:3px solid #c0392b;border-radius:8px;padding:12px 14px 10px;margin:8px 0;box-shadow:4px 4px 0 rgba(20,40,80,.15);min-height:92px}
 .postcard .stamp{position:absolute;top:8px;right:8px;width:42px;height:48px;border:2px dashed #c0392b;color:#c0392b;font-weight:800;display:flex;align-items:center;justify-content:center;transform:rotate(8deg)}
 .postcard b{display:block;font-size:18px;margin-right:52px}
-.wheel{width:180px;height:180px;border-radius:50%;margin:8px auto;border:6px solid #14336b;background:conic-gradient(#14336b 0 20%,#ffc83d 0 40%,#c0392b 0 60%,#1e88e5 0 80%,#2e7d32 0 100%)}
+.wheel-wrap{position:relative;width:230px;height:230px;margin:10px auto 4px}
+.wheel-pointer{position:absolute;left:50%;top:-2px;transform:translateX(-50%);width:0;height:0;border-left:11px solid transparent;border-right:11px solid transparent;border-top:20px solid #10234d;z-index:2}
+.wheel{width:230px;height:230px;border-radius:50%;border:6px solid #14336b;background:conic-gradient(#14336b 0 20%,#e6a817 0 40%,#c0392b 0 60%,#1e88e5 0 80%,#2e7d32 0 100%);position:relative;transition:transform 1.15s cubic-bezier(.12,.8,.16,1)}
+.wheel span{position:absolute;width:76px;margin-left:-38px;margin-top:-8px;text-align:center;font-size:12px;font-weight:800;color:#fff;text-shadow:0 1px 2px #10234d}
 #liberty-prompt{position:fixed;left:50%;bottom:76px;transform:translateX(-50%);z-index:16;display:none}
 #liberty-prompt.show{display:block}
 #liberty-prompt button{font:800 18px Trebuchet MS,sans-serif;background:#14336b;color:#fff;border:3px solid #ffc83d;border-radius:14px;padding:8px 14px}
@@ -98,6 +104,7 @@
   function showCard(html) {
     ensureUi();
     ui.layer.classList.add("show");
+    document.body.classList.add("liberty-open");
     card().innerHTML = html;
     card().querySelectorAll("[data-i]").forEach((btn) => {
       btn.onclick = () => answer(Number(btn.dataset.i));
@@ -114,6 +121,7 @@
   }
   function closePlay() {
     session = null;
+    document.body.classList.remove("liberty-open");
     if (ui.layer) ui.layer.classList.remove("show");
   }
 
@@ -191,8 +199,14 @@
   }
 
   function renderWheel() {
-    const cats = ["Capitals", "Flags", "History", "Geography", "Which state am I?"];
-    showCard(`<h2>Fifty-State Quiz Show</h2><div class="wheel" id="liberty-wheel" style="transform:rotate(${session.spin || 0}deg)"></div><p>${session.category ? "Category: " + esc(session.category) : "Spin the wheel."}</p><p>${cats.map((c) => esc(c)).join(" · ")}</p><button id="liberty-spin">Spin</button><button class="ghost" id="liberty-exit">Exit</button>`);
+    const cats = ["Capitals", "Flags", "History", "Geography", "Which state?"];
+    const labels = cats.map((name, i) => {
+      const ang = ((i * 72) + 36) * Math.PI / 180;
+      const x = 50 + Math.sin(ang) * 30;
+      const y = 50 - Math.cos(ang) * 30;
+      return `<span style="left:${x}%;top:${y}%">${esc(name)}</span>`;
+    }).join("");
+    showCard(`<h2>Fifty-State Quiz Show</h2><div class="wheel-wrap"><div class="wheel-pointer"></div><div class="wheel" id="liberty-wheel" style="transform:rotate(${session.spin || 0}deg)">${labels}</div></div><p>${session.category ? "Category: " + esc(session.category) : "Spin the wheel. The pointer marks the top."}</p><button id="liberty-spin">Spin</button><button class="ghost" id="liberty-exit">Exit</button>`);
   }
 
   function openStation(id) {
@@ -266,7 +280,11 @@
   function applyPack(pack) {
     PACK = pack;
     const names = {};
-    pack.eras.forEach((era) => { names[era.id] = era.name; });
+    const eraFact = {};
+    pack.eras.forEach((era) => {
+      names[era.id] = era.name;
+      eraFact[era.id] = String(era.summary || "").split(". ")[0] + ".";
+    });
     ERAS = pack.eras.map((era) => era.name);
     BANK.history = pack.questions.map((q) => {
       const era = names[q.era] || q.era;
@@ -276,9 +294,9 @@
           id: q.id,
           era,
           eraId: q.era,
-          fact: "These events have recorded years. Tap the earliest year first.",
-          question: "Tap these events from earliest to latest.",
-          events: q.events.map((ev) => ({ year: ev.year, text: ev.title + " (" + ev.year + ")" })),
+          fact: eraFact[q.era] || q.explanation,
+          question: "Tap these events from earliest to latest. The years stay hidden until you finish.",
+          events: q.events.map((ev) => ({ year: ev.year, title: ev.title, text: ev.title })),
           correctOrder: q.correctOrder.slice(),
           explanation: q.explanation
         };
@@ -466,7 +484,10 @@
     }
     let gain = 0;
     if (session.mode !== "gate") gain = payout(session.id, !session.retry);
-    if (session.id === "map" && q.state && bag().placed.indexOf(q.state) < 0) bag().placed.push(q.state);
+    if (session.id === "map" && q.state && bag().placed.indexOf(q.state) < 0) {
+      bag().placed.push(q.state);
+      refreshMap();
+    }
     if (session.id === "rally" && q.postcard && bag().postcards.indexOf(q.postcard) < 0) bag().postcards.push(q.postcard);
     if (session.id === "quiz") session.stars += 1;
     const regionDone = session.id === "map" ? markRegion(q.state) : null;
@@ -606,7 +627,7 @@
 
   function dress() {
     const K = kit();
-    isle = (CA.isl && CA.isl.L || []).find((n) => n.id === "liberty");
+    isle = (CA.isl && CA.isl.L || []).find((n) => n.id === "turtle");
     if (!K || !isle || !CA.scene || CA.scene.getObjectByName("v51-root")) return;
     const root = new K.Group();
     root.name = "v51-root";
@@ -625,12 +646,29 @@
     const shadow = new K.Mesh(new K.Circle(5.2, 20), new K.Basic({ color: 0x14301c, transparent: true, opacity: 0.28, depthWrite: false }));
     shadow.rotation.x = -Math.PI / 2;
     add(shadow, 0, 1, 0.03);
+    const dx = isle.boatSpot.x - isle.cx;
+    const dz = isle.boatSpot.z - isle.cz;
+    const span = Math.hypot(dx, dz) || 1;
+    lay = {
+      fx: dx / span, fz: dz / span, rx: -dz / span, rz: dx / span,
+      yaw: Math.atan2(dx, dz),
+      at(forward, side) {
+        return { x: (dx / span) * forward + (-dz / span) * side, z: (dz / span) * forward + (dx / span) * side };
+      }
+    };
+    const here = {
+      map: lay.at(9, 6),
+      tunnel: lay.at(5.6, 0),
+      rally: lay.at(-2, 11),
+      builder: lay.at(2, -11),
+      quiz: lay.at(11, -7)
+    };
     stations = [
-      { id: "map", name: "Map Puzzle Dock", x: 0, z: 1 },
-      { id: "tunnel", name: "History Time-Tunnel", x: -7, z: 2, era: ERAS[0] },
-      { id: "rally", name: "Road Trip Rally", x: -7, z: 4 },
-      { id: "builder", name: "Landmark Builder", x: 0, z: -7 },
-      { id: "quiz", name: "Fifty-State Quiz Show", x: 6, z: -5 }
+      { id: "map", name: "Map Puzzle Dock", x: here.map.x, z: here.map.z },
+      { id: "tunnel", name: "History Time-Tunnel", x: here.tunnel.x, z: here.tunnel.z, era: ERAS[0] },
+      { id: "rally", name: "Road Trip Rally", x: here.rally.x, z: here.rally.z },
+      { id: "builder", name: "Landmark Builder", x: here.builder.x, z: here.builder.z },
+      { id: "quiz", name: "Fifty-State Quiz Show", x: here.quiz.x, z: here.quiz.z }
     ];
     stations.forEach((st) => {
       const ring = new K.Mesh(new K.Torus(1.15, 0.08, 8, 24), new K.Lambert({ color: 0xffc83d, emissive: 0xffb300, emissiveIntensity: 0.8 }));
@@ -666,74 +704,176 @@
       root.add(cloth);
       flags[region] = { cloth, pole };
     });
+    dressMountain(K, root, add, lamb);
+    dressPaths(K, root, lamb);
+    dressDockSeam(K, root, lamb);
     dressFoliage(K, root, add, lamb);
     dressTunnel(K, root, add, lamb);
     dressMonuments(K, root, add, lamb);
     dressStage(K, root, add, lamb);
   }
+  function dressMountain(K, root, add, lamb) {
+    const rock = lamb(0x7d8b78);
+    const snow = lamb(0xf4f7fb);
+    const cone = new K.Mesh(new K.Cone(6.2, 9.2, 10), rock);
+    add(cone, 0, 0, 4.2);
+    const cap = new K.Mesh(new K.Cone(1.5, 1.6, 8), snow);
+    cap.position.set(cone.position.x, cone.position.y + 4.6, cone.position.z);
+    root.add(cap);
+    mountainBlock = { x: isle.cx, z: isle.cz, r: 4.6 };
+    const mouth = lay.at(5.4, 0);
+    const arch = new K.Mesh(new K.Torus(1.7, 0.38, 8, 18, Math.PI), lamb(0x5f6b62));
+    const p = worldPos(mouth.x, mouth.z);
+    arch.position.set(p.x, p.y + 1.7, p.z);
+    arch.rotation.y = lay.yaw;
+    arch.rotation.z = Math.PI;
+    root.add(arch);
+    const lamp = new K.Mesh(new K.Sphere(0.16, 8, 6), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 0.9 }));
+    lamp.position.set(p.x, p.y + 2.7, p.z);
+    root.add(lamp);
+    const overlook = lay.at(-1.5, 3.2);
+    const pad = new K.Mesh(new K.Cyl(1.5, 1.5, 0.18, 8), lamb(0xb0a090));
+    add(pad, overlook.x, overlook.z, 2.6);
+    const rail = new K.Mesh(new K.Torus(1.35, 0.05, 6, 16), lamb(0x6d4c41));
+    rail.rotation.x = Math.PI / 2;
+    rail.position.set(pad.position.x, pad.position.y + 0.35, pad.position.z);
+    root.add(rail);
+  }
+  function dressPaths(K, root, lamb) {
+    const dirt = lamb(0xc4a574);
+    const stops = stations.map((st) => ({ x: st.x, z: st.z }));
+    stops.push(lay.at(13, -3), lay.at(0, 0), lay.at(-1.5, 3.2));
+    for (let i = 0; i < stops.length - 1; i++) {
+      const a = worldPos(stops[i].x, stops[i].z);
+      const b = worldPos(stops[i + 1].x, stops[i + 1].z);
+      const len = Math.hypot(b.x - a.x, b.z - a.z);
+      if (len < 0.4) continue;
+      const mesh = new K.Mesh(new K.Box(1.15, 0.05, len), dirt);
+      mesh.position.set((a.x + b.x) / 2, (a.y + b.y) / 2 + 0.05, (a.z + b.z) / 2);
+      mesh.rotation.y = Math.atan2(b.x - a.x, b.z - a.z);
+      root.add(mesh);
+    }
+    const zig = [lay.at(4, 4), lay.at(1.5, 5.2), lay.at(-1.5, 3.2)];
+    zig.forEach((spot, i) => {
+      if (!i) return;
+      const a = worldPos(zig[i - 1].x, zig[i - 1].z);
+      const b = worldPos(spot.x, spot.z);
+      const len = Math.hypot(b.x - a.x, b.z - a.z);
+      const mesh = new K.Mesh(new K.Box(0.9, 0.05, len), lamb(0xb08968));
+      mesh.position.set((a.x + b.x) / 2, (a.y + b.y) / 2 + 0.4 + i * 0.7, (a.z + b.z) / 2);
+      mesh.rotation.y = Math.atan2(b.x - a.x, b.z - a.z);
+      root.add(mesh);
+    });
+  }
+  function dressDockSeam(K, root, lamb) {
+    const spot = isle.landSpot;
+    if (!spot) return;
+    const y = isle.ground(spot.x, spot.z);
+    const apron = new K.Mesh(new K.Cyl(2.4, 2.6, 0.1, 12), lamb(0xe6c98a));
+    apron.position.set(spot.x, Math.max(0.02, y) + 0.02, spot.z);
+    root.add(apron);
+    const plank = new K.Mesh(new K.Box(2.5, 0.08, 1.8), lamb(0x8a5d33));
+    plank.position.set(spot.x, apron.position.y + 0.08, spot.z);
+    plank.rotation.y = isle.yaw || lay.yaw;
+    root.add(plank);
+  }
 
-  function mapTexture(K) {
-    const c = document.createElement("canvas");
+  const US_OUTLINE = [[78, 86], [96, 58], [150, 46], [230, 40], [310, 44], [370, 52], [400, 78], [424, 58], [458, 50], [500, 62], [545, 48], [582, 72], [560, 102], [538, 124], [552, 156], [528, 188], [508, 220], [492, 252], [508, 286], [520, 328], [496, 348], [470, 300], [448, 268], [410, 262], [370, 278], [330, 292], [292, 332], [248, 318], [206, 276], [168, 258], [128, 248], [96, 220], [72, 176], [64, 128], [72, 96]];
+  const STATE_DOT = {
+    Washington: [92, 78], Oregon: [84, 128], California: [78, 190], Nevada: [118, 168], Idaho: [130, 100],
+    Montana: [180, 72], Wyoming: [176, 120], Utah: [150, 168], Colorado: [196, 168], Arizona: [140, 214],
+    "New Mexico": [190, 214], Texas: [250, 270], Oklahoma: [240, 214], Kansas: [230, 176], Nebraska: [230, 142],
+    "South Dakota": [230, 108], "North Dakota": [230, 72], Minnesota: [300, 78], Iowa: [300, 140], Missouri: [300, 186],
+    Arkansas: [300, 224], Louisiana: [310, 268], Wisconsin: [330, 100], Illinois: [340, 156], Mississippi: [350, 240],
+    Michigan: [380, 110], Indiana: [380, 156], Kentucky: [390, 190], Tennessee: [380, 214], Alabama: [390, 246],
+    Ohio: [420, 156], "West Virginia": [450, 176], Georgia: [430, 246], Florida: [490, 310], "South Carolina": [460, 230],
+    "North Carolina": [480, 200], Virginia: [490, 176], Maryland: [500, 160], Delaware: [518, 152], Pennsylvania: [480, 140],
+    "New Jersey": [524, 136], "New York": [500, 110], Connecticut: [530, 118], "Rhode Island": [542, 116], Massachusetts: [548, 104],
+    Vermont: [524, 88], "New Hampshire": [546, 84], Maine: [568, 64], Alaska: [78, 332], Hawaii: [150, 348]
+  };
+  let mapArt = null;
+  function tracePath(g, pts) {
+    g.beginPath();
+    pts.forEach((p, i) => { if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); });
+    g.closePath();
+  }
+  function paintMap(K) {
+    const c = mapArt ? mapArt.canvas : document.createElement("canvas");
     c.width = 640; c.height = 400;
     const g = c.getContext("2d");
     g.fillStyle = "#8ec6ea";
     g.fillRect(0, 0, 640, 400);
-    const us = [[92, 86], [130, 58], [210, 52], [300, 58], [348, 78], [372, 64], [430, 70], [500, 58], [528, 86], [508, 112], [536, 132], [498, 148], [520, 178], [492, 214], [468, 248], [508, 312], [456, 268], [420, 252], [360, 268], [318, 308], [230, 286], [176, 246], [128, 252], [86, 214], [64, 156], [78, 96]];
-    function trace(pts) {
-      g.beginPath();
-      pts.forEach((p, i) => { if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); });
-      g.closePath();
-    }
-    trace(us);
+    tracePath(g, US_OUTLINE);
     g.save();
     g.clip();
+    g.fillStyle = "#d7c4a2";
+    g.fillRect(0, 0, 640, 400);
     const regions = [
-      ["#6a1b9a", 40, 40, 150, 230, "West", 100, 150],
-      ["#c0392b", 160, 175, 190, 150, "Southwest", 230, 250],
-      ["#e6a817", 190, 40, 190, 160, "Midwest", 280, 120],
-      ["#2e7d32", 360, 175, 190, 160, "Southeast", 430, 230],
-      ["#1e88e5", 370, 40, 190, 145, "Northeast", 450, 110]
+      ["#6a1b9a", [[60, 40], [160, 40], [160, 250], [60, 250]], "West", 110, 150],
+      ["#c0392b", [[150, 190], [310, 190], [310, 360], [150, 250]], "Southwest", 220, 250],
+      ["#e6a817", [[160, 40], [400, 40], [400, 200], [160, 190]], "Midwest", 280, 110],
+      ["#2e7d32", [[300, 180], [500, 180], [530, 360], [300, 280]], "Southeast", 410, 240],
+      ["#1e88e5", [[400, 40], [600, 40], [600, 190], [400, 190]], "Northeast", 500, 100]
     ];
-    regions.forEach(([color, x, y, w, h]) => {
+    regions.forEach(([color, pts]) => {
       g.fillStyle = color;
-      g.fillRect(x, y, w, h);
+      g.globalAlpha = 0.88;
+      tracePath(g, pts);
+      g.fill();
     });
+    g.globalAlpha = 1;
     g.restore();
-    trace(us);
-    g.lineWidth = 8;
+    tracePath(g, US_OUTLINE);
+    g.lineWidth = 7;
     g.strokeStyle = "#10234d";
     g.stroke();
-    g.font = "bold 18px sans-serif";
+    g.lineJoin = "round";
+    const placed = bag().placed || [];
+    Object.keys(STATE_DOT).forEach((name) => {
+      if (name === "Alaska" || name === "Hawaii") return;
+      const [x, y] = STATE_DOT[name];
+      const on = placed.indexOf(name) >= 0;
+      g.beginPath();
+      g.arc(x, y, on ? 7 : 3.2, 0, Math.PI * 2);
+      g.fillStyle = on ? "#ffe082" : "rgba(255,255,255,.85)";
+      g.fill();
+      g.lineWidth = on ? 2 : 1;
+      g.strokeStyle = "#10234d";
+      g.stroke();
+    });
+    g.font = "bold 15px sans-serif";
     g.textAlign = "center";
     g.fillStyle = "#fff";
     g.strokeStyle = "#10234d";
-    g.lineWidth = 4;
-    regions.forEach((row) => {
-      g.strokeText(row[5], row[6], row[7]);
-      g.fillText(row[5], row[6], row[7]);
-    });
-    function island(pts, color, label, lx, ly) {
-      trace(pts);
-      g.fillStyle = color;
+    g.lineWidth = 3;
+    regions.forEach((row) => { g.strokeText(row[2], row[3], row[4]); g.fillText(row[2], row[3], row[4]); });
+    function inset(pts, label, lx, ly) {
+      tracePath(g, pts);
+      g.fillStyle = "#6a1b9a";
       g.fill();
-      g.strokeStyle = "#10234d";
       g.lineWidth = 4;
-      g.stroke();
-      g.fillStyle = "#fff";
       g.strokeStyle = "#10234d";
-      g.lineWidth = 3;
+      g.stroke();
+      const on = placed.indexOf(label) >= 0;
+      g.fillStyle = on ? "#ffe082" : "#fff";
+      g.font = "bold 16px sans-serif";
       g.strokeText(label, lx, ly);
       g.fillText(label, lx, ly);
     }
-    island([[46, 318], [78, 300], [108, 312], [96, 348], [58, 356]], "#6a1b9a", "Alaska", 76, 332);
-    island([[132, 338], [150, 328], [168, 340], [158, 356], [136, 354]], "#6a1b9a", "Hawaii", 150, 346);
+    inset([[40, 310], [70, 292], [112, 308], [96, 352], [52, 360]], "Alaska", 74, 332);
+    inset([[128, 328], [150, 318], [176, 334], [164, 356], [132, 354]], "Hawaii", 150, 346);
     g.fillStyle = "#10234d";
     g.font = "bold 22px sans-serif";
-    g.fillText("United States", 320, 28);
-    const tex = new K.CanvasTex(c);
-    tex.needsUpdate = true;
-    return tex;
+    g.fillText("United States", 320, 26);
+    if (!mapArt) {
+      const tex = new K.CanvasTex(c);
+      tex.needsUpdate = true;
+      mapArt = { canvas: c, tex };
+    } else mapArt.tex.needsUpdate = true;
+    return mapArt.tex;
   }
+  function mapTexture(K) { return paintMap(K); }
+  function refreshMap() { if (mapArt && kit()) paintMap(kit()); }
   function labelTex(K, text) {
     const c = document.createElement("canvas");
     c.width = 512; c.height = 128;
@@ -825,11 +965,12 @@
     }
   }
   function dressTunnel(K, root, add, lamb) {
-    const colors = [0xc0392b, 0x1e88e5, 0xffc83d, 0x6d4c41, 0x455a64, 0xef6c00, 0x37474f, 0x1565c0];
+    const colors = [0x8d6e63, 0x6d4c41, 0x795548, 0x5d4037, 0x4e342e, 0x8d6e63, 0x6d4c41, 0x795548];
+    const props = ["📜", "⚓", "⚖", "🚂", "🕊", "⚙", "✈", "🚀"];
     rooms = ERAS.map((era, i) => {
-      const a = 2.4 + i * 0.16;
-      const x = Math.cos(a) * 7.4;
-      const z = Math.sin(a) * 7.4;
+      const spot = lay.at(4.6 - i * 0.15, (i - 3.5) * 1.15);
+      const x = spot.x;
+      const z = spot.z;
       const p = worldPos(x, z);
       const group = new K.Group();
       group.position.set(p.x, p.y, p.z);
@@ -844,14 +985,19 @@
         walls.push(wall);
         if (n < 3) blocks.push({ x: p.x + lx, z: p.z + lz, r: 0.55 });
       });
-      const floor = new K.Mesh(new K.Cyl(1.35, 1.35, 0.08, 8), lamb(0xd7ccc8));
+      const floor = new K.Mesh(new K.Cyl(1.15, 1.15, 0.08, 8), lamb(0x6d5c4d));
       floor.position.y = 0.04;
       group.add(floor);
-      const roof = new K.Mesh(new K.Cone(1.45, 0.7, 6), lamb(0x8d6e63));
-      roof.position.y = 1.7;
-      group.add(roof);
-      const sign = new K.Mesh(new K.Plane(1.4, 0.4), new K.Lambert({ map: labelTex(K, era.split(" ")[0]), color: 0xffffff }));
-      sign.position.set(0, 1.35, 1.15);
+      const arch = new K.Mesh(new K.Torus(1.05, 0.22, 8, 14, Math.PI), lamb(colors[i % colors.length]));
+      arch.position.y = 1.15;
+      arch.rotation.y = lay.yaw;
+      group.add(arch);
+      const lantern = new K.Mesh(new K.Sphere(0.12, 8, 6), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 0.85 }));
+      lantern.position.set(0.7, 1.7, 0);
+      group.add(lantern);
+      const sign = new K.Mesh(new K.Plane(1.3, 0.36), new K.Lambert({ map: labelTex(K, era.split(" ")[0] + " " + props[i]), color: 0xffffff }));
+      sign.position.set(0, 1.55, 0.2);
+      sign.rotation.y = lay.yaw;
       group.add(sign);
       root.add(group);
       const station = { id: "tunnel", name: "History Time-Tunnel", era, x, z, wx: p.x, wz: p.z, room: true };
@@ -860,11 +1006,25 @@
     });
   }
   function dressStage(K, root, add, lamb) {
-    const deck = new K.Mesh(new K.Cyl(1.6, 1.6, 0.2, 16), lamb(0x5d4037));
-    add(deck, 6, -5, 0.1);
-    const wheel = new K.Mesh(new K.Cyl(0.9, 0.9, 0.12, 16), new K.Lambert({ color: 0xffc83d, emissive: 0xffb300, emissiveIntensity: 0.4 }));
-    add(wheel, 6, -5, 0.7);
+    const spot = lay.at(11, -7);
+    const deck = new K.Mesh(new K.Cyl(2.2, 2.2, 0.28, 16), lamb(0x5d4037));
+    add(deck, spot.x, spot.z, 0.14);
+    const podium = new K.Mesh(new K.Box(0.7, 0.9, 0.45), lamb(0x14336b));
+    podium.position.set(deck.position.x + lay.fx * 0.4, deck.position.y + 0.6, deck.position.z + lay.fz * 0.4);
+    root.add(podium);
+    [-1.6, 1.6].forEach((side) => {
+      const post = new K.Mesh(new K.Cyl(0.06, 0.06, 2.2, 6), lamb(0x455a64));
+      const at = lay.at(11, -7 + side);
+      add(post, at.x, at.z, 1.1);
+      const bulb = new K.Mesh(new K.Sphere(0.16, 8, 6), new K.Lambert({ color: 0xfff3c4, emissive: 0xffe082, emissiveIntensity: 0.9 }));
+      bulb.position.set(post.position.x, post.position.y + 1.2, post.position.z);
+      root.add(bulb);
+    });
+    const wheel = new K.Mesh(new K.Cyl(1.15, 1.15, 0.16, 16), new K.Lambert({ color: 0xffc83d, emissive: 0xffb300, emissiveIntensity: 0.45 }));
+    wheel.position.set(deck.position.x - lay.fx * 0.8, deck.position.y + 1.3, deck.position.z - lay.fz * 0.8);
+    wheel.rotation.x = Math.PI / 2;
     wheel.name = "v51-wheel";
+    root.add(wheel);
     monuments.wheel = wheel;
   }
   function dressMonuments(K, root, add, lamb) {
@@ -877,11 +1037,18 @@
       rushmore: () => rushmoreMesh(K, lamb),
       gate: () => bridgeMesh(K, lamb)
     };
-    const spots = [[-4.2, -5.2], [6.6, 5.2], [-0.8, -5.2], [-6.4, 4.4], [6.4, -1.4], [2.2, -5.2]];
-    BANK.landmarks.forEach((lm, i) => {
+    const spots = {
+      liberty: Object.assign(lay.at(13.5, -3), { y: 0 }),
+      gate: Object.assign(lay.at(8, 9), { y: 0 }),
+      arch: Object.assign(lay.at(-1, -7), { y: 1.4 }),
+      bell: Object.assign(lay.at(10, 5), { y: 0 }),
+      alamo: Object.assign(lay.at(-5, 9), { y: 0 }),
+      rushmore: Object.assign(lay.at(-3.2, -1.2), { y: 2.4 })
+    };
+    BANK.landmarks.forEach((lm) => {
       const mesh = makers[lm.id]();
-      const spot = spots[i];
-      add(mesh, spot[0], spot[1], 0);
+      const spot = spots[lm.id] || lay.at(0, 0);
+      add(mesh, spot.x, spot.z, spot.y || 0);
       mesh.scale.setScalar(1);
       mesh.name = "v51-monument";
       mesh.visible = !!bag().landmarks[lm.id];
@@ -896,27 +1063,44 @@
   }
   function bellMesh(K, lamb) {
     const g = new K.Group();
-    const body = new K.Mesh(new K.Sphere(0.55, 12, 10), lamb(0xd4a017));
-    body.scale.set(1, 1.15, 1);
-    body.position.y = 1.1;
-    const yoke = new K.Mesh(new K.Torus(0.42, 0.06, 6, 12), lamb(0x8d6a12));
+    const wood = lamb(0x6d4c41);
+    const brass = lamb(0xd4a017);
+    [-0.9, 0.9].forEach((x) => {
+      const post = new K.Mesh(new K.Cyl(0.1, 0.12, 3.2, 6), wood);
+      post.position.set(x, 1.6, 0);
+      g.add(post);
+    });
+    const beam = new K.Mesh(new K.Box(2.2, 0.16, 0.18), wood);
+    beam.position.y = 3.15;
+    g.add(beam);
+    const body = new K.Mesh(new K.Sphere(0.7, 14, 12), brass);
+    body.scale.set(1, 1.2, 1);
+    body.position.y = 1.9;
+    const yoke = new K.Mesh(new K.Torus(0.55, 0.08, 8, 16), lamb(0x8d6a12));
     yoke.rotation.x = Math.PI / 2;
-    yoke.position.y = 1.7;
-    const crack = new K.Mesh(new K.Box(0.04, 0.45, 0.02), lamb(0x4e342e));
-    crack.position.set(0.15, 0.85, 0.5);
+    yoke.position.y = 2.7;
+    const crack = new K.Mesh(new K.Box(0.06, 0.7, 0.04), lamb(0x4e342e));
+    crack.position.set(0.22, 1.45, 0.62);
     g.add(body); g.add(yoke); g.add(crack);
     return g;
   }
   function alamoMesh(K, lamb) {
     const g = new K.Group();
-    const wall = new K.Mesh(new K.Box(2.2, 1.6, 0.28), lamb(0xe6d3b3));
-    wall.position.y = 0.8;
-    const hump = new K.Mesh(new K.Sphere(0.7, 10, 8), lamb(0xe6d3b3));
-    hump.scale.set(1.1, 0.7, 0.4);
-    hump.position.y = 1.7;
-    const door = new K.Mesh(new K.Box(0.4, 0.7, 0.3), lamb(0x5d4037));
-    door.position.set(0, 0.35, 0.05);
-    g.add(wall); g.add(hump); g.add(door);
+    const stone = lamb(0xe6d3b1);
+    const wall = new K.Mesh(new K.Box(4.6, 2.4, 0.4), stone);
+    wall.position.y = 1.2;
+    g.add(wall);
+    for (let i = 0; i < 5; i++) {
+      const hump = new K.Mesh(new K.Sphere(0.55, 10, 8), stone);
+      hump.scale.set(1.15, 0.7, 0.45);
+      hump.position.set(-1.6 + i * 0.8, 2.55, 0);
+      g.add(hump);
+    }
+    const door = new K.Mesh(new K.Box(0.7, 1.3, 0.5), lamb(0x5d4037));
+    door.position.set(0, 0.65, 0.05);
+    const step = new K.Mesh(new K.Box(1.6, 0.2, 0.8), stone);
+    step.position.set(0, 0.1, 0.45);
+    g.add(door); g.add(step);
     return g;
   }
   function ribbon(K, mat, x0, y0, x1, y1, thick) {
@@ -930,45 +1114,59 @@
   }
   function archMesh(K, lamb) {
     const g = new K.Group();
-    const arch = new K.Mesh(new K.Torus(1.45, 0.16, 12, 28, Math.PI), lamb(0xe8eef2));
-    arch.position.y = 0.02;
-    g.add(arch);
-    const foot = new K.Mesh(new K.Box(0.28, 0.2, 0.28), lamb(0xe8eef2));
-    foot.position.set(-1.45, 0.1, 0);
-    const foot2 = new K.Mesh(new K.Box(0.28, 0.2, 0.28), lamb(0xe8eef2));
-    foot2.position.set(1.45, 0.1, 0);
-    g.add(foot);
-    g.add(foot2);
+    const steel = lamb(0xd5dde4);
+    const span = 7.2;
+    const height = 8.2;
+    const n = 18;
+    const a = span / 2.6;
+    const edge = a * Math.cosh((span / 2) / a);
+    for (let i = 0; i < n; i++) {
+      const t0 = i / n;
+      const t1 = (i + 1) / n;
+      const x0 = (t0 - 0.5) * span;
+      const x1 = (t1 - 0.5) * span;
+      const y0 = (edge - a * Math.cosh(x0 / a)) / (edge - a) * height;
+      const y1 = (edge - a * Math.cosh(x1 / a)) / (edge - a) * height;
+      const mid = (y0 + y1) / 2 / height;
+      const thick = 0.72 - mid * 0.4;
+      const seg = new K.Mesh(new K.Cyl(thick * 0.55, thick * 0.72, Math.hypot(x1 - x0, y1 - y0) + 0.08, 3), steel);
+      seg.position.set((x0 + x1) / 2, (y0 + y1) / 2, 0);
+      seg.rotation.z = Math.atan2(x1 - x0, y1 - y0);
+      g.add(seg);
+    }
     return g;
   }
   function statueMesh(K, lamb) {
     const g = new K.Group();
-    const copper = lamb(0x3e9a52);
-    const stone = lamb(0xd7d0c4);
-    const ped = new K.Mesh(new K.Box(0.78, 0.5, 0.78), stone);
-    ped.position.y = 0.25;
-    const robe = new K.Mesh(new K.Cone(0.46, 1.55, 8), copper);
-    robe.position.y = 1.22;
-    const head = new K.Mesh(new K.Sphere(0.22, 10, 8), copper);
-    head.position.y = 2.12;
-    const band = new K.Mesh(new K.Cyl(0.24, 0.24, 0.1, 8), copper);
-    band.position.y = 2.3;
-    g.add(ped); g.add(robe); g.add(head); g.add(band);
+    const copper = lamb(0x3d9a58);
+    const stone = lamb(0xd9d0c2);
+    [[2.4, 0.55, 0.28], [1.9, 0.5, 0.85], [1.45, 0.45, 1.32]].forEach(([w, h, y]) => {
+      const step = new K.Mesh(new K.Box(w, h, w), stone);
+      step.position.y = y;
+      g.add(step);
+    });
+    const robe = new K.Mesh(new K.Cone(0.95, 3.6, 10), copper);
+    robe.position.y = 3.5;
+    const head = new K.Mesh(new K.Sphere(0.42, 12, 10), copper);
+    head.position.y = 5.55;
+    const band = new K.Mesh(new K.Cyl(0.46, 0.46, 0.16, 10), copper);
+    band.position.y = 5.9;
+    g.add(robe); g.add(head); g.add(band);
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2;
-      const spike = new K.Mesh(new K.Cone(0.04, 0.32, 4), copper);
-      spike.position.set(Math.cos(a) * 0.18, 2.52, Math.sin(a) * 0.18);
+      const spike = new K.Mesh(new K.Cone(0.07, 0.7, 4), copper);
+      spike.position.set(Math.cos(a) * 0.34, 6.35, Math.sin(a) * 0.34);
       g.add(spike);
     }
-    const arm = new K.Mesh(new K.Cyl(0.055, 0.055, 0.78, 6), copper);
-    arm.position.set(0.32, 2.42, 0);
-    arm.rotation.z = -0.4;
-    const cup = new K.Mesh(new K.Cyl(0.1, 0.07, 0.1, 6), copper);
-    cup.position.set(0.48, 2.78, 0);
-    const flame = new K.Mesh(new K.Cone(0.1, 0.26, 6), new K.Lambert({ color: 0xffe082, emissive: 0xff8f00, emissiveIntensity: 0.95 }));
-    flame.position.set(0.48, 2.96, 0);
-    const tablet = new K.Mesh(new K.Box(0.2, 0.32, 0.06), lamb(0xe6ee9c));
-    tablet.position.set(-0.36, 1.5, 0.18);
+    const arm = new K.Mesh(new K.Cyl(0.1, 0.1, 1.7, 6), copper);
+    arm.position.set(0.62, 6.15, 0);
+    arm.rotation.z = -0.35;
+    const cup = new K.Mesh(new K.Cyl(0.18, 0.12, 0.18, 8), copper);
+    cup.position.set(0.95, 6.95, 0);
+    const flame = new K.Mesh(new K.Cone(0.2, 0.55, 8), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 1 }));
+    flame.position.set(0.95, 7.35, 0);
+    const tablet = new K.Mesh(new K.Box(0.42, 0.7, 0.1), lamb(0xe6ee9c));
+    tablet.position.set(-0.7, 4.1, 0.35);
     g.add(arm); g.add(cup); g.add(flame); g.add(tablet);
     return g;
   }
@@ -990,44 +1188,50 @@
   }
   function rushmoreMesh(K, lamb) {
     const g = new K.Group();
-    const cliff = new K.Mesh(new K.Sphere(0.9, 10, 8), lamb(0x8d6e63));
-    cliff.scale.set(1.8, 1.1, 0.7);
-    cliff.position.y = 0.9;
-    for (let i = 0; i < 4; i++) {
-      const face = new K.Mesh(new K.Sphere(0.22, 8, 6), lamb(0xd7ccc8));
-      face.position.set(-0.7 + i * 0.46, 1.15, 0.45);
-      g.add(face);
-    }
+    const cliff = new K.Mesh(new K.Box(5.4, 3.6, 1.6), lamb(0x8d6e63));
+    cliff.position.y = 1.8;
     g.add(cliff);
+    const names = [-1.9, -0.65, 0.6, 1.85];
+    names.forEach((x) => {
+      const face = new K.Mesh(new K.Sphere(0.48, 10, 8), lamb(0xd7ccc8));
+      face.position.set(x, 2.35, 0.7);
+      const brow = new K.Mesh(new K.Box(0.36, 0.08, 0.12), lamb(0xc8b8ae));
+      brow.position.set(x, 2.55, 1.05);
+      g.add(face); g.add(brow);
+    });
     return g;
   }
   function bridgeMesh(K, lamb) {
     const g = new K.Group();
     const orange = lamb(0xf4511e);
-    const deck = new K.Mesh(new K.Box(3.6, 0.1, 0.42), lamb(0x546e7a));
-    deck.position.y = 0.62;
+    const water = new K.Mesh(new K.Box(8, 0.08, 3.2), lamb(0x1e88e5));
+    water.position.y = 0.05;
+    g.add(water);
+    const deck = new K.Mesh(new K.Box(13.5, 0.16, 0.7), lamb(0x546e7a));
+    deck.position.y = 1.35;
     g.add(deck);
-    [-1.2, 1.2].forEach((x) => {
-      const tower = new K.Mesh(new K.Box(0.2, 2.5, 0.2), orange);
-      tower.position.set(x, 1.45, 0);
-      const cross = new K.Mesh(new K.Box(0.32, 0.1, 0.24), orange);
-      cross.position.set(x, 2.2, 0);
-      const cap = new K.Mesh(new K.Box(0.24, 0.1, 0.24), orange);
-      cap.position.set(x, 2.62, 0);
-      g.add(tower); g.add(cross); g.add(cap);
+    [-4.2, 4.2].forEach((x) => {
+      const tower = new K.Mesh(new K.Box(0.45, 6.4, 0.45), orange);
+      tower.position.set(x, 3.2, 0);
+      g.add(tower);
+      [2.4, 4.2, 5.6].forEach((y) => {
+        const beam = new K.Mesh(new K.Box(0.7, 0.16, 0.55), orange);
+        beam.position.set(x, y, 0);
+        g.add(beam);
+      });
     });
-    const n = 12;
+    const n = 16;
     for (let i = 0; i < n; i++) {
       const t0 = i / n;
       const t1 = (i + 1) / n;
-      const sag = (t) => 2.55 - Math.sin(t * Math.PI) * 1.25;
-      const x0 = -1.2 + t0 * 2.4;
-      const x1 = -1.2 + t1 * 2.4;
-      g.add(ribbon(K, orange, x0, sag(t0), x1, sag(t1), 0.05));
-      const drop = sag(t0) - 0.62;
-      if (drop > 0.2) {
-        const line = new K.Mesh(new K.Box(0.03, drop, 0.03), orange);
-        line.position.set(x0, 0.62 + drop / 2, 0);
+      const sag = (t) => 5.5 - Math.sin(t * Math.PI) * 3.4;
+      const x0 = -4.2 + t0 * 8.4;
+      const x1 = -4.2 + t1 * 8.4;
+      g.add(ribbon(K, orange, x0, sag(t0), x1, sag(t1), 0.08));
+      const drop = sag(t0) - 1.35;
+      if (drop > 0.25) {
+        const line = new K.Mesh(new K.Box(0.04, drop, 0.04), orange);
+        line.position.set(x0, 1.35 + drop / 2, 0);
         g.add(line);
       }
     }
@@ -1082,16 +1286,27 @@
     if (monuments.wheel) monuments.wheel.rotation.y += 0.01;
     const cam = CA.camera;
     rooms.forEach((room) => {
-      const nearCam = cam && Math.hypot(cam.position.x - room.x, cam.position.z - room.z) < 9;
-      room.walls.forEach((w) => {
-        if (!w.material) return;
-        w.material.transparent = true;
-        w.material.opacity = nearCam ? 0.55 : 1;
-        w.material.depthWrite = !nearCam;
+      const nearCam = cam && Math.hypot(cam.position.x - room.x, cam.position.z - room.z) < 8;
+      const hide = nearCam && (!session || session.id !== "tunnel");
+      if (room.group) room.group.traverse((o) => {
+        if (!o.material) return;
+        o.material.transparent = true;
+        o.material.opacity = hide ? 0.12 : 1;
+        o.material.depthWrite = !hide;
       });
     });
     if (CA.captain && (!CA.mode || CA.mode === "walk")) {
       const p = CA.captain.position;
+      const onIsle = Math.hypot(p.x - isle.cx, p.z - isle.cz) < isle.R + 8;
+      if (onIsle && mountainBlock) {
+        const dxm = p.x - mountainBlock.x;
+        const dzm = p.z - mountainBlock.z;
+        const dist = Math.hypot(dxm, dzm) || 0.001;
+        if (dist < mountainBlock.r) {
+          p.x = mountainBlock.x + (dxm / dist) * (mountainBlock.r + 0.35);
+          p.z = mountainBlock.z + (dzm / dist) * (mountainBlock.r + 0.35);
+        }
+      }
       rooms.forEach((room) => {
         if (Math.hypot(p.x - room.x, p.z - room.z) > 2.5) return;
         room.blocks.forEach((b) => {

@@ -69,7 +69,7 @@ await page.waitForFunction(() => window.CaptainLiberty && window.CaptainLiberty.
 await page.evaluate(() => document.getElementById("intro")?.classList.add("hidden"));
 const booted = await page.evaluate(() => window.CaptainLiberty.ready.then(() => {
   const C = window.CaptainAdventure;
-  const isle = C.isl.L.find((n) => n.id === "liberty");
+  const isle = C.isl.L.find((n) => n.id === "turtle");
   return {
     ready: true,
     version: window.__GAME_VERSION__,
@@ -88,17 +88,17 @@ check("q00 is the Columbus question", booted.q00 && booted.q00.year === 1492 && 
 check("state facts come from the pack", /Montgomery bus boycott/.test(booted.alabama), booted.alabama);
 check("a 5.0 save keeps its 77 coins", booted.score === 77, String(booted.score));
 check("version marker is 5.1", booted.version === "Captain Adventure 5.1: Liberty Isle", booted.version);
-check("Liberty Isle exists with a dock", !!(booted.isle && booted.isle.name === "Liberty Isle" && booted.isle.R === 18), JSON.stringify(booted.isle));
+check("Liberty Isle exists with a dock", !!(booted.isle && booted.isle.name === "Liberty Isle" && booted.isle.R === 19), JSON.stringify(booted.isle));
 
 const trip = await page.evaluate(() => {
   const C = window.CaptainAdventure;
-  const isle = C.isl.L.find((n) => n.id === "liberty");
+  const isle = C.isl.L.find((n) => n.id === "turtle");
   C.boatAt(isle.boatSpot.x, isle.boatSpot.z, isle.yaw || 0);
   const boat = C.VEH.motorboat.obj.position;
   const can = C.isl.canLand(boat);
-  C.isl.land("liberty");
+  C.isl.land("turtle");
   C.setScore(200);
-  return { can: !!(can && can.id === "liberty"), mode: C.mode, x: C.captain.position.x, z: C.captain.position.z };
+  return { can: !!(can && can.id === "turtle"), mode: C.mode, x: C.captain.position.x, z: C.captain.position.z };
 });
 check("the boat can dock at Liberty Isle", trip.can, JSON.stringify(trip));
 

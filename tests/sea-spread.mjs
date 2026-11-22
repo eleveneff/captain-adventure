@@ -71,7 +71,7 @@ async function open(save) {
     waitUntil: "networkidle0",
     timeout: 60000,
   });
-  await page.waitForFunction(() => window.CaptainAdventure && window.CaptainAdventure.isl && window.CaptainAdventure.isl.L.length === 4, {
+  await page.waitForFunction(() => window.CaptainAdventure && window.CaptainAdventure.isl && window.CaptainAdventure.isl.L.length === 3, {
     timeout: 30000,
   });
   await page.click("#start");

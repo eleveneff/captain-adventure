@@ -877,9 +877,11 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const blend = u * u * (3 - 2 * u);
       y = (waterU - 0.03) + (y - (waterU - 0.03)) * blend;
     } else if (band <= 0) {
-      const u = Math.min(1, -band / 0.45);
-      const blend = u * u * (3 - 2 * u);
-      y = (waterU - 0.02) * (1 - blend) + (waterU - 0.08) * blend;
+      const u = Math.min(1, Math.max(0, (-band - 0.22) / 0.5));
+      const blend = u * u;
+      const lip = waterU - 0.16;
+      const deep = -2.45 / GROW;
+      y = lip * (1 - blend) + deep * blend;
     }
     if (inMouth(f, s)) y = Math.min(y, 1.26);
     if (inRoomFS(f, s)) y = 1.22;
@@ -1027,20 +1029,34 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const h = y / GROW;
     const t = toneAt(f, s);
     const sand = mixHex(K, 0xf6e0b8, 0xd7b57a, t);
-    const wet = mixHex(K, 0xc9a56e, 0xa88852, t);
+    const wetSand = mixHex(K, 0xa56d3c, 0x7c522c, t);
+    const lip = mixHex(K, 0x5d7f9c, 0x4c7090, t);
+    const foam = mixHex(K, 0xe4f4f2, 0xd0e6e2, t);
+    const ocean = mixHex(K, 0x0a4e90, 0x08467f, t);
     const grass = mixHex(K, 0x5cb85c, 0x2f7d38, t);
     const rockC = mixHex(K, 0xa39c94, 0x6e675f, t);
     const rock = ridge(f, s);
     const tree = 2.15 + Math.sin(f * 0.16 + s * 0.12) * 0.35;
-    if (h < -0.18) return mixHex(K, 0x1768a4, 0x14588e, t);
-    if (rock > tree && h > 1.75) return rockC;
-    if (h < 0.08) return wet;
-    if (h < 0.72) {
+    const band = shoreOf(f, s) - Math.hypot(f, s);
+    if (band <= 0) return ocean;
+    let col = grass;
+    if (rock > tree && h > 1.75) col = rockC;
+    else if (h < 0.08) col = sand;
+    else if (h < 0.72) {
       const u = Math.max(0, Math.min(1, (h - 0.08) / 0.64));
       sand.lerp(grass, u * u * u);
-      return sand;
+      col = sand;
     }
-    return grass;
+    if (band < 2.2) {
+      const u = smoothstep((2.2 - band) / 2.2);
+      col.lerp(wetSand, Math.min(0.94, u * 1.2));
+      if (band < 0.42) {
+        const k = smoothstep((0.42 - band) / 0.42);
+        col.lerp(lip, k * 0.62);
+        col.lerp(foam, Math.sin(k * Math.PI) * 0.48);
+      }
+    }
+    return col;
   }
   function gridMesh(K, N, half, sample, skip) {
     const positions = [];
@@ -1078,8 +1094,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function buildTerrain(K) {
     const A = 720;
-    const R = 28;
-    const skirt = 0.45;
+    const R = 48;
+    const skirt = 2.9;
     const positions = [];
     const colors = [];
     const index = [];
@@ -1089,7 +1105,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const cs = Math.sin(ang);
       const shore = shoreOf(cf, cs);
       for (let ir = 0; ir <= R; ir++) {
-        const rad = (ir / R) * (shore + skirt);
+        const rad = Math.pow(ir / R, 0.42) * (shore + skirt);
         const f = cf * rad;
         const s = cs * rad;
         const y = lowland(f, s);
@@ -1712,35 +1728,78 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     });
     paintProps(K, root, "v51-tunnel-set", mouth);
   }
+  function foamTex(K) {
+    const c = document.createElement("canvas");
+    c.width = 64;
+    c.height = 128;
+    const g = c.getContext("2d");
+    const grd = g.createLinearGradient(0, 0, 0, 128);
+    grd.addColorStop(0, "rgba(255,255,255,0)");
+    grd.addColorStop(0.18, "rgba(214,236,240,0)");
+    grd.addColorStop(0.42, "rgba(246,252,255,0.34)");
+    grd.addColorStop(0.62, "rgba(198,226,234,0.1)");
+    grd.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 64, 128);
+    const tex = new K.CanvasTex(c);
+    tex.needsUpdate = true;
+    if ("wrapS" in tex) tex.wrapS = 1000;
+    return tex;
+  }
   function dressFoam(K, root) {
     const waterY = typeof CA.waterY === "number" ? CA.waterY : -0.55;
-    const mat = new K.Basic({ color: 0xf7fbff, transparent: true, opacity: 0.55, depthWrite: false });
-    for (let i = 0; i < 64; i++) {
-      const a = (i / 64) * Math.PI * 2;
-      let lo = 12;
-      let hi = 44;
-      for (let k = 0; k < 8; k++) {
+    const N = 160;
+    const positions = [];
+    const uvs = [];
+    const index = [];
+    function shoreRad(a) {
+      let lo = 8;
+      let hi = 46;
+      for (let k = 0; k < 10; k++) {
         const mid = (lo + hi) / 2;
         const y = heightFS(Math.cos(a) * mid, Math.sin(a) * mid);
-        if (y == null || y < -0.02) hi = mid;
+        if (y == null || y < waterY + 0.04) hi = mid;
         else lo = mid;
       }
-      const rad = (lo + hi) / 2;
-      const f = Math.cos(a) * rad;
-      const s = Math.sin(a) * rad;
-      if (Math.abs(s - CHAN.s) < CHAN.half && f > CHAN.f0) continue;
-      if (Math.abs(s) < 2.2 && f > 23) continue;
-      for (let k = 0; k < 2; k++) {
-        const blob = new K.Mesh(new K.Sphere(0.22 + ((i + k) % 3) * 0.06, 6, 4), mat);
-        blob.scale.set(1.45, 0.22, 0.8);
-        const w = worldFS(f + Math.cos(a) * k * 0.35, s + Math.sin(a) * k * 0.35);
-        blob.position.set(host.x + w.x, waterY + 0.06, host.z + w.z);
-        blob.rotation.y = a;
-        blob.name = "v51-foam";
-        blob.userData.nofade = 1;
-        root.add(blob);
-      }
+      return (lo + hi) / 2;
     }
+    for (let i = 0; i <= N; i++) {
+      const a = (i / N) * Math.PI * 2;
+      const rad = shoreRad(a);
+      const cf = Math.cos(a);
+      const cs = Math.sin(a);
+      const inner = worldFS(cf * (rad - 0.28), cs * (rad - 0.28));
+      const outer = worldFS(cf * (rad + 0.42), cs * (rad + 0.42));
+      const u = (i / N) * 14;
+      positions.push(host.x + inner.x, waterY + 0.07, host.z + inner.z);
+      positions.push(host.x + outer.x, waterY + 0.05, host.z + outer.z);
+      uvs.push(u, 0.04, u, 0.96);
+    }
+    for (let i = 0; i < N; i++) {
+      const a = (i + 0.5) / N * Math.PI * 2;
+      const f = Math.cos(a) * 28;
+      const s = Math.sin(a) * 28;
+      if (Math.abs(s - CHAN.s) < CHAN.half + 1.4 && f > CHAN.f0 - 2) continue;
+      if (Math.abs(s) < 2.6 && f > 21) continue;
+      const v = i * 2;
+      index.push(v, v + 1, v + 2, v + 1, v + 3, v + 2);
+    }
+    const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
+    geo.setAttribute("uv", new K.Attr(new Float32Array(uvs), 2));
+    geo.setIndex(index);
+    const mesh = new K.Mesh(geo, new K.Basic({
+      map: foamTex(K),
+      color: 0xf7fbff,
+      transparent: true,
+      opacity: 0.55,
+      depthWrite: false,
+      side: 2
+    }));
+    mesh.name = "v51-foam-band";
+    mesh.renderOrder = 2;
+    mesh.userData.nofade = 1;
+    root.add(mesh);
   }
   function dressMapTable(K, root, lamb) {
     const p = spot(LAYOUT.table[0], LAYOUT.table[1]);
@@ -2729,6 +2788,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (!cam || !host || !lay) return;
     if (cam.clearViewOffset) cam.clearViewOffset();
     rallyCover(!!(session && session.id === "rally"));
+    const shot = window.__libertyCam;
+    if (shot && shot.x != null) {
+      cam.position.set(shot.x, shot.y, shot.z);
+      cam.lookAt(shot.lx, shot.ly, shot.lz);
+      return;
+    }
     if (window.__libertyAerial) {
       cam.position.set(host.x + lay.fx * 78, 58, host.z + lay.fz * 78);
       cam.lookAt(host.x, 6, host.z);

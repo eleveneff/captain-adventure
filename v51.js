@@ -51,7 +51,20 @@
   let caveAnchor = null;
   let caveWalls = null;
   let builderPlot = null;
+  const GROW = 1.275;
   const CHAN = { s: 17.4, half: 1.65, f0: 16, f1: 34 };
+  const CAVE = { f: 6.4, s: 0.3 };
+  const LAYOUT = {
+    map: [18.6, -9.2],
+    tunnel: [CAVE.f + 2.5, CAVE.s],
+    rally: [11.6, -18.6],
+    builder: [11.2, 10.2],
+    quiz: [19.4, 5.2],
+    table: [19.6, -13.1],
+    plot: [13.4, 8.2],
+    flag: [25.6, 3.2],
+    isleSign: [23.0, 3.5]
+  };
   const ui = { layer: null, prompt: null };
 
   function worldPos(x, z) {
@@ -671,10 +684,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return best || { x: anchor.x, y: 10, z: anchor.z };
   }
   function toFS(dx, dz) {
-    return { f: dx * lay.fx + dz * lay.fz, s: dx * lay.rx + dz * lay.rz };
+    return { f: (dx * lay.fx + dz * lay.fz) / GROW, s: (dx * lay.rx + dz * lay.rz) / GROW };
   }
   function worldFS(f, s) {
-    return { x: lay.fx * f + lay.rx * s, z: lay.fz * f + lay.rz * s };
+    return { x: lay.fx * f * GROW + lay.rx * s * GROW, z: lay.fz * f * GROW + lay.rz * s * GROW };
   }
   function smoothstep(t) {
     t = t < 0 ? 0 : t > 1 ? 1 : t;
@@ -700,22 +713,23 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return 27.4 + 2.05 * Math.sin(a * 3 + 0.45) + 1.15 * Math.sin(a * 5 + 1.7) + 0.45 * Math.sin(a * 8 - 0.4);
   }
   function inMouth(f, s) {
-    return f > 4.05 && f < 8.55 && Math.abs(s - 0.2) < 1.62;
+    return f > CAVE.f - 2.6 && f < CAVE.f + 6.8 && Math.abs(s - CAVE.s) < 2.5;
   }
   function inRoomFS(f, s) {
-    const side = Math.abs(s - 0.2);
-    if (f <= 0.15 || f >= 6.7 || side >= 2.15) return false;
-    if (f > 5.6 && side >= 1.7) return false;
+    const side = Math.abs(s - CAVE.s);
+    const depth = CAVE.f - f;
+    if (depth < -0.35 || depth > 6.4 || side >= 2.15) return false;
+    if (depth < 0.9 && side >= 1.7) return false;
     return true;
   }
   function rockTop(f, s) {
-    if (inRoomFS(f, s)) return 1.22;
+    if (inRoomFS(f, s)) return 1.22 * GROW;
     const planes = rockPlanes(f, s);
     let rock = planes[0];
     for (let i = 1; i < planes.length; i++) if (planes[i] > rock) rock = planes[i];
-    if (f > 5.4 && f < 13 && Math.abs(s - 0.2) < 2.6) rock = Math.min(rock, 1.35 + Math.max(0, (f - 7) * 0.05));
+    if (f > CAVE.f - 2 && f < CAVE.f + 6 && Math.abs(s - CAVE.s) < 2.6) rock = Math.min(rock, 1.35 + Math.max(0, (f - CAVE.f) * 0.05));
     if (inMouth(f, s)) rock = Math.min(rock, 1.26);
-    return rock;
+    return rock * GROW;
   }
   function lowland(f, s) {
     const d = Math.hypot(f, s);
@@ -734,7 +748,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       y = -0.95 * (1 - u) + y * u;
     }
     if (d > shore) y = y * (1 - smoothstep((d - shore) / 2.4)) - 1.2 * smoothstep((d - shore) / 2.4);
-    return y;
+    return y * GROW;
   }
   function heightFS(f, s) {
     const low = lowland(f, s);
@@ -744,11 +758,11 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   function sampleGround(dx, dz) {
     if (!lay) return null;
     const q = toFS(dx, dz);
-    if (q.f > 24.4 && q.f < 36.8 && Math.abs(q.s) < 1.32) return 0.52;
+    if (q.f > 24.2 && q.f < 37.4 && Math.abs(q.s) < 1.45) return 0.52 * GROW;
     return heightFS(q.f, q.s);
   }
   function inCaveFS(q) {
-    return q.f > 4.05 && q.f < 6.05 && Math.abs(q.s - 0.2) < 1.55;
+    return q.f > CAVE.f - 2.6 && q.f < CAVE.f - 0.4 && Math.abs(q.s - CAVE.s) < 1.55;
   }
   function caveLocal(wx, wy, wz) {
     const dx = wx - caveAnchor.x;
@@ -786,7 +800,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
-      if (Math.hypot(x - host.x, z - host.z) > 26) continue;
+      if (Math.hypot(x - host.x, z - host.z) > 50) continue;
       if (pos.getY(i) < -0.45) continue;
       pos.setY(i, -2.4);
       if (col) col.setXYZ(i, 0.04, 0.16, 0.28);
@@ -977,37 +991,98 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     }));
     return mesh;
   }
+  function mergedMesh(K, list) {
+    const positions = [];
+    list.forEach((m) => {
+      m.updateWorldMatrix(true, false);
+      const e = m.matrixWorld.elements;
+      const p = m.geometry.attributes.position;
+      const index = m.geometry.index;
+      const count = index ? index.count : p.count;
+      for (let i = 0; i < count; i++) {
+        const vi = index ? index.getX(i) : i;
+        const x = p.getX(vi);
+        const y = p.getY(vi);
+        const z = p.getZ(vi);
+        positions.push(
+          e[0] * x + e[4] * y + e[8] * z + e[12],
+          e[1] * x + e[5] * y + e[9] * z + e[13],
+          e[2] * x + e[6] * y + e[10] * z + e[14]
+        );
+      }
+    });
+    const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
+    geo.computeVertexNormals();
+    const mesh = new K.Mesh(geo, list[0].material);
+    mesh.castShadow = !!list[0].castShadow;
+    mesh.receiveShadow = !!list[0].receiveShadow;
+    return mesh;
+  }
+  function bakeNamed(K, root, name) {
+    const meshes = [];
+    root.traverse((o) => { if (o.isMesh && o.name === name && o.geometry) meshes.push(o); });
+    const groups = {};
+    meshes.forEach((m) => {
+      if (!m.material || m.geometry.attributes.color || m.material.map) return;
+      const hex = m.material.color ? m.material.color.getHexString() : "0";
+      const key = hex + (m.material.transparent ? "t" : "");
+      (groups[key] = groups[key] || []).push(m);
+    });
+    Object.keys(groups).forEach((key) => {
+      const list = groups[key];
+      if (list.length < 2) return;
+      const mesh = mergedMesh(K, list);
+      mesh.name = name;
+      root.add(mesh);
+      list.forEach((m) => { if (m.parent) m.parent.remove(m); });
+    });
+  }
+  function bakeIsland(K, root) {
+    ["v51-bush", "v51-flower", "v51-stem", "v51-rock", "v51-foam", "v51-dock", "v51-path"].forEach((name) => bakeNamed(K, root, name));
+  }
   function dress() {
     const K = kit();
     if (!K || !CA.scene || !CA.isl || CA.scene.getObjectByName("v51-root")) return;
     const peak = findPeak();
-    const homeX = -peak.x;
-    const homeZ = -peak.z;
+    const turtle = (CA.isl.L || []).find((j) => j.id === "turtle");
+    let shiftX = 0;
+    let shiftZ = 0;
+    if (turtle) {
+      const awayX = peak.x - turtle.cx;
+      const awayZ = peak.z - turtle.cz;
+      const away = Math.hypot(awayX, awayZ) || 1;
+      shiftX = awayX / away * 12;
+      shiftZ = awayZ / away * 12;
+    }
+    const center = { x: peak.x + shiftX, z: peak.z + shiftZ };
+    const homeX = -center.x;
+    const homeZ = -center.z;
     const span = Math.hypot(homeX, homeZ) || 1;
     lay = {
       fx: homeX / span, fz: homeZ / span, rx: -homeZ / span, rz: homeX / span,
       yaw: Math.atan2(homeX, homeZ),
       at(forward, side) { return worldFS(forward, side); }
     };
-    host = { x: peak.x, z: peak.z, y: peak.y, land: { x: peak.x, z: peak.z }, dock: { x: peak.x, z: peak.z } };
-    const landOff = lay.at(22.2, 1.15);
+    host = { x: center.x, z: center.z, y: peak.y, land: { x: center.x, z: center.z }, dock: { x: center.x, z: center.z } };
+    const landOff = lay.at(21.6, 1.2);
     const dockOff = lay.at(40, 0);
-    host.land = { x: peak.x + landOff.x, z: peak.z + landOff.z };
-    host.dock = { x: peak.x + dockOff.x, z: peak.z + dockOff.z };
+    host.land = { x: center.x + landOff.x, z: center.z + landOff.z };
+    host.dock = { x: center.x + dockOff.x, z: center.z + dockOff.z };
     isle = {
       id: "liberty-mount",
-      cx: peak.x,
-      cz: peak.z,
-      R: 32,
+      cx: center.x,
+      cz: center.z,
+      R: 41,
       yaw: lay.yaw,
       ground(x, z) {
-        const y = sampleGround(x - peak.x, z - peak.z);
+        const y = sampleGround(x - center.x, z - center.z);
         return y == null ? 0.2 : y;
       },
       landSpot: host.land,
       boatSpot: host.dock
     };
-    mountainBlock = { x: peak.x, z: peak.z, r: 3.5 };
+    mountainBlock = { x: center.x, z: center.z, r: 4.5 };
     sinkDome();
     const root = new K.Group();
     root.name = "v51-root";
@@ -1015,7 +1090,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     root.add(buildTerrain(K));
     root.add(buildRock(K));
     const lamb = (hex, extra) => new K.Lambert(Object.assign({ color: hex }, extra || {}));
-    const here = { map: [16.8, -5.4], tunnel: [6.55, 0.2], rally: [13.2, -14.2], builder: [12.2, 11.4], quiz: [18.2, 7.4] };
+    const here = { map: LAYOUT.map, tunnel: LAYOUT.tunnel, rally: LAYOUT.rally, builder: LAYOUT.builder, quiz: LAYOUT.quiz };
     stations = [
       { id: "map", name: "Map Puzzle Dock", f: here.map[0], s: here.map[1] },
       { id: "tunnel", name: "History Time-Tunnel", f: here.tunnel[0], s: here.tunnel[1], era: ERAS[0] },
@@ -1046,11 +1121,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     isleLabel.name = "v51-label";
     root.add(isleLabel);
     ribbon(K, root, [
-      [[24.6, 0], [20.2, 0.2], [here.map[0], here.map[1]], [here.rally[0], here.rally[1]]],
-      [[20.2, 0.2], [here.quiz[0], here.quiz[1]], [here.builder[0], here.builder[1]]],
-      [[20.2, 0.2], [12.4, 0.3], [9.2, 0.25]]
-    ], 0.66, 0xc4a06a);
-    ribbon(K, root, [[[9.2, 0.25], [here.tunnel[0], here.tunnel[1]]]], 0.78, 0x9a9188);
+      [[24.6, 0], [19.4, -0.6], [15.4, -1.4]],
+      [[15.4, -1.4], [here.map[0], here.map[1]], [here.rally[0], here.rally[1]]],
+      [[15.4, -1.4], [here.quiz[0], here.quiz[1]], [here.builder[0], here.builder[1]]],
+      [[15.4, -1.4], [11.2, 0.15], [9.4, 0.25]]
+    ], 0.72, 0xc4a06a);
+    ribbon(K, root, [[[9.4, 0.25], [here.tunnel[0], here.tunnel[1]]]], 0.84, 0x9a9188);
     dressDock(K, root, lamb);
     dressFlag(K, root, lamb);
     dressFoliage(K, root, lamb);
@@ -1062,6 +1138,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     dressStage(K, root, lamb);
     dressMonuments(K, root, lamb);
     dressRegionFlags(K, root, lamb);
+    bakeIsland(K, root);
     hookShore();
   }
   function dressDock(K, root, lamb) {
@@ -1073,7 +1150,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const plank = new K.Mesh(new K.Box(1.08, 0.08, 2.35), i % 2 ? woodA : woodB);
       plank.userData.nofade = 1;
       const p = spot(f, 0);
-      plank.position.set(p.wx, 0.52, p.wz);
+      plank.position.set(p.wx, 0.52 * GROW, p.wz);
+      plank.name = "v51-dock";
       plank.rotation.y = lay.yaw;
       root.add(plank);
       if (i % 3 === 0) {
@@ -1082,6 +1160,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
           const post = new K.Mesh(new K.Cyl(0.09, 0.11, 1.7, 6), pile);
           post.position.set(host.x + w.x, -0.35, host.z + w.z);
           post.castShadow = true;
+          post.name = "v51-dock";
           root.add(post);
         });
       }
@@ -1114,7 +1193,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return mesh;
   }
   function dressFlag(K, root, lamb) {
-    const p = spot(26.2, 2.55);
+    const p = spot(LAYOUT.flag[0], LAYOUT.flag[1]);
     const poleH = 5.5;
     const pole = new K.Mesh(new K.Cyl(0.065, 0.09, poleH, 8), lamb(0xf7f4ee));
     pole.position.set(p.wx, p.y + poleH / 2, p.wz);
@@ -1133,7 +1212,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     root.add(rig);
     const board = new K.Mesh(new K.Box(1.7, 0.72, 0.08), lamb(0x8d5a2b));
     const post = new K.Mesh(new K.Cyl(0.06, 0.07, 1.5, 6), lamb(0x6d4c41));
-    const signAt = spot(23.4, 2.7);
+    const signAt = spot(LAYOUT.isleSign[0], LAYOUT.isleSign[1]);
     post.position.set(signAt.wx, signAt.y + 0.75, signAt.wz);
     board.position.set(signAt.wx, signAt.y + 1.55, signAt.wz);
     board.rotation.y = lay.yaw;
@@ -1145,9 +1224,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function palmAt(K, root, f, s, lean, height, seed) {
     const y = heightFS(f, s);
-    if (y == null || y < 0.35 || y > 2.5) return;
+    if (y == null || y < 0.35 * GROW || y > 2.5 * GROW) return;
     const p = spot(f, s);
     const trunk = new K.Lambert({ color: seed % 2 ? 0x8d5a2b : 0x6d4c2f });
+    const trunks = [];
+    const frondsA = [];
+    const frondsB = [];
     const parts = 5;
     const seg = height / parts;
     for (let i = 0; i < parts; i++) {
@@ -1156,8 +1238,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const oz = Math.cos(lean) * i * 0.16;
       piece.position.set(p.wx + ox, p.y + (i + 0.5) * seg, p.wz + oz);
       piece.castShadow = false;
-      piece.name = "v51-palm";
-      root.add(piece);
+      trunks.push(piece);
     }
     const topX = p.wx + Math.sin(lean) * (parts - 1) * 0.22;
     const topZ = p.wz + Math.cos(lean) * (parts - 1) * 0.16;
@@ -1170,17 +1251,29 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       frond.rotation.y = -a;
       frond.rotation.z = 0.55 + (i % 3) * 0.08;
       frond.castShadow = false;
-      frond.name = "v51-palm";
-      root.add(frond);
+      (i % 2 ? frondsA : frondsB).push(frond);
     }
     const nut = new K.Mesh(new K.Sphere(0.14, 6, 4), new K.Lambert({ color: 0x5d4037 }));
     nut.position.set(topX, topY - 0.12, topZ);
-    root.add(nut);
+    trunks.push(nut);
+    const hold = new K.Group();
+    root.add(hold);
+    trunks.concat(frondsA, frondsB).forEach((m) => hold.add(m));
+    hold.updateWorldMatrix(true, true);
+    [trunks, frondsA, frondsB].forEach((list) => {
+      if (!list.length) return;
+      const mesh = mergedMesh(K, list);
+      mesh.name = "v51-palm";
+      mesh.castShadow = false;
+      root.add(mesh);
+    });
+    root.remove(hold);
   }
   function dressFoliage(K, root, lamb) {
     [[21.2, -4.2, 0.4, 5.1, 1], [19.6, 5.6, -0.6, 4.5, 2], [15.4, -11.2, 0.8, 5.6, 3], [14.6, 8.8, 0.2, 4.3, 4],
       [11.4, -16.2, -0.3, 5.0, 5], [10.2, 13.2, 0.5, 4.7, 6], [23.2, -9.4, 0.15, 3.9, 7], [8.6, -6.4, -0.4, 5.4, 8],
-      [16.8, 12.6, 0.35, 4.4, 9]].forEach((row) => palmAt(K, root, row[0], row[1], row[2], row[3], row[4]));
+      [16.8, 12.6, 0.35, 4.4, 9], [20.4, -15.2, 0.3, 4.6, 11], [8.2, 14.6, -0.4, 4.8, 12],
+      [14.8, 16.4, 0.2, 4.2, 13], [4.8, -8.6, 0.5, 5.2, 14]].forEach((row) => palmAt(K, root, row[0], row[1], row[2], row[3], row[4]));
     const bushes = [[18.4, -3.2], [16.2, 3.4], [12.8, -8.6], [11.2, 6.4], [20.4, 9.2], [9.4, -12.4], [21.6, -8.2], [14.2, 14.2], [8.2, 8.4], [19.2, -12.6]];
     bushes.forEach((b, i) => {
       const greens = [0x2f7d32, 0x388e3c, 0x1b5e20];
@@ -1197,6 +1290,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     flowers.forEach((fl) => {
       for (let k = 0; k < 3; k++) {
         const stem = new K.Mesh(new K.Cone(0.03, 0.22, 4), lamb(0x2e7d32));
+        stem.name = "v51-stem";
         place(root, stem, fl[0] + k * 0.18, fl[1] + (k - 1) * 0.12, 0.1);
         const bloom = new K.Mesh(new K.Sphere(0.1, 6, 5), lamb(fl[2]));
         bloom.name = "v51-flower";
@@ -1211,7 +1305,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const f = Math.cos(a) * rad;
       const s = Math.sin(a) * rad;
       const y = heightFS(f, s);
-      if (y == null || y < -0.15 || y > 1.8) continue;
+      if (y == null || y < -0.15 * GROW || y > 1.8 * GROW) continue;
       const rock = new K.Mesh(new K.Sphere(0.38 + (i % 3) * 0.14, 5, 4), lamb(i % 2 ? 0x8e877c : 0xb7aa96));
       rock.scale.set(1.25, 0.55, 0.95);
       rock.castShadow = true;
@@ -1220,7 +1314,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     }
     [[2.2, -6.4, 0.7], [-3.4, 4.8, 0.85], [1.4, 6.2, 0.55], [-2.2, -3.6, 0.6], [6.8, -3.4, 0.5]].forEach((r, i) => {
       const y = heightFS(r[0], r[1]);
-      if (y == null || y < 1.4) return;
+      if (y == null || y < 1.4 * GROW) return;
       const rock = new K.Mesh(new K.Sphere(r[2], 5, 4), lamb(i % 2 ? 0x7a746c : 0x918a82));
       rock.scale.set(1.35, 0.85, 1.05);
       rock.rotation.y = i;
@@ -1260,7 +1354,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     }
   }
   function dressMapTable(K, root, lamb) {
-    const p = spot(17.2, -9.4);
+    const p = spot(LAYOUT.table[0], LAYOUT.table[1]);
     const table = new K.Group();
     table.position.set(p.wx, p.y, p.wz);
     table.rotation.y = lay.yaw;
@@ -1288,7 +1382,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     mapAnchor = { x: p.wx, y: p.y + 1.1, z: p.wz };
   }
   function dressTunnel(K, root, lamb) {
-    const p = spot(6.55, 0.2);
+    const p = spot(CAVE.f, CAVE.s);
     const cave = new K.Group();
     cave.position.set(p.wx, p.y, p.wz);
     cave.rotation.y = lay.yaw;
@@ -1374,11 +1468,11 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     rooms = names.map((era) => ({ era: era, x: p.wx, z: p.wz, group: walls, blocks: [] }));
   }
   function dressRally(K, root, lamb) {
-    const p = spot(13.2, -14.2);
+    const p = spot(LAYOUT.rally[0], LAYOUT.rally[1]);
     const postL = new K.Mesh(new K.Cyl(0.07, 0.08, 1.8, 6), lamb(0x6d4c41));
     const postR = postL.clone();
     postL.position.set(p.wx, p.y + 0.9, p.wz);
-    const w = worldFS(13.2, -13.3);
+    const w = worldFS(LAYOUT.rally[0], LAYOUT.rally[1] + 0.9);
     postR.position.set(host.x + w.x, p.y + 0.9, host.z + w.z);
     const board = new K.Mesh(new K.Box(1.6, 0.9, 0.08), new K.Lambert({ map: routeTex(K), color: 0xffffff }));
     board.position.set((postL.position.x + postR.position.x) / 2, p.y + 1.45, (postL.position.z + postR.position.z) / 2);
@@ -1407,18 +1501,18 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     builderPlot.shown = id;
   }
   function dressBench(K, root, lamb) {
-    const p = spot(12.2, 11.4);
+    const p = spot(LAYOUT.builder[0], LAYOUT.builder[1]);
     const top = new K.Mesh(new K.Box(1.5, 0.1, 0.7), lamb(0xa86b32));
     top.position.set(p.wx, p.y + 0.85, p.wz);
     top.rotation.y = lay.yaw;
     root.add(top);
     [[-0.55, -0.24], [0.55, -0.24], [-0.55, 0.24], [0.55, 0.24]].forEach((leg) => {
       const post = new K.Mesh(new K.Box(0.1, 0.8, 0.1), lamb(0x6d4c2f));
-      const w = worldFS(12.2 + leg[0] * 0.15, 11.4 + leg[1]);
+      const w = worldFS(LAYOUT.builder[0] + leg[0] * 0.15, LAYOUT.builder[1] + leg[1]);
       post.position.set(host.x + w.x, p.y + 0.4, host.z + w.z);
       root.add(post);
     });
-    const plotAt = spot(13.9, 9.8);
+    const plotAt = spot(LAYOUT.plot[0], LAYOUT.plot[1]);
     const group = new K.Group();
     group.position.set(plotAt.wx, plotAt.y, plotAt.wz);
     group.rotation.y = lay.yaw + 0.4;
@@ -1436,7 +1530,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (owned.length) mountPlot(owned[owned.length - 1].id);
   }
   function dressStage(K, root, lamb) {
-    const p = spot(18.2, 7.4);
+    const p = spot(LAYOUT.quiz[0], LAYOUT.quiz[1]);
     const deck = new K.Mesh(new K.Cyl(2.15, 2.15, 0.22, 16), lamb(0x6d4c41));
     deck.position.set(p.wx, p.y + 0.12, p.wz);
     deck.receiveShadow = true;
@@ -1445,7 +1539,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     podium.position.set(p.wx + lay.fx * 0.35, p.y + 0.7, p.wz + lay.fz * 0.35);
     root.add(podium);
     [-1.55, 1.55].forEach((side) => {
-      const at = spot(18.2, 7.4 + side);
+      const at = spot(LAYOUT.quiz[0], LAYOUT.quiz[1] + side);
       const post = new K.Mesh(new K.Cyl(0.06, 0.06, 2.15, 6), lamb(0x455a64));
       post.position.set(at.wx, at.y + 1.05, at.wz);
       const bulb = new K.Mesh(new K.Sphere(0.14, 8, 6), new K.Lambert({ color: 0xfff3c4, emissive: 0xffe082, emissiveIntensity: 0.9 }));
@@ -1468,7 +1562,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function dressRegionFlags(K, root, lamb) {
     REGIONS.forEach((region, i) => {
-      const at = spot(15.2, -4.2 - i * 0.7);
+      const at = spot(16.4, -5.6 - i * 1.15);
       const pole = new K.Mesh(new K.Cyl(0.045, 0.05, 1.8, 6), lamb(0xf4efe4));
       pole.position.set(at.wx, at.y + 0.9, at.wz);
       const cloth = new K.Mesh(new K.Plane(0.85, 0.52), lamb([0x6a1b9a, 0xc0392b, 0xe6a817, 0x2e7d32, 0x1e88e5][i]));
@@ -1492,7 +1586,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
           if (Math.abs(s - CHAN.s) < CHAN.half + 0.35 && f > CHAN.f0 - 0.4 && f < CHAN.f1) continue;
           const w = worldFS(f, s);
           const y = sampleGround(w.x, w.z);
-          if (y == null || y < 0.12 || y > 5.5) continue;
+          if (y == null || y < 0.12 || y > 5.5 * GROW) continue;
           CA.walkCircles.push({ x: host.x + w.x, z: host.z + w.z, r: 2.45 });
         }
       }
@@ -1853,12 +1947,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       gate: () => bridgeMesh(K, lamb)
     };
     const spots = {
-      liberty: [19.4, -6.2, 0],
-      gate: [23.2, CHAN.s, 0],
-      arch: [15.6, -13.6, 0],
-      bell: [10.4, 8.6, 0],
-      alamo: [15.2, 10.2, 0],
-      rushmore: [4.6, -2.4, -1.2]
+      liberty: [25.2, -5.4, 0],
+      gate: [23.4, CHAN.s, 0],
+      arch: [4.2, -24.2, 0],
+      bell: [22.4, 19.6, 0],
+      alamo: [-1.6, 23.4, 0],
+      rushmore: [4.8, -3.2, -1.2]
     };
     BANK.landmarks.forEach((lm) => {
       const mesh = makers[lm.id]();
@@ -2237,8 +2331,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (!cam || !host || !lay) return;
     if (cam.clearViewOffset) cam.clearViewOffset();
     if (window.__libertyAerial) {
-      cam.position.set(host.x + lay.fx * 22, 42, host.z + lay.fz * 22);
-      cam.lookAt(host.x, 2.2, host.z);
+      cam.position.set(host.x + lay.fx * 78, 58, host.z + lay.fz * 78);
+      cam.lookAt(host.x, 6, host.z);
       return;
     }
     if (session && session.id === "map" && mapAnchor) {
@@ -2272,12 +2366,14 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       if (cam.setViewOffset) cam.setViewOffset(W, H, Math.round(W * 0.08), 0, W, H);
       return;
     }
-    if (walking && on && !inCaveFS(q) && Math.hypot(q.f - 6.55, q.s - 0.2) < 3.4) {
-      const w = worldFS(13.2, 0.4);
-      const gy = lowland(13.2, 0.4);
-      cam.position.set(host.x + w.x, (gy == null ? 1 : gy) + 3.4, host.z + w.z);
-      const mouth = worldFS(6.45, 0.2);
-      const my = heightFS(6.45, 0.2);
+    if (walking && on && !inCaveFS(q) && Math.hypot(q.f - CAVE.f, q.s - CAVE.s) < 3.4) {
+      const standF = CAVE.f + 4.6;
+      const standS = CAVE.s + 1.4;
+      const w = worldFS(standF, standS);
+      const gy = heightFS(standF, standS);
+      cam.position.set(host.x + w.x, (gy == null ? 2 : gy) + 3.2, host.z + w.z);
+      const mouth = worldFS(CAVE.f - 0.1, CAVE.s);
+      const my = heightFS(CAVE.f - 0.1, CAVE.s);
       cam.lookAt(host.x + mouth.x, (my == null ? 1.2 : my) + 1.7, host.z + mouth.z);
       return;
     }

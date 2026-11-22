@@ -27,6 +27,17 @@
     if (!v.landmarks || typeof v.landmarks !== "object") v.landmarks = {};
     if (!v.cleared || typeof v.cleared !== "object") v.cleared = {};
     if (!v.quiz || typeof v.quiz !== "object") v.quiz = { rounds: 0, stars: 0, best: 0 };
+    if (!v.eras || typeof v.eras !== "object" || Array.isArray(v.eras)) v.eras = {};
+    if (!v.tiers || typeof v.tiers !== "object" || Array.isArray(v.tiers)) v.tiers = {};
+    if (!v.tierCleared || typeof v.tierCleared !== "object" || Array.isArray(v.tierCleared)) v.tierCleared = {};
+    if (!v.seen || typeof v.seen !== "object" || Array.isArray(v.seen)) v.seen = { states: [], eras: [], landmarks: [] };
+    if (!Array.isArray(v.seen.states)) v.seen.states = [];
+    if (!Array.isArray(v.seen.eras)) v.seen.eras = [];
+    if (!Array.isArray(v.seen.landmarks)) v.seen.landmarks = [];
+    if (v.pennant == null) v.pennant = 0;
+    if (v.quiz.streak == null) v.quiz.streak = 0;
+    if (v.quiz.bestStreak == null) v.quiz.bestStreak = 0;
+    if (v.quiz.ribbon == null) v.quiz.ribbon = 0;
     if (fresh) persist();
     return v;
   }
@@ -151,6 +162,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
 
   function payout(stationId, firstTry) {
+    const tier = session && session.tier ? session.tier : 1;
+    const key = stationId + ":" + tier;
+    if (tier > 1 && !bag().tierCleared[key]) return 0;
     const cleared = !!bag().cleared[stationId];
     const base = firstTry ? 10 : 5;
     const gain = cleared ? Math.max(1, Math.floor(base / 2)) : base;
@@ -159,18 +173,119 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
 
   function practiceFor(q) {
-    const year = q.year || 1776;
-    const choices = [String(year), String(year + 11), String(year - 7), String(year + 40)];
+    const text = String((q && q.question) || "") + " " + String((q && q.fact) || "");
+    if (q && q.type === "order" && q.events && q.events.length >= 2) {
+      const sorted = q.events.map((ev) => ({ year: ev.year, text: ev.text || ev.title })).sort((a, b) => a.year - b.year);
+      return {
+        type: "choice",
+        skill: "order",
+        fact: q.fact,
+        question: "Practice, for no coins. Which of these happened first?",
+        choices: [sorted[0].text, sorted[sorted.length - 1].text, "They happened in the same year", "Neither one is a real event"],
+        answer: 0,
+        explanation: sorted[0].text + " came first, in " + sorted[0].year + "."
+      };
+    }
+    if (/region/i.test(text)) {
+      const named = q && q.state && byName(q.state);
+      const other = BANK.states.find((s) => !named || s.region !== named.region) || BANK.states[0];
+      return {
+        type: "choice",
+        skill: "region",
+        fact: other.fact,
+        question: "Practice, for no coins. Which region of the United States is " + other.name + " in?",
+        choices: REGIONS.slice(),
+        answer: REGIONS.indexOf(other.region),
+        explanation: other.name + " is in the " + other.region + "."
+      };
+    }
+    if (/border/i.test(text)) {
+      const s = BANK.states.find((row) => row.neighbors && row.neighbors.length);
+      const made = makeBorderQuestion(s);
+      made.skill = "border";
+      made.question = "Practice, for no coins. " + made.question;
+      return made;
+    }
+    if (/capital/i.test(text)) {
+      const s = BANK.states[1] || BANK.states[0];
+      const others = BANK.states.filter((row) => row.name !== s.name);
+      return {
+        type: "choice",
+        skill: "capital",
+        fact: s.capital + " is the capital of " + s.name + ".",
+        question: "Practice, for no coins. " + s.capital + " is the capital of which state?",
+        choices: [s.name, others[0].name, others[1].name, others[2].name],
+        answer: 0,
+        explanation: s.capital + " is the capital of " + s.name + "."
+      };
+    }
+    const yearMatch = String((q && q.fact) || "").match(/\b(1[4-9]\d{2}|20\d{2})\b/);
+    if (yearMatch) {
+      const year = Number(yearMatch[1]);
+      return {
+        type: "choice",
+        skill: "year",
+        fact: q.fact,
+        question: "Practice, for no coins. Which year is named in that fact?",
+        choices: [String(year), String(year + 11), String(year - 7), String(year + 40)],
+        answer: 0,
+        explanation: "The year in the fact is " + year + "."
+      };
+    }
+    const person = (PACK && PACK.people || []).find((p) => p && p.name);
+    if (person) {
+      return {
+        type: "choice",
+        skill: "person",
+        fact: person.whatTheyDid,
+        question: "Practice, for no coins. Who does this describe?",
+        choices: [person.name, "A made-up explorer", "The captain of a ferry", "A state nickname"],
+        answer: 0,
+        explanation: person.name + ": " + person.whatTheyDid
+      };
+    }
     return {
       type: "choice",
-      fact: q.fact,
-      question: "Practice, for no coins. The fact names a year. Which year is it? " + q.fact,
-      choices: choices,
+      skill: "fact",
+      fact: q && q.fact,
+      question: "Practice, for no coins. Which sentence matches the fact you just missed?",
+      choices: [q && (q.explanation || q.fact), "This happened on the Moon in 1492", "This state is not part of the United States", "The only year that matters is 1066"],
       answer: 0,
-      explanation: "The year in the fact is " + year + "."
+      explanation: (q && q.explanation) || (q && q.fact) || ""
     };
   }
 
+  function paintTapMap(canvas) {
+    const g = canvas.getContext("2d");
+    const blocks = [
+      ["West", 8, 48, 70, 72, "#7a34a8"],
+      ["Southwest", 78, 86, 108, 58, "#c63e30"],
+      ["Midwest", 148, 28, 78, 70, "#d69420"],
+      ["Southeast", 188, 100, 100, 52, "#2e7d34"],
+      ["Northeast", 226, 12, 86, 48, "#1e78c8"]
+    ];
+    g.fillStyle = "#8ec6ea";
+    g.fillRect(0, 0, canvas.width, canvas.height);
+    g.font = "bold 12px sans-serif";
+    blocks.forEach((b) => {
+      g.fillStyle = b[5];
+      g.fillRect(b[1], b[2], b[3], b[4]);
+      g.fillStyle = "#fff";
+      g.fillText(b[0], b[1] + 6, b[2] + 18);
+    });
+    canvas.onclick = (ev) => {
+      if (!session || session.phase !== "ask") return;
+      const q = session.qs[session.i];
+      if (!q || !q.choices) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = (ev.clientX - rect.left) * (canvas.width / rect.width);
+      const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
+      const hit = blocks.find((b) => x >= b[1] && x <= b[1] + b[3] && y >= b[2] && y <= b[2] + b[4]);
+      if (!hit) return;
+      const idx = q.choices.indexOf(hit[0]);
+      if (idx >= 0) answer(idx);
+    };
+  }
   function choiceButtons(q) {
     return q.choices.map((c, i) => `<button data-i="${i}"><b>${"ABCD"[i]}</b> ${esc(c)}</button>`).join("");
   }
@@ -190,7 +305,13 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       body = `<p class="liberty-fact"><b>Fact.</b> ${esc(q.fact)}</p><p>${esc(ask)}</p>${choiceButtons(q)}`;
     }
     const title = session.title || "Liberty Isle";
-    showCard(`<h2>${esc(title)}</h2><p>${step}</p>${body}<p><button class="ghost" id="liberty-exit">Exit</button></p>`);
+    const tierNote = session.tier > 1 ? `<p>Level ${session.tier}</p>` : "";
+    const clock = session.speed ? `<p id="liberty-clock">Speed round: ${session.clockPaused ? "paused" : (session.secondsLeft || 45) + "s"}</p>` : "";
+    const wheel = session.id === "quiz" && session.category ? `<div class="wheel-wrap" style="width:120px;height:120px"><div class="wheel-pointer"></div><div class="wheel" style="width:120px;height:120px;transform:rotate(${session.spin || 0}deg)"></div></div><p>Category: ${esc(session.category)}</p>` : "";
+    const tap = session.id === "map" ? `<canvas id="liberty-tapmap" width="320" height="180" style="width:100%;height:auto;border:3px solid #14336b;border-radius:12px;cursor:pointer"></canvas><p>Tap the map, or pick a card.</p>` : "";
+    showCard(`<h2>${esc(title)}</h2>${tierNote}${clock}${wheel}<p>${step}</p>${tap}${body}<p><button class="ghost" id="liberty-exit">Exit</button></p>`);
+    const mapCanvas = card().querySelector("#liberty-tapmap");
+    if (mapCanvas) paintTapMap(mapCanvas);
   }
 
   function renderTutor() {
@@ -213,7 +334,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   function renderDone() {
     session.phase = "done";
     const stars = session.stars != null ? `<p>Stars this round: ${session.stars} / ${session.qs.length}</p>` : "";
-    showCard(`<h2>Set complete</h2><p>${esc(session.title)} is done.</p>${stars}<p>Coins: ${coins()}</p><button id="liberty-exit">Close</button>`);
+    const ribbon = session.ribbon ? `<p><b>Championship ribbon.</b> ${esc(session.ribbon)}</p>` : "";
+    const pennant = session.pennantNow ? `<h2>Island complete</h2><p><b>Liberty Pennant.</b> Fifty states, five flags, every era, and every monument. This award is a pennant, not coins.</p>` : "";
+    showCard(`<h2>Set complete</h2><p>${esc(session.title)} is done.</p>${stars}${ribbon}${pennant}<p>Coins: ${coins()}</p><button id="liberty-exit">Close</button>`);
   }
 
   function renderBuilder() {
@@ -236,7 +359,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     showCard(`<h2>Fifty-State Quiz Show</h2><div class="wheel-wrap"><div class="wheel-pointer"></div><div class="wheel" id="liberty-wheel" style="transform:rotate(${session.spin || 0}deg)">${labels}</div></div><p>${session.category ? "Category: " + esc(session.category) : "Spin the wheel. The pointer marks the top."}</p><button id="liberty-spin">Spin</button><button class="ghost" id="liberty-exit">Exit</button>`);
   }
 
-  function openStation(id) {
+  function openStation(id, eraName) {
     const station = stations.find((s) => s.id === id);
     if (!station) return { ok: false, reason: "missing" };
     if (id === "builder") {
@@ -249,25 +372,67 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       renderWheel();
       return { ok: true, id };
     }
-    const built = buildSet(id, station);
+    const use = id === "tunnel" ? Object.assign({}, station, { era: eraName || nextEra() }) : station;
+    const built = buildSet(id, use);
     if (!built.ok) return built;
     session = built.session;
     renderAsk();
-    return { ok: true, id, total: session.qs.length };
+    return { ok: true, id, total: session.qs.length, era: use && use.era, tier: session.tier };
   }
 
-  function eraSet(era) {
-    const all = BANK.history.filter((q) => q.era === era);
-    const order = all.filter((q) => q.type === "order");
-    const mc = all.filter((q) => q.type === "choice");
-    const qs = [];
-    if (order[0]) qs.push(order[0]);
-    mc.forEach((q) => { if (qs.length < 3) qs.push(q); });
-    return qs.slice(0, 3).map((q) => Object.assign({}, q, {
+  function copyQ(q) {
+    return Object.assign({}, q, {
       choices: q.choices ? q.choices.slice() : undefined,
       events: q.events ? q.events.map((ev) => Object.assign({}, ev)) : undefined,
       correctOrder: q.correctOrder ? q.correctOrder.slice() : undefined
-    }));
+    });
+  }
+  function personQuestion(eraName) {
+    const people = (PACK && PACK.people) || [];
+    const era = (PACK && PACK.eras || []).find((row) => row.name === eraName);
+    const eraId = era ? era.id : "";
+    const pool = people.filter((p) => !eraId || p.era === eraId);
+    const person = (pool.length ? pool : people)[0];
+    if (!person) return null;
+    const wrong = people.filter((p) => p.name !== person.name).slice(0, 3);
+    while (wrong.length < 3) wrong.push({ name: "A storybook sailor" });
+    return {
+      type: "choice",
+      skill: "person",
+      person: person.name,
+      fact: person.whatTheyDid,
+      question: "Who does this describe? " + person.whatTheyDid,
+      choices: [person.name, wrong[0].name, wrong[1].name, wrong[2].name],
+      answer: 0,
+      explanation: person.name + " — " + person.whatTheyDid
+    };
+  }
+  function eraSet(era, tier) {
+    const all = BANK.history.filter((q) => q.era === era);
+    const order = all.filter((q) => q.type === "order");
+    const mc = all.filter((q) => q.type === "choice");
+    if (tier >= 3 && ERAS.every((name) => bag().eras && bag().eras[name])) {
+      const timeline = order[0] ? copyQ(order[0]) : null;
+      const person = personQuestion(era);
+      const extra = mc[0] ? copyQ(mc[0]) : personQuestion(ERAS[0]);
+      return [timeline, person, extra].filter(Boolean).slice(0, 3);
+    }
+    if (tier >= 2) {
+      const mixed = [];
+      ERAS.forEach((name) => {
+        const row = BANK.history.find((q) => q.era === name && q.type === "choice");
+        if (row) mixed.push(copyQ(row));
+      });
+      const anyOrder = BANK.history.find((q) => q.type === "order");
+      const qs = [];
+      if (anyOrder) qs.push(copyQ(anyOrder));
+      mixed.forEach((q) => { if (qs.length < 3) qs.push(q); });
+      return qs.slice(0, 3);
+    }
+    const qs = [];
+    if (order[0]) qs.push(order[0]);
+    mc.forEach((q) => { if (qs.length < 3) qs.push(q); });
+    return qs.slice(0, 3).map(copyQ);
   }
   function landmarkGates() {
     const q = (fact, question, choices, answer, explanation) => ({ fact, question, choices, answer, explanation });
@@ -349,20 +514,67 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const gate = gates[lm.name];
       return { id: gate.id, name: lm.name, price: gate.price, blurb: lm.location, story: lm.story, questions: gate.questions };
     });
+    if (!BANK.landmarks.some((lm) => lm.id === "washington")) {
+      BANK.landmarks.push({
+        id: "washington",
+        name: "Washington Monument",
+        price: 32,
+        blurb: "A tall obelisk on the National Mall in Washington, D.C.",
+        story: "The Washington Monument honors George Washington. It is an obelisk on the National Mall in Washington, D.C. Workers finished it in 1884, and it stands about 555 feet tall.",
+        questions: [
+          { fact: "The Washington Monument is an obelisk on the National Mall.", question: "Which city is home to the Washington Monument?", choices: ["Washington, D.C.", "Philadelphia", "Boston", "St. Louis"], answer: 0, explanation: "The monument stands on the National Mall in Washington, D.C." },
+          { fact: "Workers finished the monument in 1884.", question: "The Washington Monument was finished in which year?", choices: ["1884", "1492", "1776", "1969"], answer: 0, explanation: "Construction finished in 1884." },
+          { fact: "The monument is about 555 feet tall.", question: "About how tall is the Washington Monument?", choices: ["555 feet", "55 feet", "5,555 feet", "12 feet"], answer: 0, explanation: "The obelisk is about 555 feet tall." }
+        ]
+      });
+    }
+  }
+  function tierOf(id) {
+    const n = bag().tiers && bag().tiers[id];
+    return n >= 2 ? (n >= 3 ? 3 : 2) : 1;
+  }
+  function remember(kind, value) {
+    const list = bag().seen[kind];
+    if (!list || list.indexOf(value) >= 0) return;
+    list.push(value);
+  }
+  function preferFresh(list, used, key) {
+    const fresh = list.filter((item) => used.indexOf(key(item)) < 0);
+    return fresh.length ? fresh : list;
   }
   function buildSet(id, station) {
     let qs = [];
     let title = station ? station.name : id;
-    if (id === "map") qs = mapQuestions();
+    const tier = tierOf(id);
+    if (id === "map") qs = mapQuestions(tier);
     else if (id === "tunnel") {
-      const era = (station && station.era) || ERAS[0];
+      const era = (station && station.era) || nextEra();
       title = era;
-      qs = eraSet(era);
-    } else if (id === "rally") qs = rallyQuestions();
-    else if (id === "quiz") qs = quizQuestions(session && session.category);
+      if (bag().eras) bag().eras[era] = 1;
+      remember("eras", era);
+      qs = eraSet(era, tier);
+    } else if (id === "rally") qs = rallyQuestions(tier);
+    else if (id === "quiz") qs = quizQuestions(session && session.category, tier).map(shuffleQ);
     else return { ok: false, reason: "bad-set" };
     if (qs.length < 3) return { ok: false, reason: "short", total: qs.length };
-    return { ok: true, session: { id, title, qs, i: 0, misses: 0, order: [], retry: false, phase: "ask", stars: 0 } };
+    return { ok: true, session: { id, title, qs, i: 0, misses: 0, order: [], retry: false, phase: "ask", stars: 0, tier, speed: id === "quiz" && tier >= 2, secondsLeft: 45, clockPaused: false } };
+  }
+  function nextEra() {
+    const unused = ERAS.filter((name) => !bag().seen.eras || bag().seen.eras.indexOf(name) < 0);
+    return (unused.length ? unused : ERAS)[0] || ERAS[0];
+  }
+  function shuffleQ(q) {
+    if (!q || !q.choices || q.type === "order") return q;
+    const pairs = q.choices.map((c, i) => ({ c: c, ok: i === q.answer }));
+    for (let i = pairs.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const swap = pairs[i];
+      pairs[i] = pairs[j];
+      pairs[j] = swap;
+    }
+    q.choices = pairs.map((p) => p.c);
+    q.answer = Math.max(0, pairs.findIndex((p) => p.ok));
+    return q;
   }
 
   function factWords(s) {
@@ -380,16 +592,21 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const fresh = [s.landmark, s.flag].filter((line) => line && !sameFact(s.fact, line));
     return fresh.length ? head + " " + fresh[0] : head;
   }
-  function mapQuestions() {
+  function pickStates(n) {
     const v = bag();
-    const fresh = BANK.states.filter((s) => v.placed.indexOf(s.name) < 0);
-    const pool = (fresh.length >= 3 ? fresh : BANK.states).slice();
+    const fresh = preferFresh(BANK.states, v.placed.concat(v.seen.states || []), (s) => s.name);
+    const pool = fresh.slice();
     const picked = [];
-    while (picked.length < 3 && pool.length) {
+    while (picked.length < n && pool.length) {
       const i = Math.floor(Math.random() * pool.length);
-      picked.push(pool.splice(i, 1)[0]);
+      const s = pool.splice(i, 1)[0];
+      picked.push(s);
+      remember("states", s.name);
     }
-    return picked.map((s) => ({
+    return picked;
+  }
+  function regionQuestion(s) {
+    return {
       type: "choice",
       state: s.name,
       fact: s.fact,
@@ -398,7 +615,67 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       answer: REGIONS.indexOf(s.region),
       explanation: s.name + " is in the " + s.region + ". Capital: " + s.capital + ". Nickname: " + s.nickname + ". " + s.landmark,
       card: { title: s.name, fact: s.fact, extra: stateExtra(s) }
-    }));
+    };
+  }
+  function mapQuestions(tier) {
+    const picked = pickStates(tier >= 3 ? 1 : 3);
+    if (tier >= 3 && picked[0]) {
+      const s = picked[0];
+      const others = BANK.states.filter((row) => row.name !== s.name);
+      const caps = BANK.states.filter((row) => row.capital !== s.capital);
+      const neighbor = s.neighbors && s.neighbors[0];
+      const notNeighbor = BANK.states.map((row) => row.name).filter((name) => name !== s.name && (!s.neighbors || s.neighbors.indexOf(name) < 0));
+      return [
+        {
+          type: "choice",
+          state: s.name,
+          fact: s.fact,
+          question: s.fact + " Which state is this?",
+          choices: [s.name, others[0].name, others[1].name, others[2].name],
+          answer: 0,
+          explanation: "The fact describes " + s.name + "."
+        },
+        {
+          type: "choice",
+          state: s.name,
+          fact: s.capital + " is the capital of " + s.name + ". Nickname: " + s.nickname + ".",
+          question: "What is the capital of " + s.name + "?",
+          choices: [s.capital, caps[0].capital, caps[1].capital, caps[2].capital],
+          answer: 0,
+          explanation: s.capital + " is the capital. The nickname is " + s.nickname + "."
+        },
+        neighbor ? {
+          type: "choice",
+          state: s.name,
+          fact: s.name + " is in the " + s.region + ".",
+          question: "Which of these states shares a border with " + s.name + "?",
+          choices: [neighbor, notNeighbor[0], notNeighbor[1], notNeighbor[2]],
+          answer: 0,
+          explanation: neighbor + " borders " + s.name + ", in the " + s.region + "."
+        } : regionQuestion(s)
+      ];
+    }
+    if (tier >= 2) {
+      return picked.map((s) => {
+        const caps = BANK.states.filter((row) => row.capital !== s.capital);
+        return {
+          type: "choice",
+          state: s.name,
+          fact: s.fact,
+          question: s.name + " is in the " + s.region + ". What is its capital, and which nickname fits?",
+          choices: [
+            s.capital + " — " + s.nickname,
+            caps[0].capital + " — " + caps[0].nickname,
+            caps[1].capital + " — " + caps[1].nickname,
+            caps[2].capital + " — " + caps[2].nickname
+          ],
+          answer: 0,
+          explanation: "Capital: " + s.capital + ". Nickname: " + s.nickname + ".",
+          card: { title: s.name, fact: s.fact, extra: stateExtra(s) }
+        };
+      });
+    }
+    return picked.map(regionQuestion);
   }
 
   function makeBorderQuestion(s) {
@@ -422,7 +699,67 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       postcard: s.name
     };
   }
-  function rallyQuestions() {
+  function routeFrom(length, cross) {
+    const pool = preferFresh(BANK.states.filter((s) => s.neighbors && s.neighbors.length), bag().postcards || [], (s) => s.name);
+    let start = null;
+    for (let guard = 0; guard < 40 && !start; guard++) {
+      const s = pool[Math.floor(Math.random() * pool.length)];
+      const stops = [s];
+      let cursor = s;
+      let ok = true;
+      while (stops.length < length) {
+        const nextName = (cursor.neighbors || []).find((name) => {
+          const row = byName(name);
+          if (!row || stops.some((stop) => stop.name === name)) return false;
+          if (cross && stops.length === 2 && row.region === cursor.region) return false;
+          return true;
+        }) || (cursor.neighbors || []).find((name) => byName(name) && !stops.some((stop) => stop.name === name));
+        const next = nextName && byName(nextName);
+        if (!next) { ok = false; break; }
+        stops.push(next);
+        cursor = next;
+      }
+      if (ok && stops.length === length) start = stops;
+    }
+    return start;
+  }
+  function rallyQuestions(tier) {
+    const length = tier >= 3 ? 5 : 3;
+    const stops = routeFrom(length, tier >= 3) || BANK.states.filter((s) => s.neighbors && s.neighbors.length).slice(0, length);
+    const qs = [];
+    for (let i = 0; i < stops.length; i++) {
+      const here = stops[i];
+      remember("states", here.name);
+      if (tier >= 3 && i === stops.length - 1) {
+        const caps = BANK.states.filter((row) => row.capital !== here.capital);
+        qs.push({
+          type: "choice",
+          fact: "Last stop: " + here.name + ", in the " + here.region + ".",
+          question: "What is the capital of " + here.name + "?",
+          choices: [here.capital, caps[0].capital, caps[1].capital, caps[2].capital],
+          answer: 0,
+          explanation: here.capital + " is the capital of " + here.name + ".",
+          postcard: here.name
+        });
+        continue;
+      }
+      const next = stops[i + 1] || byName((here.neighbors || []).find((name) => !stops.some((stop) => stop.name === name)) || here.neighbors[0]);
+      const neighbor = next && next.name;
+      const wrong = BANK.states.map((x) => x.name).filter((n) => n !== here.name && here.neighbors.indexOf(n) < 0 && n !== neighbor);
+      if (!neighbor || wrong.length < 3) continue;
+      qs.push({
+        type: "choice",
+        fact: i === 0 ? here.fact : "The drive continues from " + here.name + ".",
+        question: (i === 0 ? "Stop 1 is " + here.name + ". " : "") + "Which neighboring state is the next stop after " + here.name + "?",
+        choices: [neighbor, wrong[0], wrong[1], wrong[2]],
+        answer: 0,
+        explanation: neighbor + " borders " + here.name + ".",
+        postcard: here.name
+      });
+    }
+    return qs.length >= 3 ? qs : rallyFallback();
+  }
+  function rallyFallback() {
     const withN = BANK.states.filter((s) => s.neighbors.length);
     const qs = [];
     const used = new Set();
@@ -492,7 +829,13 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return problems;
   }
 
-  function quizQuestions(category) {
+  function quizQuestions(category, tier) {
+    if (tier >= 3) {
+      return ["Capitals", "Flags", "History", "Geography", "Which state am I?"].map((name) => {
+        const one = quizQuestions(name, 1);
+        return one && one[0];
+      }).filter(Boolean);
+    }
     const cat = category || "Capitals";
     const qs = [];
     const states = BANK.states.slice();
@@ -587,6 +930,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const q = session.qs[session.i];
     if (!right) {
       session.misses += 1;
+      if (session.id === "quiz") bag().quiz.streak = 0;
+      if (session.speed) session.clockPaused = true;
       session.phase = "tutor";
       renderTutor();
       return { ok: true, right: false, score: coins(), tutorial: true };
@@ -598,7 +943,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       refreshMap();
     }
     if (session.id === "rally" && q.postcard && bag().postcards.indexOf(q.postcard) < 0) bag().postcards.push(q.postcard);
-    if (session.id === "quiz") session.stars += 1;
+    if (session.id === "quiz") {
+      session.stars += 1;
+      const streak = (bag().quiz.streak || 0) + 1;
+      bag().quiz.streak = streak;
+      bag().quiz.bestStreak = Math.max(bag().quiz.bestStreak || 0, streak);
+    }
     const regionDone = session.id === "map" ? markRegion(q.state) : null;
     session.lastFact = q.card || { title: q.person || "Fact", fact: q.fact, extra: q.explanation, postcard: q.postcard || "" };
     session.phase = "fact";
@@ -658,31 +1008,100 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return { ok: false, phase: session.phase };
   }
 
+  function maybePennant() {
+    const v = bag();
+    if (v.pennant) return false;
+    const regions = REGIONS.filter((r) => v.flags[r]).length;
+    const eras = ERAS.filter((name) => v.eras && v.eras[name]).length;
+    const built = BANK.landmarks.filter((lm) => v.landmarks[lm.id]).length;
+    if (v.placed.length >= 50 && regions >= 5 && ERAS.length && eras >= ERAS.length && built >= BANK.landmarks.length) {
+      v.pennant = 1;
+      return true;
+    }
+    return false;
+  }
   function completeSet() {
     const v = bag();
     if (session.mode === "gate") return finishGate();
+    const before = coins();
     v.cleared[session.id] = 1;
+    const tier = session.tier || 1;
+    const key = session.id + ":" + tier;
+    let bonus = 0;
+    if (tier > 1 && !v.tierCleared[key]) {
+      v.tierCleared[key] = 1;
+      bonus = 1;
+      setCoins(before + 1);
+      v.quiz.stars = (v.quiz.stars || 0) + 1;
+    } else v.tierCleared[key] = 1;
+    v.tiers[session.id] = Math.min(3, tier + 1);
     if (session.id === "quiz") {
       v.quiz.rounds += 1;
       v.quiz.stars += session.stars;
       v.quiz.best = Math.max(v.quiz.best || 0, session.stars);
+      if (session.stars === session.qs.length && session.qs.length >= 3) {
+        v.quiz.ribbon = 1;
+        session.ribbon = session.qs.length >= 5 ? "5/5 championship ribbon" : "Perfect-round ribbon";
+      }
     }
+    session.pennantNow = maybePennant();
     persist();
     renderDone();
-    return { ok: true, done: true, score: coins(), stars: session.stars, id: session.id };
+    return { ok: true, done: true, score: coins(), stars: session.stars, id: session.id, bonus, pennant: !!session.pennantNow };
   }
 
+  function builderTierQuestions(lm, tier) {
+    if (tier >= 3) {
+      return [
+        {
+          type: "order",
+          fact: lm.story,
+          question: "Tap these from earliest to latest.",
+          events: [
+            { year: 1884, text: "Washington Monument finished" },
+            { year: 1776, text: "Declaration of Independence" },
+            { year: 1965, text: "Gateway Arch finished" }
+          ],
+          correctOrder: [1, 0, 2],
+          explanation: "1776, then 1884, then 1965."
+        },
+        {
+          type: "choice",
+          fact: lm.name + " is a national landmark.",
+          question: "Which symbol matches " + lm.name + "?",
+          choices: [lm.blurb, "A baseball diamond", "A coral reef", "A subway token"],
+          answer: 0,
+          explanation: lm.blurb
+        },
+        {
+          type: "choice",
+          fact: lm.story,
+          question: "Which sentence matches the landmark?",
+          choices: [lm.story.split(". ")[0], "It was built on the Moon", "It is a river in Ohio", "It is a state nickname"],
+          answer: 0,
+          explanation: lm.story.split(". ")[0] + "."
+        }
+      ];
+    }
+    return [
+      { fact: lm.blurb, question: "A docent asks: where is " + lm.name + "?", choices: [lm.blurb, "On the Moon", "In a storybook ocean", "Beside a coral reef"], answer: 0, explanation: lm.blurb },
+      { fact: lm.story, question: "Which sentence belongs on the plaque for " + lm.name + "?", choices: [lm.story.split(". ")[0], "It was finished in 1492", "It is a baseball team", "It is a state capital"], answer: 0, explanation: lm.story.split(". ")[0] + "." },
+      { fact: lm.name + " costs " + lm.price + " coins in the builder, and the plaque can be upgraded after this round.", question: "What does a docent add after three correct answers?", choices: ["A plaque upgrade", "A new ocean", "A second Liberty Bell price", "A free yacht"], answer: 0, explanation: "Level 2 adds a plaque upgrade, not extra coins." }
+    ];
+  }
   function startBuild(id) {
     const lm = BANK.landmarks.find((m) => m.id === id);
     if (!lm) return { ok: false, reason: "missing" };
     if (bag().landmarks[id]) return { ok: false, reason: "owned", score: coins() };
     if (coins() < lm.price) return { ok: false, reason: "short", score: coins(), price: lm.price };
+    const tier = tierOf("builder");
     session = {
       id: "builder",
       mode: "gate",
       landmark: lm,
       title: lm.name,
-      qs: lm.questions.map((q) => Object.assign({ type: "choice", fact: q.fact }, q)),
+      tier: tier,
+      qs: (tier >= 2 ? builderTierQuestions(lm, tier) : lm.questions).map((q) => Object.assign({ type: q.type || "choice", fact: q.fact }, q)),
       i: 0, misses: 0, order: [], retry: false, phase: "ask"
     };
     renderAsk();
@@ -701,6 +1120,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     let refund = 0;
     if (session.misses === 0) { refund = 1; score = setCoins(score + 1); }
     bag().landmarks[lm.id] = 1;
+    if ((session.tier || 1) >= 2) {
+      if (!bag().plaques || typeof bag().plaques !== "object") bag().plaques = {};
+      bag().plaques[lm.id] = (session.tier || 1) >= 3 ? "symbol" : "docent";
+    }
     persist();
     buildMonument(lm.id);
     mountPlot(lm.id);
@@ -714,7 +1137,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   function spinWheel() {
     const cats = ["Capitals", "Flags", "History", "Geography", "Which state am I?"];
     const pick = Math.floor(Math.random() * cats.length);
-    session.spin = (session.spin || 0) + 720 + pick * 72;
+    const landed = -((pick * 72) + 36);
+    session.spin = (Math.round((session.spin || 0) / 360) + 2) * 360 + landed;
     session.category = cats[pick];
     const built = buildSet("quiz", { name: "Fifty-State Quiz Show" });
     if (!built.ok) return built;
@@ -2022,9 +2446,17 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       plaque.position.set(side * 1.42, 1.55 - (row % 2) * 0.5, -1.1 - (row % 4) * 0.95);
       plaque.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
       plaque.name = "v51-plaque";
+      plaque.userData.era = era;
       cave.add(plaque);
+      rooms.push({
+        era: era,
+        local: { x: side * 1.42, z: -1.1 - (row % 4) * 0.95 },
+        x: p.wx,
+        z: p.wz,
+        group: walls,
+        blocks: []
+      });
     });
-    rooms = names.map((era) => ({ era: era, x: p.wx, z: p.wz, group: walls, blocks: [] }));
   }
   function dressRally(K, root, lamb) {
     const turtle = (CA.isl.L || []).find((j) => j.id === "turtle");
@@ -2975,6 +3407,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       arch: () => archMesh(K, lamb),
       liberty: () => statueMesh(K, lamb),
       needle: () => needleMesh(K, lamb),
+      washington: () => washingtonMesh(K, lamb),
       rushmore: () => rushmoreMesh(K, lamb),
       gate: () => bridgeMesh(K, lamb)
     };
@@ -2984,6 +3417,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       bell: [20.4, 3.2, 0],
       alamo: [7.4, 15.6, 0],
       needle: [15.2, 10.4, 0],
+      washington: [14.2, -7.6, 0],
       rushmore: [-1.4, -1.5, 2.4]
     };
     BANK.landmarks.forEach((lm) => {
@@ -2996,7 +3430,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
         root.add(mesh);
         mesh.userData.role = "rushmore";
       } else if (lm.id !== "gate") place(root, mesh, at[0], at[1], at[2] || 0);
-      if (lm.id === "liberty" || lm.id === "alamo" || lm.id === "bell" || lm.id === "needle") mesh.rotation.y = lay.yaw;
+      if (lm.id === "liberty" || lm.id === "alamo" || lm.id === "bell" || lm.id === "needle" || lm.id === "washington") mesh.rotation.y = lay.yaw;
       if (lm.id === "arch") {
         mesh.rotation.y = lay.yaw;
         mesh.scale.setScalar(3.5);
@@ -3237,6 +3671,18 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     tabletEdge.rotation.y = -0.4;
     figure.add(tabletEdge); figure.add(tablet);
     g.add(figure);
+    return g;
+  }
+  function washingtonMesh(K, lamb) {
+    const g = new K.Group();
+    const stone = lamb(0xeceff1);
+    const base = new K.Mesh(new K.Box(2.2, 0.4, 2.2), lamb(0xd7ccc8));
+    base.position.y = 0.2;
+    const shaft = new K.Mesh(new K.Cyl(0.42, 0.72, 7.2, 8), stone);
+    shaft.position.y = 4;
+    const cap = new K.Mesh(new K.Cone(0.4, 0.9, 8), stone);
+    cap.position.y = 8.05;
+    g.add(base); g.add(shaft); g.add(cap);
     return g;
   }
   function needleMesh(K, lamb) {
@@ -3694,10 +4140,27 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       if (d < bestD) { bestD = d; best = st; }
     });
     rooms.forEach((room) => {
-      const d = Math.hypot(p.x - room.x, p.z - room.z);
+      let x = room.x;
+      let z = room.z;
+      if (room.local && caveAnchor) {
+        const w = caveWorld(room.local.x, 1.5, room.local.z);
+        x = w.x;
+        z = w.z;
+      }
+      const d = Math.hypot(p.x - x, p.z - z);
       if (d < bestD) {
         bestD = d;
-        best = stations.find((st) => st.room && st.era === room.era) || best;
+        best = { id: "tunnel", name: room.era, era: room.era, room: true, wx: x, wz: z };
+      }
+    });
+    Object.keys(monuments).forEach((id) => {
+      const mesh = monuments[id];
+      if (!mesh || !mesh.visible || !mesh.position || id === "wheel") return;
+      const d = Math.hypot(p.x - mesh.position.x, p.z - mesh.position.z);
+      if (d < 2.8 && d < bestD) {
+        bestD = d;
+        const lm = BANK.landmarks.find((m) => m.id === id);
+        best = { id: "plaque", name: (lm ? lm.name : id) + " plaque", monument: id };
       }
     });
     return best;
@@ -3710,8 +4173,14 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (!hit || (CA.mode && CA.mode !== "walk")) return;
     e.preventDefault();
     e.stopPropagation();
-    openStation(hit.room ? "tunnel" : hit.id);
-    if (hit.era) session.eraRoom = hit.era;
+    if (hit.monument) {
+      const lm = BANK.landmarks.find((m) => m.id === hit.monument);
+      if (!lm) return;
+      session = { id: "plaque", title: lm.name, phase: "done", qs: [] };
+      showCard(`<h2>${esc(lm.name)}</h2><div class="liberty-fact" id="liberty-fact"><b>Plaque</b><p>${esc(lm.story)}</p></div><button id="liberty-exit">Close</button>`);
+      return;
+    }
+    openStation(hit.room ? "tunnel" : hit.id, hit.era);
   }
 
   function fadeBetween(cam) {
@@ -3779,6 +4248,20 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       st.ring.scale.set(s, s, s);
     });
     if (monuments.wheel) monuments.wheel.rotation.y += session && session.mode === "wheel" ? 0.03 : 0.008;
+    if (session && session.speed) {
+      const asking = session.phase === "ask";
+      session.clockPaused = !asking;
+      if (asking) {
+        const now = Date.now();
+        if (!session.clockAt) session.clockAt = now;
+        if (now - session.clockAt >= 1000) {
+          session.secondsLeft = Math.max(0, (session.secondsLeft || 45) - Math.floor((now - session.clockAt) / 1000));
+          session.clockAt = now;
+          const el = document.getElementById("liberty-clock");
+          if (el) el.textContent = "Speed round: " + session.secondsLeft + "s";
+        }
+      }
+    }
     prepView();
     if (CA.captain && (!CA.mode || CA.mode === "walk")) {
       const p = CA.captain.position;
@@ -3946,7 +4429,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     spin: spinWheel,
     near: captainNear,
     session: () => session,
-    contentProblems
+    contentProblems,
+    practiceFor: (q) => practiceFor(q),
+    tier: (id, n) => { bag().tiers[id] = n; return tierOf(id); },
+    pennant: () => !!bag().pennant
   };
   window.CaptainLiberty = CA.liberty;
 })();

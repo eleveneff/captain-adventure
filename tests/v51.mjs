@@ -25,7 +25,7 @@ check("pack has 6 landmark stories", pack.landmarks.length === 6, String(pack.la
 const mc = pack.questions.filter((q) => q.type === "mc");
 const order = pack.questions.filter((q) => q.type === "order");
 check("pack has 41 multiple-choice questions", mc.length === 41, String(mc.length));
-check("pack has 8 order sets", order.length === 8 && order[0].id === "q41" && order[7].id === "q48", order.map((q) => q.id).join(","));
+check("pack has 9 order sets", order.length === 9 && order[0].id === "q41" && order.some((q) => q.era === "e7") && order.some((q) => q.id === "q48"), order.map((q) => q.id).join(","));
 const early = pack.questions.filter((q) => q.year != null && q.year < 1500);
 check("only Columbus 1492 is before 1500", early.length === 1 && early[0].id === "q00" && early[0].year === 1492, JSON.stringify(early.map((q) => [q.id, q.year])));
 check("every multiple-choice item has a fact, four choices, and a valid answer", mc.every((q) => q.fact && q.choices.length === 4 && q.answerIndex >= 0 && q.answerIndex < 4 && q.explanation));
@@ -85,7 +85,7 @@ const booted = await page.evaluate(() => window.CaptainLiberty.ready.then(() => 
     coinsKept: C.state().score
   };
 }));
-check("pack loaded into the game", booted.ready && booted.eras === 8 && booted.history === 49, JSON.stringify({ eras: booted.eras, history: booted.history }));
+check("pack loaded into the game", booted.ready && booted.eras === 8 && booted.history === 50, JSON.stringify({ eras: booted.eras, history: booted.history }));
 check("q00 is the Columbus question", booted.q00 && booted.q00.year === 1492 && /Columbus/.test(booted.q00.fact), booted.q00 && booted.q00.fact);
 check("state facts come from the pack", /capital since 1846/.test(booted.alabama), booted.alabama);
 const content = await page.evaluate(() => window.CaptainLiberty.contentProblems());

@@ -47,6 +47,8 @@
   let mountainBlock = null;
   let host = null;
   let mapMesh = null;
+  let mapAnchor = null;
+  const CHAN = { s: 17.4, half: 1.65, f0: 16, f1: 34 };
   const ui = { layer: null, prompt: null };
 
   function worldPos(x, z) {
@@ -646,6 +648,280 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     });
     return best || { x: anchor.x, y: 10, z: anchor.z };
   }
+  function toFS(dx, dz) {
+    return { f: dx * lay.fx + dz * lay.fz, s: dx * lay.rx + dz * lay.rz };
+  }
+  function worldFS(f, s) {
+    return { x: lay.fx * f + lay.rx * s, z: lay.fz * f + lay.rz * s };
+  }
+  function smoothstep(t) {
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    return t * t * (3 - 2 * t);
+  }
+  function hsh(n) {
+    const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return x - Math.floor(x);
+  }
+  function rockPlanes(f, s) {
+    const qf = Math.round(f * 0.42) / 0.42;
+    const qs = Math.round(s * 0.42) / 0.42;
+    const n = Math.sin(qf * 1.7 + qs * 1.3) * 0.32;
+    return [
+      14.2 - Math.abs(f * 0.9 + 1.45) * 0.95 - Math.abs(s) * 0.78 + n,
+      9.4 - Math.abs(f + 4.3) * 0.82 - Math.abs(s - 5.0) * 1.15 + n * 0.55,
+      8.2 - Math.abs(f - 2.7) * 0.9 - Math.abs(s + 5.5) * 0.82 + n * 0.45,
+      6.1 - Math.abs(f + 0.5) * 0.55 - Math.abs(s + 1.8) * 1.25
+    ];
+  }
+  function shoreOf(f, s) {
+    const a = Math.atan2(s, f);
+    return 27.4 + 2.05 * Math.sin(a * 3 + 0.45) + 1.15 * Math.sin(a * 5 + 1.7) + 0.45 * Math.sin(a * 8 - 0.4);
+  }
+  function inMouth(f, s) {
+    return f > 4.05 && f < 8.55 && Math.abs(s - 0.2) < 1.62;
+  }
+  function rockTop(f, s) {
+    const planes = rockPlanes(f, s);
+    let rock = planes[0];
+    for (let i = 1; i < planes.length; i++) if (planes[i] > rock) rock = planes[i];
+    if (f > 5.4 && f < 13 && Math.abs(s - 0.2) < 2.6) rock = Math.min(rock, 1.35 + Math.max(0, (f - 7) * 0.05));
+    if (inMouth(f, s)) rock = Math.min(rock, 1.26);
+    return rock;
+  }
+  function lowland(f, s) {
+    const d = Math.hypot(f, s);
+    const shore = shoreOf(f, s);
+    if (d > shore + 3.4) return null;
+    let y = 0.9 + 0.16 * Math.sin(f * 0.41 + 0.7) * Math.cos(s * 0.33 + 0.4) + 0.08 * Math.sin((f + s) * 0.85);
+    y += Math.max(0, 0.85 * (1 - d / 22));
+    if (inMouth(f, s)) y = Math.min(y, 1.26);
+    const edge = smoothstep((d - (shore - 6.6)) / 6.6);
+    const beach = 0.58 * (1 - edge) - 0.38 * edge;
+    y = y * (1 - edge) + beach * edge;
+    const ds = Math.abs(s - CHAN.s);
+    if (ds < CHAN.half + 1.15 && f > CHAN.f0 - 0.8 && f < CHAN.f1 + 0.5) {
+      const u = ds > CHAN.half ? smoothstep((ds - CHAN.half) / 1.15) : 0;
+      y = -0.95 * (1 - u) + y * u;
+    }
+    if (d > shore) y = y * (1 - smoothstep((d - shore) / 2.4)) - 1.2 * smoothstep((d - shore) / 2.4);
+    return y;
+  }
+  function heightFS(f, s) {
+    const low = lowland(f, s);
+    if (low == null) return null;
+    return Math.max(low, rockTop(f, s));
+  }
+  function sampleGround(dx, dz) {
+    if (!lay) return null;
+    const q = toFS(dx, dz);
+    if (q.f > 24.4 && q.f < 36.8 && Math.abs(q.s) < 1.32) return 0.52;
+    return heightFS(q.f, q.s);
+  }
+  function inCaveFS(q) {
+    return q.f > 4.05 && q.f < 6.05 && Math.abs(q.s - 0.2) < 1.55;
+  }
+  function sinkDome() {
+    let mesh = null;
+    CA.scene.traverse((o) => {
+      if (mesh || !o.isMesh || !o.geometry || o.geometry.type !== "BufferGeometry") return;
+      const pos = o.geometry.attributes && o.geometry.attributes.position;
+      if (pos && pos.count > 20000) mesh = o;
+    });
+    if (!mesh) return;
+    const pos = mesh.geometry.attributes.position;
+    const col = mesh.geometry.attributes.color;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      if (Math.hypot(x - host.x, z - host.z) > 26) continue;
+      if (pos.getY(i) < -0.45) continue;
+      pos.setY(i, -2.4);
+      if (col) col.setXYZ(i, 0.04, 0.16, 0.28);
+    }
+    pos.needsUpdate = true;
+    if (col) col.needsUpdate = true;
+    mesh.geometry.computeVertexNormals();
+  }
+  function faceColor(y, f, s) {
+    const K = kit();
+    const salt = Math.floor(hsh(f * 3.1 + s * 5.7 + y) * 4);
+    let hex = 0x3c9a45;
+    if (y < 0.06) hex = [0xc4a06e, 0xb08b58, 0xd0b07a][salt % 3];
+    else if (y < 0.58) hex = [0xf0d5a4, 0xe4c48c, 0xf6e2b8, 0xd7b57a][salt % 4];
+    else if (y < 2.05) hex = [0x3c9a45, 0x2f7d38, 0x4caf50, 0x347d3c][salt % 4];
+    else {
+      const planes = rockPlanes(f, s);
+      let id = 0;
+      for (let i = 1; i < planes.length; i++) if (planes[i] > planes[id]) id = i;
+      const families = [
+        [0x9c958e, 0x8e877f, 0xa39c94],
+        [0x7d766e, 0x6e675f, 0x8a837a],
+        [0x6a635c, 0x7a736c, 0x5e5852],
+        [0x8a847c, 0x7c766e, 0x968f86]
+      ];
+      hex = families[id][salt % 3];
+    }
+    return new K.Color(hex);
+  }
+  function gridMesh(K, N, half, sample, skip) {
+    const positions = [];
+    const colors = [];
+    const index = [];
+    for (let iz = 0; iz <= N; iz++) {
+      for (let ix = 0; ix <= N; ix++) {
+        const f = -half + (ix / N) * half * 2;
+        const s = -half + (iz / N) * half * 2;
+        const y = sample(f, s);
+        const w = worldFS(f, s);
+        const col = faceColor(y == null ? -1 : y, f, s);
+        positions.push(host.x + w.x, y == null ? -1.4 : y, host.z + w.z);
+        colors.push(col.r, col.g, col.b);
+      }
+    }
+    for (let iz = 0; iz < N; iz++) {
+      for (let ix = 0; ix < N; ix++) {
+        const f = -half + ((ix + 0.5) / N) * half * 2;
+        const s = -half + ((iz + 0.5) / N) * half * 2;
+        if (skip(f, s)) continue;
+        const a = iz * (N + 1) + ix;
+        const b = a + 1;
+        const c = a + N + 1;
+        const d = c + 1;
+        index.push(a, b, d, a, d, c);
+      }
+    }
+    const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
+    geo.setAttribute("color", new K.Attr(new Float32Array(colors), 3));
+    geo.setIndex(index);
+    geo.computeVertexNormals();
+    return geo;
+  }
+  function buildTerrain(K) {
+    const geo = gridMesh(K, 72, 33, (f, s) => lowland(f, s), (f, s) => {
+      const y = lowland(f, s);
+      return y == null || y < -0.65;
+    });
+    const mesh = new K.Mesh(geo, new K.Lambert({ vertexColors: true }));
+    mesh.receiveShadow = true;
+    mesh.name = "v51-terrain";
+    mesh.userData.nofade = 1;
+    return mesh;
+  }
+  function buildRock(K) {
+    const N = 42;
+    const half = 15;
+    const positions = [];
+    const colors = [];
+    for (let iz = 0; iz < N; iz++) {
+      for (let ix = 0; ix < N; ix++) {
+        const f0 = -half + (ix / N) * half * 2;
+        const s0 = -half + (iz / N) * half * 2;
+        const f1 = -half + ((ix + 1) / N) * half * 2;
+        const s1 = -half + ((iz + 1) / N) * half * 2;
+        const pts = [[f0, s0], [f1, s0], [f1, s1], [f0, s1]];
+        const rocks = pts.map((p) => rockTop(p[0], p[1]));
+        if (inMouth((f0 + f1) / 2, (s0 + s1) / 2)) continue;
+        if (Math.max.apply(null, rocks) < 1.65) continue;
+        const corners = pts.map((p, i) => {
+          const low = lowland(p[0], p[1]);
+          const y = rocks[i] > (low == null ? 0 : low) + 0.35 ? rocks[i] : (low == null ? rocks[i] : low);
+          const w = worldFS(p[0], p[1]);
+          return [host.x + w.x, y, host.z + w.z, p[0], p[1]];
+        });
+        [[0, 1, 2], [0, 2, 3]].forEach((tri) => {
+          const fc = (corners[tri[0]][3] + corners[tri[1]][3] + corners[tri[2]][3]) / 3;
+          const sc = (corners[tri[0]][4] + corners[tri[1]][4] + corners[tri[2]][4]) / 3;
+          const fy = (corners[tri[0]][1] + corners[tri[1]][1] + corners[tri[2]][1]) / 3;
+          const col = faceColor(Math.max(fy, 2.2), fc, sc);
+          tri.forEach((k) => {
+            positions.push(corners[k][0], corners[k][1], corners[k][2]);
+            colors.push(col.r, col.g, col.b);
+          });
+        });
+      }
+    }
+    const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
+    geo.setAttribute("color", new K.Attr(new Float32Array(colors), 3));
+    geo.computeVertexNormals();
+    const mesh = new K.Mesh(geo, new K.Lambert({ vertexColors: true }));
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.name = "v51-rock-peak";
+    mesh.userData.nofade = 1;
+    return mesh;
+  }
+  function spot(f, s) {
+    const w = worldFS(f, s);
+    const y = sampleGround(w.x, w.z);
+    return { f: f, s: s, x: w.x, z: w.z, wx: host.x + w.x, wz: host.z + w.z, y: y == null ? 0.4 : y };
+  }
+  function place(root, mesh, f, s, dy) {
+    const p = spot(f, s);
+    mesh.position.set(p.wx, p.y + (dy || 0), p.wz);
+    root.add(mesh);
+    return mesh;
+  }
+  function ribbon(K, root, points, half, hex, stone) {
+    const samples = [];
+    points.forEach((line) => {
+      for (let i = 0; i < line.length - 1; i++) {
+        const a = line[i];
+        const b = line[i + 1];
+        const dist = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const n = Math.max(1, Math.ceil(dist / 1.05));
+        for (let k = 0; k < n; k++) {
+          const t = k / n;
+          samples.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+        }
+      }
+      const last = line[line.length - 1];
+      samples.push([last[0], last[1]]);
+    });
+    const world = samples.map((p) => spot(p[0], p[1]));
+    const pos = [];
+    const col = [];
+    const Kc = new K.Color(hex);
+    for (let i = 0; i < world.length - 1; i++) {
+      const p = world[i];
+      const q = world[i + 1];
+      const dx = q.wx - p.wx;
+      const dz = q.wz - p.wz;
+      const len = Math.hypot(dx, dz) || 1;
+      if (len < 0.08 || len > 4) continue;
+      const px = -dz / len * half;
+      const pz = dx / len * half;
+      const y0 = p.y + 0.07;
+      const y1 = q.y + 0.07;
+      [p.wx + px, y0, p.wz + pz, p.wx - px, y0, p.wz - pz, q.wx - px, y1, q.wz - pz, p.wx + px, y0, p.wz + pz, q.wx - px, y1, q.wz - pz, q.wx + px, y1, q.wz + pz].forEach((v, k) => {
+        pos.push(v);
+        if (k % 3 === 0) col.push(Kc.r, Kc.g, Kc.b);
+      });
+    }
+    if (!pos.length) return;
+    const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(new Float32Array(pos), 3));
+    geo.setAttribute("color", new K.Attr(new Float32Array(col), 3));
+    geo.computeVertexNormals();
+    const mesh = new K.Mesh(geo, new K.Lambert({ vertexColors: true, side: 2 }));
+    mesh.name = "v51-path";
+    mesh.userData.nofade = 1;
+    mesh.receiveShadow = true;
+    root.add(mesh);
+    const capMat = new K.Lambert({ color: hex });
+    const seen = {};
+    points.forEach((line) => line.forEach((p) => {
+      const key = p[0].toFixed(1) + "," + p[1].toFixed(1);
+      if (seen[key]) return;
+      seen[key] = 1;
+      const disc = new K.Mesh(new K.Cyl(half, half, 0.06, 10), capMat);
+      disc.name = "v51-path";
+      disc.userData.nofade = 1;
+      place(root, disc, p[0], p[1], 0.08);
+    }));
+    return mesh;
+  }
   function dress() {
     const K = kit();
     if (!K || !CA.scene || !CA.isl || CA.scene.getObjectByName("v51-root")) return;
@@ -656,132 +932,478 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     lay = {
       fx: homeX / span, fz: homeZ / span, rx: -homeZ / span, rz: homeX / span,
       yaw: Math.atan2(homeX, homeZ),
-      at(forward, side) {
-        return { x: (homeX / span) * forward + (-homeZ / span) * side, z: (homeZ / span) * forward + (homeX / span) * side };
-      }
+      at(forward, side) { return worldFS(forward, side); }
     };
-    const land = lay.at(28, 0);
-    const dock = lay.at(42, 0);
-    host = {
-      x: peak.x, z: peak.z, y: peak.y,
-      land: { x: peak.x + land.x, z: peak.z + land.z },
-      dock: { x: peak.x + dock.x, z: peak.z + dock.z }
-    };
+    host = { x: peak.x, z: peak.z, y: peak.y, land: { x: peak.x, z: peak.z }, dock: { x: peak.x, z: peak.z } };
+    const landOff = lay.at(22.2, 1.15);
+    const dockOff = lay.at(40, 0);
+    host.land = { x: peak.x + landOff.x, z: peak.z + landOff.z };
+    host.dock = { x: peak.x + dockOff.x, z: peak.z + dockOff.z };
     isle = {
       id: "liberty-mount",
       cx: peak.x,
       cz: peak.z,
-      R: 36,
+      R: 32,
       yaw: lay.yaw,
-      ground: () => 0.55,
+      ground(x, z) {
+        const y = sampleGround(x - peak.x, z - peak.z);
+        return y == null ? 0.2 : y;
+      },
       landSpot: host.land,
       boatSpot: host.dock
     };
-    mountainBlock = { x: peak.x, z: peak.z, r: 9 };
+    mountainBlock = { x: peak.x, z: peak.z, r: 3.5 };
+    sinkDome();
     const root = new K.Group();
     root.name = "v51-root";
     CA.scene.add(root);
-    const lamb = (hex) => new K.Lambert({ color: hex });
-    function add(mesh, x, z, dy) {
-      const p = worldPos(x, z);
-      mesh.position.set(p.x, p.y + (dy || 0), p.z);
-      root.add(mesh);
-      return mesh;
-    }
-    const map = new K.Mesh(new K.Plane(9.2, 5.6), new K.Lambert({ map: mapTexture(K), color: 0xffffff, side: 2 }));
-    map.rotation.x = -0.85;
-    map.rotation.y = lay.yaw + Math.PI;
-    const here = {
-      map: lay.at(22, 16),
-      tunnel: lay.at(20, 0),
-      rally: lay.at(18, -18),
-      builder: lay.at(8, 22),
-      quiz: lay.at(26, -8)
-    };
-    add(map, here.map.x, here.map.z, 2.4);
-    map.name = "v51-map";
-    mapMesh = map;
+    root.add(buildTerrain(K));
+    root.add(buildRock(K));
+    const lamb = (hex, extra) => new K.Lambert(Object.assign({ color: hex }, extra || {}));
+    const here = { map: [16.8, -5.4], tunnel: [6.55, 0.2], rally: [13.2, -14.2], builder: [12.2, 11.4], quiz: [18.2, 7.4] };
     stations = [
-      { id: "map", name: "Map Puzzle Dock", x: here.map.x, z: here.map.z },
-      { id: "tunnel", name: "History Time-Tunnel", x: here.tunnel.x, z: here.tunnel.z, era: ERAS[0] },
-      { id: "rally", name: "Road Trip Rally", x: here.rally.x, z: here.rally.z },
-      { id: "builder", name: "Landmark Builder", x: here.builder.x, z: here.builder.z },
-      { id: "quiz", name: "Fifty-State Quiz Show", x: here.quiz.x, z: here.quiz.z }
+      { id: "map", name: "Map Puzzle Dock", f: here.map[0], s: here.map[1] },
+      { id: "tunnel", name: "History Time-Tunnel", f: here.tunnel[0], s: here.tunnel[1], era: ERAS[0] },
+      { id: "rally", name: "Road Trip Rally", f: here.rally[0], s: here.rally[1] },
+      { id: "builder", name: "Landmark Builder", f: here.builder[0], s: here.builder[1] },
+      { id: "quiz", name: "Fifty-State Quiz Show", f: here.quiz[0], s: here.quiz[1] }
     ];
     stations.forEach((st) => {
-      const ring = new K.Mesh(new K.Torus(1.15, 0.08, 8, 24), new K.Lambert({ color: 0xffc83d, emissive: 0xffb300, emissiveIntensity: 0.8 }));
+      const p = spot(st.f, st.s);
+      st.x = p.x; st.z = p.z; st.wx = p.wx; st.wz = p.wz;
+      const ring = new K.Mesh(new K.Torus(1.05, 0.07, 8, 24), new K.Lambert({ color: 0xffc83d, emissive: 0xffb300, emissiveIntensity: 0.65 }));
       ring.rotation.x = Math.PI / 2;
-      add(ring, st.x, st.z, 0.16);
+      ring.position.set(p.wx, p.y + 0.14, p.wz);
       ring.name = "v51-ring";
+      ring.userData.nofade = 1;
+      root.add(ring);
       st.ring = ring;
-      const p = worldPos(st.x, st.z);
-      st.wx = p.x; st.wz = p.z;
       const label = new K.Sprite(new K.SpriteMat({ map: labelTex(K, st.name), transparent: true, depthWrite: false }));
-      label.scale.set(3.8, 0.95, 1);
-      label.position.set(p.x, p.y + 2.2, p.z);
+      label.scale.set(3.4, 0.86, 1);
+      label.position.set(p.wx, p.y + 2.35, p.wz);
       label.name = "v51-label";
       root.add(label);
     });
+    const peakSpot = spot(-1.5, 0);
     const isleLabel = new K.Sprite(new K.SpriteMat({ map: labelTex(K, "Liberty Isle"), transparent: true, depthWrite: false }));
-    isleLabel.scale.set(5.4, 1.4, 1);
-    const sign = worldPos(0, -2);
-    isleLabel.position.set(sign.x, sign.y + 4.6, sign.z);
+    isleLabel.scale.set(5.2, 1.3, 1);
+    isleLabel.position.set(peakSpot.wx, peakSpot.y + 2.4, peakSpot.wz);
     isleLabel.name = "v51-label";
     root.add(isleLabel);
-    dressDockFlag(K, root, add, lamb);
+    ribbon(K, root, [
+      [[24.6, 0], [20.2, 0.2], [here.map[0], here.map[1]], [here.rally[0], here.rally[1]]],
+      [[20.2, 0.2], [here.quiz[0], here.quiz[1]], [here.builder[0], here.builder[1]]],
+      [[20.2, 0.2], [12.4, 0.3], [9.2, 0.25]]
+    ], 0.66, 0xc4a06a);
+    ribbon(K, root, [[[9.2, 0.25], [here.tunnel[0], here.tunnel[1]]]], 0.78, 0x9a9188);
+    dressDock(K, root, lamb);
+    dressFlag(K, root, lamb);
+    dressFoliage(K, root, lamb);
+    dressFoam(K, root);
+    dressMapTable(K, root, lamb);
+    dressTunnel(K, root, lamb);
+    dressRally(K, root, lamb);
+    dressBench(K, root, lamb);
+    dressStage(K, root, lamb);
+    dressMonuments(K, root, lamb);
+    dressRegionFlags(K, root, lamb);
     hookShore();
+  }
+  function dressDock(K, root, lamb) {
+    const woodA = lamb(0xc4894a);
+    const woodB = lamb(0xa86b32);
+    const pile = lamb(0x6d4c2f);
+    for (let i = 0; i < 10; i++) {
+      const f = 24.8 + i * 1.15;
+      const plank = new K.Mesh(new K.Box(1.08, 0.08, 2.35), i % 2 ? woodA : woodB);
+      plank.userData.nofade = 1;
+      const p = spot(f, 0);
+      plank.position.set(p.wx, 0.52, p.wz);
+      plank.rotation.y = lay.yaw;
+      root.add(plank);
+      if (i % 3 === 0) {
+        [-1.05, 1.05].forEach((side) => {
+          const w = worldFS(f, side);
+          const post = new K.Mesh(new K.Cyl(0.09, 0.11, 1.7, 6), pile);
+          post.position.set(host.x + w.x, -0.35, host.z + w.z);
+          post.castShadow = true;
+          root.add(post);
+        });
+      }
+    }
+    const buoy = new K.Group();
+    const b = spot(36.5, 3.2);
+    buoy.position.set(b.wx, -0.15, b.wz);
+    const body = new K.Mesh(new K.Cyl(0.42, 0.42, 0.85, 10), lamb(0xe53935));
+    body.position.y = 0.7;
+    const top = new K.Mesh(new K.Cone(0.32, 0.5, 8), lamb(0xe53935));
+    top.position.y = 1.3;
+    const band = new K.Mesh(new K.Cyl(0.44, 0.44, 0.16, 10), lamb(0xffffff));
+    band.position.y = 0.85;
+    buoy.add(body); buoy.add(top); buoy.add(band);
+    root.add(buoy);
+  }
+  function hangingFlag(K, mat) {
+    const geo = new K.Geo();
+    const w = 2.25;
+    const h = 1.22;
+    const droop = 0.32;
+    geo.setAttribute("position", new K.Attr(new Float32Array([
+      0, 0, 0, w, -droop, 0.12, 0, -h, 0, w, -h - droop * 1.15, 0.18
+    ]), 3));
+    geo.setAttribute("uv", new K.Attr(new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]), 2));
+    geo.setIndex([0, 2, 1, 1, 2, 3]);
+    geo.computeVertexNormals();
+    const mesh = new K.Mesh(geo, mat);
+    mesh.name = "v51-us-flag";
+    return mesh;
+  }
+  function dressFlag(K, root, lamb) {
+    const p = spot(26.2, 2.55);
+    const poleH = 5.5;
+    const pole = new K.Mesh(new K.Cyl(0.065, 0.09, poleH, 8), lamb(0xf7f4ee));
+    pole.position.set(p.wx, p.y + poleH / 2, p.wz);
+    pole.castShadow = true;
+    root.add(pole);
+    const top = p.y + poleH;
+    const ball = new K.Mesh(new K.Sphere(0.14, 8, 6), lamb(0xffc83d));
+    ball.position.set(p.wx, top + 0.02, p.wz);
+    root.add(ball);
+    const flagMat = new K.Lambert({ map: usFlagTex(K), color: 0xffffff, side: 2 });
+    const flag = hangingFlag(K, flagMat);
+    const rig = new K.Group();
+    rig.position.set(p.wx, top - 0.08, p.wz);
+    rig.rotation.y = Math.atan2(-lay.rz, lay.rx);
+    rig.add(flag);
+    root.add(rig);
+    const board = new K.Mesh(new K.Box(1.7, 0.72, 0.08), lamb(0x8d5a2b));
+    const post = new K.Mesh(new K.Cyl(0.06, 0.07, 1.5, 6), lamb(0x6d4c41));
+    const signAt = spot(23.4, 2.7);
+    post.position.set(signAt.wx, signAt.y + 0.75, signAt.wz);
+    board.position.set(signAt.wx, signAt.y + 1.55, signAt.wz);
+    board.rotation.y = lay.yaw;
+    root.add(post); root.add(board);
+    const plate = new K.Mesh(new K.Plane(1.5, 0.52), new K.Lambert({ map: labelTex(K, "Liberty Isle"), color: 0xffffff }));
+    plate.position.set(board.position.x + lay.fx * 0.06, board.position.y, board.position.z + lay.fz * 0.06);
+    plate.rotation.y = lay.yaw;
+    root.add(plate);
+  }
+  function palmAt(K, root, f, s, lean, height, seed) {
+    const y = heightFS(f, s);
+    if (y == null || y < 0.35 || y > 2.5) return;
+    const p = spot(f, s);
+    const trunk = new K.Lambert({ color: seed % 2 ? 0x8d5a2b : 0x6d4c2f });
+    const parts = 5;
+    const seg = height / parts;
+    for (let i = 0; i < parts; i++) {
+      const piece = new K.Mesh(new K.Cyl(0.1 + (parts - i) * 0.012, 0.13 + (parts - i) * 0.014, seg * 1.08, 6), trunk);
+      const ox = Math.sin(lean) * i * 0.22;
+      const oz = Math.cos(lean) * i * 0.16;
+      piece.position.set(p.wx + ox, p.y + (i + 0.5) * seg, p.wz + oz);
+      piece.castShadow = true;
+      piece.name = "v51-palm";
+      root.add(piece);
+    }
+    const topX = p.wx + Math.sin(lean) * (parts - 1) * 0.22;
+    const topZ = p.wz + Math.cos(lean) * (parts - 1) * 0.16;
+    const topY = p.y + height - 0.05;
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2 + seed;
+      const frond = new K.Mesh(new K.Sphere(1, 6, 4), new K.Lambert({ color: i % 2 ? 0x2e7d32 : 0x3e9a45 }));
+      frond.scale.set(1.45, 0.1, 0.4);
+      frond.position.set(topX + Math.cos(a) * 0.85, topY - 0.05, topZ + Math.sin(a) * 0.85);
+      frond.rotation.y = -a;
+      frond.rotation.z = 0.55 + (i % 3) * 0.08;
+      frond.castShadow = true;
+      frond.name = "v51-palm";
+      root.add(frond);
+    }
+    const nut = new K.Mesh(new K.Sphere(0.14, 6, 4), new K.Lambert({ color: 0x5d4037 }));
+    nut.position.set(topX, topY - 0.12, topZ);
+    root.add(nut);
+  }
+  function dressFoliage(K, root, lamb) {
+    [[21.2, -4.2, 0.4, 5.1, 1], [19.6, 5.6, -0.6, 4.5, 2], [15.4, -11.2, 0.8, 5.6, 3], [14.6, 8.8, 0.2, 4.3, 4],
+      [11.4, -16.2, -0.3, 5.0, 5], [10.2, 13.2, 0.5, 4.7, 6], [23.2, -9.4, 0.15, 3.9, 7], [8.6, -6.4, -0.4, 5.4, 8],
+      [16.8, 12.6, 0.35, 4.4, 9]].forEach((row) => palmAt(K, root, row[0], row[1], row[2], row[3], row[4]));
+    const bushes = [[18.4, -3.2], [16.2, 3.4], [12.8, -8.6], [11.2, 6.4], [20.4, 9.2], [9.4, -12.4], [21.6, -8.2], [14.2, 14.2], [8.2, 8.4], [19.2, -12.6]];
+    bushes.forEach((b, i) => {
+      const greens = [0x2f7d32, 0x388e3c, 0x1b5e20];
+      for (let k = 0; k < 3; k++) {
+        const bush = new K.Mesh(new K.Sphere(0.34 + (k % 2) * 0.1, 7, 5), lamb(greens[(i + k) % 3]));
+        bush.scale.set(1.15, 0.72, 0.95);
+        bush.castShadow = true;
+        bush.name = "v51-bush";
+        place(root, bush, b[0] + (k - 1) * 0.28, b[1] + (k % 2) * 0.2, 0.22);
+      }
+    });
+    const flowers = [[19.4, -1.6, 0xff5fa2], [18.2, 2.2, 0xffd24a], [15.6, -6.2, 0xffffff], [16.8, 4.6, 0xff8a65],
+      [12.6, -4.4, 0xffd24a], [13.6, 5.2, 0xff5fa2], [21.4, 3.6, 0xffffff], [10.6, -9.2, 0xffd24a]];
+    flowers.forEach((fl) => {
+      for (let k = 0; k < 3; k++) {
+        const stem = new K.Mesh(new K.Cone(0.03, 0.22, 4), lamb(0x2e7d32));
+        place(root, stem, fl[0] + k * 0.18, fl[1] + (k - 1) * 0.12, 0.1);
+        const bloom = new K.Mesh(new K.Sphere(0.1, 6, 5), lamb(fl[2]));
+        bloom.name = "v51-flower";
+        place(root, bloom, fl[0] + k * 0.18, fl[1] + (k - 1) * 0.12, 0.24);
+      }
+    });
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2 + 0.2;
+      if (Math.abs(a) < 0.45 || Math.abs(a - Math.PI * 2) < 0.45) continue;
+      if (a > 0.85 && a < 1.45) continue;
+      const rad = 25.5 + (i % 4) * 0.7;
+      const f = Math.cos(a) * rad;
+      const s = Math.sin(a) * rad;
+      const y = heightFS(f, s);
+      if (y == null || y < -0.15 || y > 1.8) continue;
+      const rock = new K.Mesh(new K.Sphere(0.38 + (i % 3) * 0.14, 5, 4), lamb(i % 2 ? 0x8e877c : 0xb7aa96));
+      rock.scale.set(1.25, 0.55, 0.95);
+      rock.castShadow = true;
+      rock.name = "v51-rock";
+      place(root, rock, f, s, 0.12);
+    }
+    [[2.2, -6.4, 0.7], [-3.4, 4.8, 0.85], [1.4, 6.2, 0.55], [-2.2, -3.6, 0.6], [6.8, -3.4, 0.5]].forEach((r, i) => {
+      const y = heightFS(r[0], r[1]);
+      if (y == null || y < 1.4) return;
+      const rock = new K.Mesh(new K.Sphere(r[2], 5, 4), lamb(i % 2 ? 0x7a746c : 0x918a82));
+      rock.scale.set(1.35, 0.85, 1.05);
+      rock.rotation.y = i;
+      rock.castShadow = true;
+      rock.name = "v51-rock";
+      place(root, rock, r[0], r[1], r[2] * 0.35);
+    });
+  }
+  function dressFoam(K, root) {
+    const waterY = typeof CA.waterY === "number" ? CA.waterY : -0.55;
+    const mat = new K.Basic({ color: 0xf7fbff, transparent: true, opacity: 0.55, depthWrite: false });
+    for (let i = 0; i < 42; i++) {
+      const a = (i / 42) * Math.PI * 2;
+      let lo = 16;
+      let hi = 34;
+      for (let k = 0; k < 8; k++) {
+        const mid = (lo + hi) / 2;
+        const y = heightFS(Math.cos(a) * mid, Math.sin(a) * mid);
+        if (y == null || y < -0.02) hi = mid;
+        else lo = mid;
+      }
+      const rad = (lo + hi) / 2;
+      const f = Math.cos(a) * rad;
+      const s = Math.sin(a) * rad;
+      if (Math.abs(s - CHAN.s) < CHAN.half && f > CHAN.f0) continue;
+      if (Math.abs(s) < 2.2 && f > 23) continue;
+      for (let k = 0; k < 2; k++) {
+        const blob = new K.Mesh(new K.Sphere(0.22 + ((i + k) % 3) * 0.06, 6, 4), mat);
+        blob.scale.set(1.45, 0.22, 0.8);
+        const w = worldFS(f + Math.cos(a) * k * 0.35, s + Math.sin(a) * k * 0.35);
+        blob.position.set(host.x + w.x, waterY + 0.06, host.z + w.z);
+        blob.rotation.y = a;
+        blob.name = "v51-foam";
+        blob.userData.nofade = 1;
+        root.add(blob);
+      }
+    }
+  }
+  function dressMapTable(K, root, lamb) {
+    const p = spot(17.2, -9.4);
+    const table = new K.Group();
+    table.position.set(p.wx, p.y, p.wz);
+    table.rotation.y = lay.yaw;
+    const top = new K.Mesh(new K.Box(6.5, 0.14, 4.35), lamb(0x8d5a2b));
+    top.position.y = 0.96;
+    top.castShadow = true;
+    top.receiveShadow = true;
+    table.add(top);
+    [[-2.9, -1.85], [2.9, -1.85], [-2.9, 1.85], [2.9, 1.85]].forEach((leg) => {
+      const post = new K.Mesh(new K.Box(0.16, 0.9, 0.16), lamb(0x6d4c2f));
+      post.position.set(leg[0], 0.45, leg[1]);
+      table.add(post);
+    });
+    const lip = new K.Mesh(new K.Box(6.15, 0.06, 4.05), lamb(0xf4efe4));
+    lip.position.y = 1.05;
+    table.add(lip);
+    const map = new K.Mesh(new K.Plane(6, 4), new K.Lambert({ map: mapTexture(K), color: 0xffffff, side: 2 }));
+    map.rotation.x = -Math.PI / 2;
+    map.position.y = 1.1;
+    map.name = "v51-map";
+    map.userData.nofade = 1;
+    table.add(map);
+    root.add(table);
+    mapMesh = map;
+    mapAnchor = { x: p.wx, y: p.y + 1.1, z: p.wz };
+  }
+  function dressTunnel(K, root, lamb) {
+    const p = spot(6.55, 0.2);
+    const cave = new K.Group();
+    cave.position.set(p.wx, p.y, p.wz);
+    cave.rotation.y = lay.yaw;
+    cave.name = "v51-cave";
+    const rock = lamb(0x7a736c);
+    const rockDark = lamb(0x5e5852);
+    for (let i = 0; i <= 9; i++) {
+      const t = i / 9;
+      const a = Math.PI * (1 - t);
+      const jitter = 0.85 + hsh(i * 4.2) * 0.35;
+      const stone = new K.Mesh(new K.Sphere(0.38 * jitter, 5, 4), i % 2 ? rock : rockDark);
+      stone.scale.set(1.2, 0.9, 0.85);
+      stone.position.set(Math.cos(a) * 1.72, 0.28 + Math.sin(a) * 1.62, 0.05);
+      stone.castShadow = true;
+      stone.name = "v51-arch";
+      cave.add(stone);
+    }
+    [-1.55, 1.55].forEach((x, n) => {
+      const jamb = new K.Mesh(new K.Box(0.55, 1.7, 0.7), n ? rockDark : rock);
+      jamb.position.set(x, 0.85, 0.05);
+      jamb.castShadow = true;
+      cave.add(jamb);
+    });
+    const roof = new K.Mesh(new K.Box(4.1, 0.55, 3.6), lamb(0x6e675f));
+    roof.position.set(0, 2.85, -1.15);
+    roof.castShadow = true;
+    cave.add(roof);
+    const back = new K.Mesh(new K.Box(3.3, 2.5, 0.35), lamb(0x3a342f));
+    back.position.set(0, 1.35, -2.5);
+    back.userData.nofade = 1;
+    cave.add(back);
+    const interior = new K.Mesh(new K.Box(3.05, 2.35, 2.4), new K.Lambert({ color: 0x14110e, side: 2 }));
+    interior.position.set(0, 1.2, -1.15);
+    interior.name = "v51-cave-dark";
+    interior.userData.nofade = 1;
+    cave.add(interior);
+    const floor = new K.Mesh(new K.Box(3.2, 0.08, 3.4), lamb(0x6a635c));
+    floor.position.set(0, 0.04, -1.1);
+    floor.userData.nofade = 1;
+    cave.add(floor);
+    [-1.35, 1.35].forEach((x) => {
+      const post = new K.Mesh(new K.Cyl(0.06, 0.07, 1.15, 6), lamb(0x4e342e));
+      post.position.set(x, 1.55, 0.35);
+      const lamp = new K.Mesh(new K.Sphere(0.16, 8, 6), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 1 }));
+      lamp.position.set(x, 2.15, 0.35);
+      cave.add(post); cave.add(lamp);
+    });
+    const sign = new K.Mesh(new K.Plane(2.4, 0.46), new K.Lambert({ map: labelTex(K, "History Time-Tunnel"), color: 0xffffff }));
+    sign.position.set(0, 3.45, 0.45);
+    cave.add(sign);
+    const walls = new K.Group();
+    walls.name = "v51-room";
+    [[-1.55, 1.15, -1.2, 0.28, 2.2, 2.2], [1.55, 1.15, -1.2, 0.28, 2.2, 2.2]].forEach((b) => {
+      const wall = new K.Mesh(new K.Box(b[3], b[4], b[5]), lamb(0x5c534c));
+      wall.position.set(b[0], b[1], b[2]);
+      wall.name = "v51-room";
+      wall.userData.nofade = 1;
+      walls.add(wall);
+    });
+    cave.add(walls);
+    root.add(cave);
+    const names = ERAS.length ? ERAS : ["A new world"];
+    names.forEach((era, i) => {
+      const side = i % 2 ? 1 : -1;
+      const row = Math.floor(i / 2);
+      const plaque = new K.Mesh(new K.Plane(1.15, 0.36), new K.Lambert({ map: plaqueTex(K, era), color: 0xffffff }));
+      plaque.position.set(side * 1.28, 1.55 - (row % 2) * 0.48, -0.55 - row * 0.42);
+      plaque.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+      plaque.name = "v51-plaque";
+      cave.add(plaque);
+    });
+    rooms = names.map((era) => ({ era: era, x: p.wx, z: p.wz, group: walls, blocks: [] }));
+  }
+  function dressRally(K, root, lamb) {
+    const p = spot(13.2, -14.2);
+    const postL = new K.Mesh(new K.Cyl(0.07, 0.08, 1.8, 6), lamb(0x6d4c41));
+    const postR = postL.clone();
+    postL.position.set(p.wx, p.y + 0.9, p.wz);
+    const w = worldFS(13.2, -13.3);
+    postR.position.set(host.x + w.x, p.y + 0.9, host.z + w.z);
+    const board = new K.Mesh(new K.Box(1.6, 0.9, 0.08), new K.Lambert({ map: routeTex(K), color: 0xffffff }));
+    board.position.set((postL.position.x + postR.position.x) / 2, p.y + 1.45, (postL.position.z + postR.position.z) / 2);
+    board.rotation.y = lay.yaw;
+    root.add(postL); root.add(postR); root.add(board);
+  }
+  function dressBench(K, root, lamb) {
+    const p = spot(12.2, 11.4);
+    const top = new K.Mesh(new K.Box(1.8, 0.1, 0.8), lamb(0xa86b32));
+    top.position.set(p.wx, p.y + 0.85, p.wz);
+    top.rotation.y = lay.yaw;
+    root.add(top);
+    [[-0.7, -0.28], [0.7, -0.28], [-0.7, 0.28], [0.7, 0.28]].forEach((leg) => {
+      const post = new K.Mesh(new K.Box(0.1, 0.8, 0.1), lamb(0x6d4c2f));
+      const w = worldFS(12.2 + leg[0] * 0.2, 11.4 + leg[1]);
+      post.position.set(host.x + w.x, p.y + 0.4, host.z + w.z);
+      root.add(post);
+    });
+  }
+  function dressStage(K, root, lamb) {
+    const p = spot(18.2, 7.4);
+    const deck = new K.Mesh(new K.Cyl(2.15, 2.15, 0.22, 16), lamb(0x6d4c41));
+    deck.position.set(p.wx, p.y + 0.12, p.wz);
+    deck.receiveShadow = true;
+    root.add(deck);
+    const podium = new K.Mesh(new K.Box(0.7, 0.95, 0.45), lamb(0x14336b));
+    podium.position.set(p.wx + lay.fx * 0.35, p.y + 0.7, p.wz + lay.fz * 0.35);
+    root.add(podium);
+    [-1.55, 1.55].forEach((side) => {
+      const at = spot(18.2, 7.4 + side);
+      const post = new K.Mesh(new K.Cyl(0.06, 0.06, 2.15, 6), lamb(0x455a64));
+      post.position.set(at.wx, at.y + 1.05, at.wz);
+      const bulb = new K.Mesh(new K.Sphere(0.14, 8, 6), new K.Lambert({ color: 0xfff3c4, emissive: 0xffe082, emissiveIntensity: 0.9 }));
+      bulb.position.set(at.wx, at.y + 2.15, at.wz);
+      root.add(post); root.add(bulb);
+    });
+    const wheel = new K.Mesh(new K.Cyl(1.05, 1.05, 0.14, 20), new K.Lambert({ color: 0xffc83d, emissive: 0xffb300, emissiveIntensity: 0.4 }));
+    wheel.position.set(p.wx - lay.fx * 0.7, p.y + 1.35, p.wz - lay.fz * 0.7);
+    wheel.rotation.y = lay.yaw;
+    wheel.rotation.x = Math.PI / 2;
+    wheel.name = "v51-wheel";
+    root.add(wheel);
+    monuments.wheel = wheel;
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      const bunt = new K.Mesh(new K.Cone(0.12, 0.28, 3), lamb(i % 2 ? 0xc0392b : 0x14336b));
+      bunt.position.set(p.wx + Math.cos(a) * 1.9, p.y + 0.42, p.wz + Math.sin(a) * 1.9);
+      root.add(bunt);
+    }
+  }
+  function dressRegionFlags(K, root, lamb) {
     REGIONS.forEach((region, i) => {
-      const a = -1.2 + i * 0.45;
-      const pole = new K.Mesh(new K.Cyl(0.06, 0.06, 2.2, 6), lamb(0xf4efe4));
-      add(pole, Math.cos(a) * 5, Math.sin(a) * 3, 1.1);
-      const cloth = new K.Mesh(new K.Plane(1.1, 0.7), lamb([0x1e88e5, 0x2e7d32, 0xffc83d, 0xc0392b, 0x6a1b9a][i]));
-      cloth.position.set(pole.position.x + 0.55, pole.position.y + 0.7, pole.position.z);
+      const at = spot(15.2, -4.2 - i * 0.7);
+      const pole = new K.Mesh(new K.Cyl(0.045, 0.05, 1.8, 6), lamb(0xf4efe4));
+      pole.position.set(at.wx, at.y + 0.9, at.wz);
+      const cloth = new K.Mesh(new K.Plane(0.85, 0.52), lamb([0x6a1b9a, 0xc0392b, 0xe6a817, 0x2e7d32, 0x1e88e5][i]));
+      cloth.position.set(at.wx + lay.rx * 0.45, at.y + 1.45, at.wz + lay.rz * 0.45);
+      cloth.rotation.y = lay.yaw;
       cloth.name = "v51-flag";
       const up = !!bag().flags[region];
       cloth.visible = up;
       pole.visible = up;
-      root.add(cloth);
-      flags[region] = { cloth, pole };
+      root.add(pole); root.add(cloth);
+      flags[region] = { cloth: cloth, pole: pole };
     });
-    dressMountain(K, root, add, lamb);
-    dressPaths(K, root, lamb);
-    dressDockSeam(K, root, lamb);
-    dressFoliage(K, root, add, lamb);
-    dressTunnel(K, root, add, lamb);
-    dressMonuments(K, root, add, lamb);
-    dressStage(K, root, add, lamb);
-  }
-  function dressMountain(K, root, add, lamb) {
-    const grass = lamb(0x3e9a45);
-    const sand = lamb(0xe6c98a);
-    for (let i = 0; i < 14; i++) {
-      const a = (i / 14) * Math.PI * 2;
-      const ring = new K.Mesh(new K.Cyl(3.2, 3.2, 0.16, 14), i % 2 ? grass : lamb(0x46a84c));
-      add(ring, Math.cos(a) * 20, Math.sin(a) * 20, 0.02);
-      const beach = new K.Mesh(new K.Cyl(2.8, 3.1, 0.12, 12), sand);
-      add(beach, Math.cos(a) * 26, Math.sin(a) * 26, -0.02);
-    }
-    const channel = lay.at(28, 12);
-    const water = new K.Mesh(new K.Box(16, 0.18, 5.2), lamb(0x1e88e5));
-    add(water, channel.x, channel.z, -0.15);
-    water.rotation.y = lay.yaw;
   }
   function hookShore() {
     if (!host) return;
     if (CA.walkCircles) {
-    for (let i = 0; i < 16; i++) {
-      const a = (i / 16) * Math.PI * 2;
-      CA.walkCircles.push({ x: host.x + Math.cos(a) * 22, z: host.z + Math.sin(a) * 22, r: 9 });
-      CA.walkCircles.push({ x: host.x + Math.cos(a) * 30, z: host.z + Math.sin(a) * 30, r: 7 });
+      for (let f = -8; f <= 30; f += 3.1) {
+        for (let s = -26; s <= 26; s += 3.1) {
+          if (Math.hypot(f, s) > 29.5) continue;
+          if (Math.hypot(f + 1.3, s) < 3.7) continue;
+          if (Math.abs(s - CHAN.s) < CHAN.half + 0.35 && f > CHAN.f0 - 0.4 && f < CHAN.f1) continue;
+          const w = worldFS(f, s);
+          const y = sampleGround(w.x, w.z);
+          if (y == null || y < 0.12 || y > 5.5) continue;
+          CA.walkCircles.push({ x: host.x + w.x, z: host.z + w.z, r: 2.45 });
+        }
+      }
+      for (let f = 24; f <= 37; f += 2.8) {
+        const w = worldFS(f, 0);
+        CA.walkCircles.push({ x: host.x + w.x, z: host.z + w.z, r: 2.15 });
+      }
     }
-    CA.walkCircles.push({ x: host.land.x, z: host.land.z, r: 8 });
-    }
-    if (CA.obstacles) CA.obstacles.push({ x: host.x, z: host.z, r: 8.5 });
+    if (CA.obstacles) CA.obstacles.push({ x: host.x, z: host.z, r: 3.3 });
     window.__libertyGround = (x, z) => {
       if (!host) return null;
-      const d = Math.hypot(x - host.x, z - host.z);
-      if (d > 38) return null;
-      return 0.55;
+      const y = sampleGround(x - host.x, z - host.z);
+      if (y == null || y < -0.12) return null;
+      return y;
     };
     const proxy = { id: "liberty-mount" };
     const origCan = CA.isl.canLand.bind(CA.isl);
@@ -796,7 +1418,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     CA.isl.land = (j) => {
       if (j && j.id === "liberty-mount") {
         if (CA.exitVehicle && CA.mode !== "walk") CA.exitVehicle();
-        CA.captain.position.set(host.land.x, 0.6, host.land.z);
+        const gy = window.__libertyGround(host.land.x, host.land.z);
+        CA.captain.position.set(host.land.x, gy == null ? 0.6 : gy, host.land.z);
         CA.captain.rotation.y = Math.atan2(host.x - host.land.x, host.z - host.land.z);
         if (CA.snapCamera) CA.snapCamera();
         return;
@@ -807,140 +1430,174 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const goal = origGoal(pos);
       if (!pos) return goal;
       const d = Math.hypot(pos.x - host.dock.x, pos.z - host.dock.z);
-      if (!goal || d < goal.d) return { d, brg: Math.atan2(host.dock.x - pos.x, host.dock.z - pos.z), text: "\u{1F9ED} Next island: \u{1F5FD} <b>Liberty Isle</b> \u00B7 " + Math.round(d) + " m" };
+      if (!goal || d < goal.d) return { d: d, brg: Math.atan2(host.dock.x - pos.x, host.dock.z - pos.z), text: "\u{1F9ED} Next island: \u{1F5FD} <b>Liberty Isle</b> \u00B7 " + Math.round(d) + " m" };
       return goal;
     };
   }
-  function dressPaths(K, root, lamb) {
-    const dirt = lamb(0xc4a574);
-    const stops = stations.map((st) => ({ x: st.x, z: st.z }));
-    stops.push(lay.at(28, 0), lay.at(22, 0));
-    for (let i = 0; i < stops.length - 1; i++) {
-      const a = worldPos(stops[i].x, stops[i].z);
-      const b = worldPos(stops[i + 1].x, stops[i + 1].z);
-      const len = Math.hypot(b.x - a.x, b.z - a.z);
-      if (len < 0.4) continue;
-      const mesh = new K.Mesh(new K.Box(1.15, 0.05, len), dirt);
-      mesh.position.set((a.x + b.x) / 2, (a.y + b.y) / 2 + 0.05, (a.z + b.z) / 2);
-      mesh.rotation.y = Math.atan2(b.x - a.x, b.z - a.z);
-      root.add(mesh);
-    }
-    const zig = [lay.at(20, 4), lay.at(16, 2), lay.at(12, 0)];
-    zig.forEach((spot, i) => {
-      if (!i) return;
-      const a = worldPos(zig[i - 1].x, zig[i - 1].z);
-      const b = worldPos(spot.x, spot.z);
-      const len = Math.hypot(b.x - a.x, b.z - a.z);
-      const mesh = new K.Mesh(new K.Box(0.9, 0.05, len), lamb(0xb08968));
-      mesh.position.set((a.x + b.x) / 2, (a.y + b.y) / 2 + 0.4 + i * 0.7, (a.z + b.z) / 2);
-      mesh.rotation.y = Math.atan2(b.x - a.x, b.z - a.z);
-      root.add(mesh);
-    });
-  }
-  function dressDockSeam(K, root, lamb) {
-    const spot = isle.landSpot;
-    if (!spot) return;
-    const y = isle.ground(spot.x, spot.z);
-    const apron = new K.Mesh(new K.Cyl(2.4, 2.6, 0.1, 12), lamb(0xe6c98a));
-    apron.position.set(spot.x, Math.max(0.02, y) + 0.02, spot.z);
-    root.add(apron);
-    const plank = new K.Mesh(new K.Box(2.5, 0.08, 1.8), lamb(0x8a5d33));
-    plank.position.set(spot.x, apron.position.y + 0.08, spot.z);
-    plank.rotation.y = isle.yaw || lay.yaw;
-    root.add(plank);
-  }
 
-  const US_OUTLINE = [[78, 86], [96, 58], [150, 46], [230, 40], [310, 44], [370, 52], [400, 78], [424, 58], [458, 50], [500, 62], [545, 48], [582, 72], [560, 102], [538, 124], [552, 156], [528, 188], [508, 220], [492, 252], [508, 286], [520, 328], [496, 348], [470, 300], [448, 268], [410, 262], [370, 278], [330, 292], [292, 332], [248, 318], [206, 276], [168, 258], [128, 248], [96, 220], [72, 176], [64, 128], [72, 96]];
-  const STATE_DOT = {
-    Washington: [92, 78], Oregon: [84, 128], California: [78, 190], Nevada: [118, 168], Idaho: [130, 100],
-    Montana: [180, 72], Wyoming: [176, 120], Utah: [150, 168], Colorado: [196, 168], Arizona: [140, 214],
-    "New Mexico": [190, 214], Texas: [250, 270], Oklahoma: [240, 214], Kansas: [230, 176], Nebraska: [230, 142],
-    "South Dakota": [230, 108], "North Dakota": [230, 72], Minnesota: [300, 78], Iowa: [300, 140], Missouri: [300, 186],
-    Arkansas: [300, 224], Louisiana: [310, 268], Wisconsin: [330, 100], Illinois: [340, 156], Mississippi: [350, 240],
-    Michigan: [380, 110], Indiana: [380, 156], Kentucky: [390, 190], Tennessee: [380, 214], Alabama: [390, 246],
-    Ohio: [420, 156], "West Virginia": [450, 176], Georgia: [430, 246], Florida: [490, 310], "South Carolina": [460, 230],
-    "North Carolina": [480, 200], Virginia: [490, 176], Maryland: [500, 160], Delaware: [518, 152], Pennsylvania: [480, 140],
-    "New Jersey": [524, 136], "New York": [500, 110], Connecticut: [530, 118], "Rhode Island": [542, 116], Massachusetts: [548, 104],
-    Vermont: [524, 88], "New Hampshire": [546, 84], Maine: [568, 64], Alaska: [78, 332], Hawaii: [150, 348]
+  const US_LL = [
+    [-124.8, 48.4], [-124.5, 47.1], [-124.4, 46.2], [-124.1, 44.6], [-124.2, 43.3],
+    [-124.4, 42.0], [-124.2, 40.4], [-123.7, 39.0], [-122.8, 37.8], [-122.4, 36.6],
+    [-121.8, 36.0], [-120.6, 34.4], [-118.8, 34.0], [-117.2, 32.6], [-114.6, 32.5],
+    [-111.1, 31.3], [-108.2, 31.3], [-106.5, 31.8], [-103.0, 29.0], [-100.8, 29.6],
+    [-99.0, 27.5], [-97.4, 25.9], [-97.1, 27.8], [-95.0, 28.9], [-93.8, 29.7],
+    [-90.6, 29.2], [-89.4, 29.0], [-89.1, 30.3], [-87.5, 30.3], [-84.9, 29.7],
+    [-83.6, 30.0], [-82.7, 27.8], [-82.4, 26.4], [-81.8, 25.2], [-80.4, 25.2],
+    [-80.0, 26.9], [-80.1, 28.8], [-80.6, 30.7], [-81.4, 30.7], [-81.2, 31.9],
+    [-80.8, 32.1], [-79.2, 32.8], [-78.4, 33.8], [-77.3, 34.5], [-75.6, 35.2],
+    [-75.5, 36.2], [-76.0, 37.0], [-76.0, 37.8], [-75.3, 38.4], [-74.8, 39.0],
+    [-74.1, 40.2], [-73.9, 40.8], [-72.0, 41.2], [-70.7, 41.5], [-70.0, 42.1],
+    [-70.6, 42.9], [-70.1, 43.2], [-69.2, 43.8], [-67.8, 44.6], [-67.0, 44.8],
+    [-67.1, 45.6], [-67.9, 47.1], [-69.2, 47.3], [-70.8, 45.3], [-71.5, 45.0],
+    [-73.3, 45.0], [-74.9, 45.0], [-76.1, 44.1], [-76.6, 43.5], [-79.0, 43.2],
+    [-79.2, 42.6], [-81.2, 42.0], [-82.6, 41.7], [-83.0, 42.3], [-82.6, 43.2],
+    [-83.3, 44.0], [-83.8, 45.2], [-84.6, 46.0], [-85.4, 46.6], [-87.2, 46.6],
+    [-89.4, 46.8], [-92.1, 46.7], [-92.6, 48.3], [-95.2, 49.0], [-104.0, 49.0],
+    [-116.0, 49.0], [-123.0, 49.0], [-124.8, 48.4]
+  ];
+  const LAKE_MI = [
+    [-86.2, 45.85], [-86.8, 45.1], [-87.2, 44.1], [-87.7, 43.1], [-87.6, 42.4],
+    [-87.0, 41.75], [-86.5, 42.05], [-86.1, 43.1], [-85.7, 44.3], [-85.5, 45.3], [-85.9, 45.85]
+  ];
+  const STATE_GEO = {
+    Washington: [-120.4, 47.4, "West"], Oregon: [-120.5, 44.0, "West"], California: [-119.4, 37.2, "West"],
+    Nevada: [-116.6, 39.3, "West"], Idaho: [-114.5, 44.4, "West"], Montana: [-109.6, 47.0, "West"],
+    Wyoming: [-107.5, 43.0, "West"], Utah: [-111.6, 39.3, "West"], Colorado: [-105.5, 39.0, "West"],
+    Arizona: [-111.6, 34.3, "Southwest"], "New Mexico": [-106.0, 34.4, "Southwest"], Texas: [-99.2, 31.4, "Southwest"],
+    Oklahoma: [-97.5, 35.5, "Southwest"], Kansas: [-98.3, 38.5, "Midwest"], Nebraska: [-99.8, 41.5, "Midwest"],
+    "South Dakota": [-100.2, 44.4, "Midwest"], "North Dakota": [-100.4, 47.4, "Midwest"], Minnesota: [-94.3, 46.3, "Midwest"],
+    Iowa: [-93.5, 42.0, "Midwest"], Missouri: [-92.5, 38.4, "Midwest"], Arkansas: [-92.4, 34.9, "Southeast"],
+    Louisiana: [-91.8, 31.0, "Southeast"], Wisconsin: [-89.8, 44.6, "Midwest"], Illinois: [-89.2, 40.0, "Midwest"],
+    Mississippi: [-89.7, 32.7, "Southeast"], Michigan: [-84.6, 44.3, "Midwest"], Indiana: [-86.3, 39.9, "Midwest"],
+    Kentucky: [-85.2, 37.5, "Southeast"], Tennessee: [-86.3, 35.8, "Southeast"], Alabama: [-86.8, 32.8, "Southeast"],
+    Ohio: [-82.8, 40.3, "Midwest"], "West Virginia": [-80.6, 38.6, "Southeast"], Georgia: [-83.4, 32.6, "Southeast"],
+    Florida: [-81.6, 28.1, "Southeast"], "South Carolina": [-80.9, 33.9, "Southeast"], "North Carolina": [-79.4, 35.5, "Southeast"],
+    Virginia: [-78.6, 37.5, "Southeast"], Maryland: [-76.7, 39.0, "Southeast"], Delaware: [-75.5, 39.0, "Southeast"],
+    Pennsylvania: [-77.6, 40.9, "Northeast"], "New Jersey": [-74.6, 40.2, "Northeast"], "New York": [-75.6, 43.0, "Northeast"],
+    Connecticut: [-72.7, 41.6, "Northeast"], "Rhode Island": [-71.5, 41.7, "Northeast"], Massachusetts: [-71.8, 42.3, "Northeast"],
+    Vermont: [-72.7, 44.1, "Northeast"], "New Hampshire": [-71.6, 43.7, "Northeast"], Maine: [-69.2, 45.4, "Northeast"]
+  };
+  const REGION_RGB = {
+    West: [122, 52, 168], Southwest: [198, 62, 48], Midwest: [214, 148, 32], Southeast: [46, 125, 52], Northeast: [30, 120, 200]
   };
   let mapArt = null;
-  function tracePath(g, pts) {
-    g.beginPath();
-    pts.forEach((p, i) => { if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); });
+  function traceLL(g, pts, proj) {
+    pts.forEach((p, i) => {
+      const xy = proj(p[0], p[1]);
+      if (i) g.lineTo(xy[0], xy[1]);
+      else g.moveTo(xy[0], xy[1]);
+    });
     g.closePath();
   }
   function paintMap(K) {
     const c = mapArt ? mapArt.canvas : document.createElement("canvas");
-    c.width = 640; c.height = 400;
+    c.width = 768; c.height = 560;
     const g = c.getContext("2d");
+    const LON0 = -125.5, LON1 = -66.3, LAT0 = 24.3, LAT1 = 49.6;
+    const proj = (lon, lat) => [(lon - LON0) / (LON1 - LON0) * 700 + 34, (LAT1 - lat) / (LAT1 - LAT0) * 400 + 24];
+    const unproj = (x, y) => [LON0 + (x - 34) / 700 * (LON1 - LON0), LAT1 - (y - 24) / 400 * (LAT1 - LAT0)];
     g.fillStyle = "#8ec6ea";
-    g.fillRect(0, 0, 640, 400);
-    tracePath(g, US_OUTLINE);
-    g.save();
-    g.clip();
-    g.fillStyle = "#d7c4a2";
-    g.fillRect(0, 0, 640, 400);
-    const regions = [
-      ["#6a1b9a", [[60, 40], [160, 40], [160, 250], [60, 250]], "West", 110, 150],
-      ["#c0392b", [[150, 190], [310, 190], [310, 360], [150, 250]], "Southwest", 220, 250],
-      ["#e6a817", [[160, 40], [400, 40], [400, 200], [160, 190]], "Midwest", 280, 110],
-      ["#2e7d32", [[300, 180], [500, 180], [530, 360], [300, 280]], "Southeast", 410, 240],
-      ["#1e88e5", [[400, 40], [600, 40], [600, 190], [400, 190]], "Northeast", 500, 100]
-    ];
-    regions.forEach(([color, pts]) => {
-      g.fillStyle = color;
-      g.globalAlpha = 0.88;
-      tracePath(g, pts);
-      g.fill();
-    });
-    g.globalAlpha = 1;
-    g.restore();
-    tracePath(g, US_OUTLINE);
+    g.fillRect(0, 0, 768, 560);
+    g.strokeStyle = "rgba(255,255,255,.28)";
+    g.lineWidth = 2;
+    for (let y = 40; y < 430; y += 18) { g.beginPath(); g.moveTo(20, y); g.lineTo(748, y + 6); g.stroke(); }
+    g.beginPath();
+    traceLL(g, US_LL, proj, false);
+    traceLL(g, LAKE_MI, proj, true);
+    g.fillStyle = "#f4efe4";
+    g.fill("evenodd");
+    const img = g.getImageData(0, 0, 768, 560);
+    const data = img.data;
+    const names = Object.keys(STATE_GEO);
+    for (let y = 0; y < 560; y++) {
+      for (let x = 0; x < 768; x++) {
+        const i = (y * 768 + x) * 4;
+        if (data[i] < 230 || data[i + 1] < 220) continue;
+        const ll = unproj(x, y);
+        let best = 1e9;
+        let region = "Midwest";
+        for (let n = 0; n < names.length; n++) {
+          const row = STATE_GEO[names[n]];
+          const dx = ll[0] - row[0];
+          const dy = (ll[1] - row[1]) * 1.15;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < best) { best = d2; region = row[2]; }
+        }
+        const rgb = REGION_RGB[region];
+        data[i] = rgb[0]; data[i + 1] = rgb[1]; data[i + 2] = rgb[2];
+      }
+    }
+    g.putImageData(img, 0, 0);
+    g.beginPath();
+    traceLL(g, US_LL, proj);
     g.lineWidth = 7;
     g.strokeStyle = "#10234d";
-    g.stroke();
     g.lineJoin = "round";
+    g.stroke();
+    g.beginPath();
+    traceLL(g, LAKE_MI, proj);
+    g.fillStyle = "#8ec6ea";
+    g.fill();
+    g.lineWidth = 3;
+    g.stroke();
     const placed = bag().placed || [];
-    Object.keys(STATE_DOT).forEach((name) => {
-      if (name === "Alaska" || name === "Hawaii") return;
-      const [x, y] = STATE_DOT[name];
-      const on = placed.indexOf(name) >= 0;
+    g.beginPath();
+    traceLL(g, US_LL, proj);
+    traceLL(g, LAKE_MI, proj);
+    const dots = [];
+    names.forEach((name) => {
+      const row = STATE_GEO[name];
+      const xy = proj(row[0], row[1]);
+      if (g.isPointInPath(xy[0], xy[1], "evenodd")) dots.push({ x: xy[0], y: xy[1], on: placed.indexOf(name) >= 0 });
+    });
+    dots.forEach((dot) => {
       g.beginPath();
-      g.arc(x, y, on ? 7 : 3.2, 0, Math.PI * 2);
-      g.fillStyle = on ? "#ffe082" : "rgba(255,255,255,.85)";
+      g.arc(dot.x, dot.y, dot.on ? 6 : 2.6, 0, Math.PI * 2);
+      g.fillStyle = dot.on ? "#ffe082" : "rgba(255,255,255,.92)";
       g.fill();
-      g.lineWidth = on ? 2 : 1;
+      g.lineWidth = 1;
       g.strokeStyle = "#10234d";
       g.stroke();
     });
-    g.font = "bold 15px sans-serif";
+    g.font = "bold 20px sans-serif";
     g.textAlign = "center";
-    g.fillStyle = "#fff";
+    g.lineWidth = 4;
     g.strokeStyle = "#10234d";
-    g.lineWidth = 3;
-    regions.forEach((row) => { g.strokeText(row[2], row[3], row[4]); g.fillText(row[2], row[3], row[4]); });
+    g.fillStyle = "#fff";
+    [[-116, 42, "West"], [-100, 32.5, "Southwest"], [-93, 43, "Midwest"], [-84, 33, "Southeast"], [-74, 43.2, "Northeast"]].forEach((lab) => {
+      const xy = proj(lab[0], lab[1]);
+      g.strokeText(lab[2], xy[0], xy[1]);
+      g.fillText(lab[2], xy[0], xy[1]);
+    });
     function inset(pts, label, lx, ly) {
-      tracePath(g, pts);
-      g.fillStyle = "#6a1b9a";
+      g.beginPath();
+      pts.forEach((p, i) => { if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); });
+      g.closePath();
+      g.fillStyle = "rgb(122,52,168)";
       g.fill();
       g.lineWidth = 4;
       g.strokeStyle = "#10234d";
       g.stroke();
       const on = placed.indexOf(label) >= 0;
       g.fillStyle = on ? "#ffe082" : "#fff";
-      g.font = "bold 16px sans-serif";
+      g.font = "bold 20px sans-serif";
       g.strokeText(label, lx, ly);
       g.fillText(label, lx, ly);
     }
-    inset([[40, 310], [70, 292], [112, 308], [96, 352], [52, 360]], "Alaska", 74, 332);
-    inset([[128, 328], [150, 318], [176, 334], [164, 356], [132, 354]], "Hawaii", 150, 346);
+    inset([[48, 450], [78, 428], [120, 420], [150, 438], [168, 462], [140, 478], [148, 508], [124, 498], [108, 480], [86, 492], [64, 478], [40, 484], [36, 462]], "Alaska", 100, 530);
+    g.beginPath(); g.ellipse(58, 498, 16, 5, -0.4, 0, Math.PI * 2); g.fillStyle = "rgb(122,52,168)"; g.fill(); g.stroke();
+    inset([[210, 448], [228, 440], [236, 456], [222, 464]], "Hawaii", 268, 492);
+    [[248, 456], [262, 448], [274, 460], [258, 470]].forEach((p, i) => {
+      g.beginPath(); g.ellipse(p[0], p[1], 8 - i, 4, 0.4, 0, Math.PI * 2);
+      g.fillStyle = "rgb(122,52,168)"; g.fill(); g.stroke();
+    });
     g.fillStyle = "#10234d";
-    g.font = "bold 22px sans-serif";
-    g.fillText("United States", 320, 26);
+    g.font = "bold 26px sans-serif";
+    g.fillText("United States", 384, 22);
     if (!mapArt) {
       const tex = new K.CanvasTex(c);
       tex.needsUpdate = true;
-      mapArt = { canvas: c, tex };
+      mapArt = { canvas: c, tex: tex };
     } else mapArt.tex.needsUpdate = true;
     return mapArt.tex;
   }
@@ -956,10 +1613,56 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     g.lineWidth = 10;
     g.strokeRect(8, 8, 496, 112);
     g.fillStyle = "#fff";
-    g.font = "bold 42px sans-serif";
     g.textAlign = "center";
     g.textBaseline = "middle";
+    let size = 40;
+    g.font = "bold " + size + "px sans-serif";
+    while (g.measureText(text).width > 470 && size > 18) { size -= 2; g.font = "bold " + size + "px sans-serif"; }
     g.fillText(text, 256, 64);
+    const tex = new K.CanvasTex(c);
+    tex.needsUpdate = true;
+    return tex;
+  }
+  function plaqueTex(K, text) {
+    const c = document.createElement("canvas");
+    c.width = 512; c.height = 160;
+    const g = c.getContext("2d");
+    g.fillStyle = "#14336b";
+    g.fillRect(0, 0, 512, 160);
+    g.strokeStyle = "#ffc83d";
+    g.lineWidth = 12;
+    g.strokeRect(8, 8, 496, 144);
+    g.fillStyle = "#fff";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    let size = 34;
+    g.font = "bold " + size + "px sans-serif";
+    while (g.measureText(text).width > 460 && size > 16) { size -= 2; g.font = "bold " + size + "px sans-serif"; }
+    g.fillText(text, 256, 80);
+    const tex = new K.CanvasTex(c);
+    tex.needsUpdate = true;
+    return tex;
+  }
+  function routeTex(K) {
+    const c = document.createElement("canvas");
+    c.width = 256; c.height = 160;
+    const g = c.getContext("2d");
+    g.fillStyle = "#14336b";
+    g.fillRect(0, 0, 256, 160);
+    g.strokeStyle = "#ffc83d";
+    g.lineWidth = 8;
+    g.strokeRect(6, 6, 244, 148);
+    g.fillStyle = "#fff";
+    g.font = "bold 28px sans-serif";
+    g.textAlign = "center";
+    g.fillText("Road Trip", 128, 40);
+    g.strokeStyle = "#ffc83d";
+    g.lineWidth = 6;
+    g.beginPath();
+    g.moveTo(36, 110); g.lineTo(90, 78); g.lineTo(140, 100); g.lineTo(210, 64);
+    g.stroke();
+    g.fillStyle = "#e53935";
+    [[36, 110], [90, 78], [140, 100], [210, 64]].forEach((p) => { g.beginPath(); g.arc(p[0], p[1], 6, 0, Math.PI * 2); g.fill(); });
     const tex = new K.CanvasTex(c);
     tex.needsUpdate = true;
     return tex;
@@ -977,10 +1680,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     g.fillStyle = "#ffffff";
     for (let row = 0; row < 5; row++) {
       for (let col = 0; col < 6; col++) {
-        const x = 10 + col * 16 + (row % 2 ? 8 : 0);
-        const y = 8 + row * 14;
         g.beginPath();
-        g.arc(x, y, 2.2, 0, Math.PI * 2);
+        g.arc(10 + col * 16 + (row % 2 ? 8 : 0), 8 + row * 14, 2.2, 0, Math.PI * 2);
         g.fill();
       }
     }
@@ -988,126 +1689,34 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     tex.needsUpdate = true;
     return tex;
   }
-  function dressDockFlag(K, root, add, lamb) {
-    const spot = lay.at(30, 9);
-    const pole = new K.Mesh(new K.Cyl(0.08, 0.1, 4.6, 8), lamb(0xf7f4ee));
-    add(pole, spot.x, spot.z, 2.3);
-    const ball = new K.Mesh(new K.Sphere(0.16, 8, 6), lamb(0xffc83d));
-    ball.position.set(pole.position.x, pole.position.y + 2.4, pole.position.z);
-    root.add(ball);
-    const flagMat = new K.Lambert({ map: usFlagTex(K), color: 0xffffff, side: 2 });
-    const cloth = new K.Mesh(new K.Plane(2.4, 1.35), flagMat);
-    cloth.rotation.y = Math.atan2(lay.rx, lay.rz);
-    cloth.position.set(pole.position.x + lay.rx * 1.25, pole.position.y + 1.5, pole.position.z + lay.rz * 1.25);
-    cloth.name = "v51-us-flag";
-    root.add(cloth);
-    const board = new K.Mesh(new K.Box(1.6, 0.7, 0.08), lamb(0x8d5a2b));
-    const post = new K.Mesh(new K.Cyl(0.06, 0.06, 1.4, 5), lamb(0x6d4c41));
-    const signAt = lay.at(27, 9);
-    add(post, signAt.x, signAt.z, 0.7);
-    board.position.set(post.position.x, post.position.y + 0.85, post.position.z);
-    board.rotation.y = lay.yaw;
-    root.add(board);
-    const plate = new K.Mesh(new K.Plane(1.4, 0.5), new K.Lambert({ map: labelTex(K, "Liberty Isle"), color: 0xffffff }));
-    plate.position.set(board.position.x + lay.fx * 0.06, board.position.y, board.position.z + lay.fz * 0.06);
-    plate.rotation.y = lay.yaw;
-    root.add(plate);
-  }
-  function dressFoliage(K, root, add, lamb) {
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      const rad = 26;
-      const trunk = new K.Mesh(new K.Cyl(0.18, 0.24, 1.6, 6), lamb(0x8d5a2b));
-      add(trunk, Math.cos(a) * rad, Math.sin(a) * rad, 0.8);
-      const crown = new K.Mesh(new K.Cone(0.7, 1.3, 7), lamb(i % 2 ? 0x2e7d32 : 0x388e3c));
-      crown.position.set(trunk.position.x, trunk.position.y + 1.2, trunk.position.z);
-      root.add(crown);
-      const rock = new K.Mesh(new K.Sphere(0.35, 7, 5), lamb(0x9aa098));
-      rock.scale.set(1.2, 0.55, 0.9);
-      add(rock, Math.cos(a + 0.3) * 10, Math.sin(a + 0.3) * 10, 0.2);
-      const shade = new K.Mesh(new K.Circle(0.7, 10), new K.Basic({ color: 0x14301c, transparent: true, opacity: 0.3, depthWrite: false }));
-      shade.rotation.x = -Math.PI / 2;
-      add(shade, Math.cos(a) * rad, Math.sin(a) * rad, 0.04);
+  function lathe(K, profile, seg, mat) {
+    const geo = new K.Geo();
+    const pos = [];
+    const idx = [];
+    for (let i = 0; i < profile.length; i++) {
+      for (let k = 0; k < seg; k++) {
+        const a = (k / seg) * Math.PI * 2;
+        const fold = 1 + Math.cos(a * 3) * 0.045;
+        const r = profile[i][0] * fold;
+        pos.push(Math.cos(a) * r, profile[i][1], Math.sin(a) * r);
+      }
     }
-  }
-  function dressTunnel(K, root, add, lamb) {
-    const mouth = lay.at(12, 0);
-    const p = worldPos(mouth.x, mouth.z);
-    const rock = lamb(0x6d6058);
-    const dark = new K.Lambert({ color: 0x14110e });
-    const cave = new K.Group();
-    cave.position.set(p.x, p.y, p.z);
-    cave.rotation.y = lay.yaw;
-    cave.name = "v51-cave";
-    const interior = new K.Mesh(new K.Box(2.4, 2.2, 1.4), dark);
-    interior.position.set(0, 1.15, -0.7);
-    interior.name = "v51-cave-dark";
-    interior.material.transparent = true;
-    cave.add(interior);
-    const floor = new K.Mesh(new K.Box(3.4, 0.12, 5), lamb(0x4e463f));
-    floor.position.set(0, 0.06, -1.2);
-    cave.add(floor);
-    for (let i = 0; i <= 8; i++) {
-      const t = i / 8;
-      const a = Math.PI * (1 - t);
-      const stone = new K.Mesh(new K.Sphere(0.42, 8, 6), rock);
-      stone.scale.set(1.15, 0.85, 0.9);
-      stone.position.set(Math.cos(a) * 1.7, 0.45 + Math.sin(a) * 1.55, 0.15);
-      cave.add(stone);
+    for (let i = 0; i < profile.length - 1; i++) {
+      for (let k = 0; k < seg; k++) {
+        const a = i * seg + k;
+        const b = i * seg + (k + 1) % seg;
+        const c = a + seg;
+        const d = b + seg;
+        idx.push(a, b, c, b, d, c);
+      }
     }
-    [-1.15, 1.15].forEach((x) => {
-      const lamp = new K.Mesh(new K.Sphere(0.16, 8, 6), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 0.95 }));
-      lamp.position.set(x, 2.15, 0.35);
-      cave.add(lamp);
-    });
-    const sign = new K.Mesh(new K.Plane(2.2, 0.42), new K.Lambert({ map: labelTex(K, "History Time-Tunnel"), color: 0xffffff }));
-    sign.position.set(0, 2.7, 0.4);
-    cave.add(sign);
-    root.add(cave);
-    const path = lay.at(18, 0);
-    const from = worldPos(mouth.x, mouth.z);
-    const to = worldPos(path.x, path.z);
-    const len = Math.hypot(to.x - from.x, to.z - from.z);
-    const dirt = new K.Mesh(new K.Box(1.4, 0.06, len), lamb(0xc4a574));
-    dirt.position.set((from.x + to.x) / 2, from.y + 0.08, (from.z + to.z) / 2);
-    dirt.rotation.y = Math.atan2(to.x - from.x, to.z - from.z);
-    root.add(dirt);
-    rooms = ERAS.map((era, i) => {
-      const group = new K.Group();
-      group.position.set(0, 0, -0.8 - i * 0.35);
-      group.name = "v51-room";
-      const alcove = new K.Mesh(new K.Box(2.4, 1.8, 0.2), lamb(0x5c534c));
-      alcove.position.y = 1.1;
-      alcove.material.transparent = true;
-      alcove.material.opacity = 0.2;
-      group.add(alcove);
-      cave.add(group);
-      return { era, x: p.x, z: p.z, walls: [alcove], blocks: [], group };
-    });
+    geo.setAttribute("position", new K.Attr(new Float32Array(pos), 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    const mesh = new K.Mesh(geo, mat);
+    return mesh;
   }
-  function dressStage(K, root, add, lamb) {
-    const spot = lay.at(26, -8);
-    const deck = new K.Mesh(new K.Cyl(2.2, 2.2, 0.28, 16), lamb(0x5d4037));
-    add(deck, spot.x, spot.z, 0.14);
-    const podium = new K.Mesh(new K.Box(0.7, 0.9, 0.45), lamb(0x14336b));
-    podium.position.set(deck.position.x + lay.fx * 0.4, deck.position.y + 0.6, deck.position.z + lay.fz * 0.4);
-    root.add(podium);
-    [-1.6, 1.6].forEach((side) => {
-      const post = new K.Mesh(new K.Cyl(0.06, 0.06, 2.2, 6), lamb(0x455a64));
-      const at = lay.at(26, -8 + side);
-      add(post, at.x, at.z, 1.1);
-      const bulb = new K.Mesh(new K.Sphere(0.16, 8, 6), new K.Lambert({ color: 0xfff3c4, emissive: 0xffe082, emissiveIntensity: 0.9 }));
-      bulb.position.set(post.position.x, post.position.y + 1.2, post.position.z);
-      root.add(bulb);
-    });
-    const wheel = new K.Mesh(new K.Cyl(1.15, 1.15, 0.16, 16), new K.Lambert({ color: 0xffc83d, emissive: 0xffb300, emissiveIntensity: 0.45 }));
-    wheel.position.set(deck.position.x - lay.fx * 0.8, deck.position.y + 1.3, deck.position.z - lay.fz * 0.8);
-    wheel.rotation.x = Math.PI / 2;
-    wheel.name = "v51-wheel";
-    root.add(wheel);
-    monuments.wheel = wheel;
-  }
-  function dressMonuments(K, root, add, lamb) {
+  function dressMonuments(K, root, lamb) {
     const makers = {
       bell: () => bellMesh(K, lamb),
       alamo: () => alamoMesh(K, lamb),
@@ -1118,27 +1727,32 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       gate: () => bridgeMesh(K, lamb)
     };
     const spots = {
-      liberty: Object.assign(lay.at(32, -6), { y: 0 }),
-      gate: Object.assign(lay.at(28, 12), { y: 0 }),
-      arch: Object.assign(lay.at(20, -16), { y: 0 }),
-      bell: Object.assign(lay.at(16, 18), { y: 0 }),
-      alamo: Object.assign(lay.at(24, 6), { y: 0 }),
-      rushmore: Object.assign(lay.at(6, -6), { y: 2.2 })
+      liberty: [19.4, -6.2, 0],
+      gate: [23.2, CHAN.s, 0],
+      arch: [15.6, -13.6, 0],
+      bell: [10.4, 8.6, 0],
+      alamo: [15.2, 10.2, 0],
+      rushmore: [4.6, -2.4, -1.2]
     };
     BANK.landmarks.forEach((lm) => {
       const mesh = makers[lm.id]();
-      const spot = spots[lm.id] || lay.at(0, 0);
-      add(mesh, spot.x, spot.z, spot.y || 0);
-      if (lm.id === "gate") mesh.rotation.y = lay.yaw + Math.PI / 2;
-      if (lm.id === "arch") mesh.rotation.y = lay.yaw;
-      mesh.scale.setScalar(1);
+      const at = spots[lm.id] || [0, 0, 0];
+      if (lm.id === "gate") {
+        const w = worldFS(at[0], at[1]);
+        mesh.position.set(host.x + w.x, 0, host.z + w.z);
+        root.add(mesh);
+      } else place(root, mesh, at[0], at[1], at[2] || 0);
+      if (lm.id === "liberty" || lm.id === "alamo" || lm.id === "bell" || lm.id === "rushmore") mesh.rotation.y = lay.yaw;
+      if (lm.id === "arch") mesh.rotation.y = lay.yaw + 0.55;
+      if (lm.id === "gate") mesh.rotation.y = Math.atan2(-lay.rz, lay.rx);
       mesh.name = "v51-monument";
       mesh.visible = !!bag().landmarks[lm.id];
       monuments[lm.id] = mesh;
-      const shade = new K.Mesh(new K.Circle(1.1, 12), new K.Basic({ color: 0x14301c, transparent: true, opacity: 0.28, depthWrite: false }));
+      const shade = new K.Mesh(new K.Circle(1.3, 12), new K.Basic({ color: 0x14301c, transparent: true, opacity: 0.22, depthWrite: false }));
       shade.rotation.x = -Math.PI / 2;
       shade.position.set(mesh.position.x, mesh.position.y + 0.03, mesh.position.z);
       shade.visible = mesh.visible;
+      shade.userData.nofade = 1;
       root.add(shade);
       mesh.userData.shade = shade;
     });
@@ -1147,179 +1761,396 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const g = new K.Group();
     const wood = lamb(0x6d4c41);
     const brass = lamb(0xd4a017);
-    [-0.9, 0.9].forEach((x) => {
-      const post = new K.Mesh(new K.Cyl(0.1, 0.12, 3.2, 6), wood);
-      post.position.set(x, 1.6, 0);
+    [-0.85, 0.85].forEach((x) => {
+      const post = new K.Mesh(new K.Cyl(0.09, 0.11, 2.6, 6), wood);
+      post.position.set(x, 1.3, 0);
       g.add(post);
     });
-    const beam = new K.Mesh(new K.Box(2.2, 0.16, 0.18), wood);
-    beam.position.y = 3.15;
-    g.add(beam);
-    const body = new K.Mesh(new K.Sphere(0.7, 14, 12), brass);
-    body.scale.set(1, 1.2, 1);
-    body.position.y = 1.9;
-    const yoke = new K.Mesh(new K.Torus(0.55, 0.08, 8, 16), lamb(0x8d6a12));
-    yoke.rotation.x = Math.PI / 2;
-    yoke.position.y = 2.7;
-    const crack = new K.Mesh(new K.Box(0.06, 0.7, 0.04), lamb(0x4e342e));
-    crack.position.set(0.22, 1.45, 0.62);
-    g.add(body); g.add(yoke); g.add(crack);
+    for (let i = 0; i <= 6; i++) {
+      const t = i / 6;
+      const a = Math.PI * (1 - t);
+      const beam = new K.Mesh(new K.Box(0.34, 0.16, 0.2), wood);
+      beam.position.set(Math.cos(a) * 0.85, 2.55 + Math.sin(a) * 0.55, 0);
+      g.add(beam);
+    }
+    const body = lathe(K, [[0.18, 2.15], [0.28, 1.95], [0.42, 1.7], [0.62, 1.15], [0.72, 0.55], [0.6, 0.28]], 14, brass);
+    g.add(body);
+    const lip = new K.Mesh(new K.Torus(0.62, 0.07, 6, 16), lamb(0xb8860b));
+    lip.rotation.x = Math.PI / 2;
+    lip.position.y = 0.32;
+    g.add(lip);
+    const crack = new K.Mesh(new K.Box(0.05, 0.7, 0.08), lamb(0x3e2723));
+    crack.position.set(0.18, 0.7, 0.58);
+    crack.rotation.z = 0.18;
+    g.add(crack);
+    const clapper = new K.Mesh(new K.Sphere(0.1, 6, 5), lamb(0x5d4037));
+    clapper.position.y = 1.15;
+    g.add(clapper);
     return g;
   }
   function alamoMesh(K, lamb) {
     const g = new K.Group();
-    const stone = lamb(0xe6d3b1);
-    const wall = new K.Mesh(new K.Box(4.6, 2.4, 0.4), stone);
-    wall.position.y = 1.2;
-    g.add(wall);
-    for (let i = 0; i < 5; i++) {
-      const hump = new K.Mesh(new K.Sphere(0.55, 10, 8), stone);
-      hump.scale.set(1.15, 0.7, 0.45);
-      hump.position.set(-1.6 + i * 0.8, 2.55, 0);
-      g.add(hump);
+    const stone = lamb(0xe7d3b0);
+    stone.side = 2;
+    const geo = new K.Geo();
+    const pos = [];
+    const n = 18;
+    const W = 5.6;
+    function topY(t) {
+      const x = (t - 0.5) * 2;
+      let y = 2.15 + Math.cos(x * Math.PI * 0.5) * 0.95;
+      const c = Math.max(0, 1 - Math.abs(t - 0.5) / 0.07);
+      y += c * 0.62;
+      return y;
     }
-    const door = new K.Mesh(new K.Box(0.7, 1.3, 0.5), lamb(0x5d4037));
-    door.position.set(0, 0.65, 0.05);
-    const step = new K.Mesh(new K.Box(1.6, 0.2, 0.8), stone);
-    step.position.set(0, 0.1, 0.45);
-    g.add(door); g.add(step);
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const x = (t - 0.5) * W;
+      const y = topY(t);
+      pos.push(x, 0, 0.32, x, y, 0.32, x, 0, -0.32, x, y, -0.32);
+    }
+    const idx = [];
+    for (let i = 0; i < n; i++) {
+      const a = i * 4;
+      idx.push(a, a + 4, a + 1, a + 1, a + 4, a + 5);
+      idx.push(a + 2, a + 3, a + 6, a + 3, a + 7, a + 6);
+      idx.push(a + 1, a + 5, a + 3, a + 3, a + 5, a + 7);
+    }
+    geo.setAttribute("position", new K.Attr(new Float32Array(pos), 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    g.add(new K.Mesh(geo, stone));
+    const door = new K.Mesh(new K.Box(0.7, 1.15, 0.2), lamb(0x4e342e));
+    door.position.set(0, 0.6, 0.36);
+    g.add(door);
+    const arch = new K.Mesh(new K.Torus(0.38, 0.07, 6, 10), lamb(0x4e342e));
+    arch.position.set(0, 1.15, 0.38);
+    g.add(arch);
+    [-1.6, 1.6].forEach((x) => {
+      const win = new K.Mesh(new K.Box(0.28, 0.42, 0.12), lamb(0x3e2723));
+      win.position.set(x, 1.35, 0.38);
+      g.add(win);
+    });
+    const step = new K.Mesh(new K.Box(2.2, 0.18, 0.9), stone);
+    step.position.set(0, 0.09, 0.7);
+    g.add(step);
     return g;
   }
-  function ribbon(K, mat, x0, y0, x1, y1, thick) {
-    const dx = x1 - x0;
-    const dy = y1 - y0;
-    const len = Math.hypot(dx, dy) + 0.02;
-    const seg = new K.Mesh(new K.Box(thick, len, thick), mat);
-    seg.position.set((x0 + x1) / 2, (y0 + y1) / 2, 0);
-    seg.rotation.z = Math.atan2(dx, dy);
-    return seg;
-  }
-  function archMesh(K, lamb) {
-    const g = new K.Group();
-    const steel = new K.Lambert({ color: 0xe7eef3, emissive: 0xb7c4ce, emissiveIntensity: 0.45 });
-    const span = 7.2;
-    const height = 8.2;
-    const n = 42;
-    const a = span / 2.6;
-    const edge = a * Math.cosh((span / 2) / a);
+  function cable(K, mat, x0, y0, x1, y1, z) {
+    const parts = [];
+    const n = 10;
     for (let i = 0; i < n; i++) {
       const t0 = i / n;
       const t1 = (i + 1) / n;
-      const x0 = (t0 - 0.5) * span;
-      const x1 = (t1 - 0.5) * span;
-      const y0 = (edge - a * Math.cosh(x0 / a)) / (edge - a) * height;
-      const y1 = (edge - a * Math.cosh(x1 / a)) / (edge - a) * height;
-      const mid = (y0 + y1) / 2 / height;
-      const thick = 0.72 - mid * 0.4;
-      const seg = new K.Mesh(new K.Cyl(thick * 0.48, thick * 0.58, Math.hypot(x1 - x0, y1 - y0) * 1.28, 7), steel);
-      seg.position.set((x0 + x1) / 2, (y0 + y1) / 2, 0);
-      seg.rotation.z = Math.atan2(x1 - x0, y1 - y0);
-      g.add(seg);
+      const ax = x0 + (x1 - x0) * t0;
+      const bx = x0 + (x1 - x0) * t1;
+      const ay = y0 + (y1 - y0) * t0;
+      const by = y0 + (y1 - y0) * t1;
+      const len = Math.hypot(bx - ax, by - ay);
+      const seg = new K.Mesh(new K.Cyl(0.035, 0.035, len * 1.08, 5), mat);
+      seg.position.set((ax + bx) / 2, (ay + by) / 2, z);
+      seg.rotation.z = Math.atan2(bx - ax, by - ay);
+      parts.push(seg);
     }
+    return parts;
+  }
+  function archMesh(K, lamb) {
+    const g = new K.Group();
+    const steel = new K.Lambert({ color: 0xe7eef2, emissive: 0xb7c4ce, emissiveIntensity: 0.35, side: 2 });
+    const span = 8.2;
+    const height = 8.4;
+    const n = 40;
+    const a = span / 2.35;
+    const xMax = span / 2;
+    const coshE = Math.cosh(xMax / a);
+    const yAt = (x) => (coshE - Math.cosh(x / a)) / (coshE - 1) * height;
+    const frames = [];
+    for (let i = 0; i <= n; i++) {
+      const x = -xMax + (span * i) / n;
+      const y = yAt(x);
+      const dx = 0.05;
+      const dy = yAt(Math.min(xMax, x + dx)) - yAt(Math.max(-xMax, x - dx));
+      const len = Math.hypot(dx * 2, dy) || 1;
+      const tx = (dx * 2) / len;
+      const ty = dy / len;
+      const thick = 0.82 * (1 - y / height) + 0.2;
+      frames.push({ x: x, y: y, nx: -ty, ny: tx, w: thick * 0.5, d: thick * 0.32 });
+    }
+    const pos = [];
+    const idx = [];
+    frames.forEach((f) => {
+      const pts = [
+        [f.x + f.nx * f.w, f.y + f.ny * f.w, f.d],
+        [f.x + f.nx * f.w, f.y + f.ny * f.w, -f.d],
+        [f.x - f.nx * f.w, f.y - f.ny * f.w, -f.d],
+        [f.x - f.nx * f.w, f.y - f.ny * f.w, f.d]
+      ];
+      pts.forEach((p) => pos.push(p[0], p[1], p[2]));
+    });
+    for (let i = 1; i <= n; i++) {
+      const b = i * 4;
+      const a0 = b - 4;
+      for (let k = 0; k < 4; k++) {
+        const k2 = (k + 1) % 4;
+        idx.push(a0 + k, b + k, b + k2, a0 + k, b + k2, a0 + k2);
+      }
+    }
+    const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(new Float32Array(pos), 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    const tube = new K.Mesh(geo, steel);
+    tube.castShadow = true;
+    g.add(tube);
+    [-xMax, xMax].forEach((x) => {
+      const pad = new K.Mesh(new K.Box(0.7, 0.16, 0.55), steel);
+      pad.position.set(x, 0.08, 0);
+      g.add(pad);
+    });
     return g;
   }
   function statueMesh(K, lamb) {
     const g = new K.Group();
-    const copper = lamb(0x3d9a58);
-    const stone = lamb(0xd9d0c2);
-    [[2.4, 0.55, 0.28], [1.9, 0.5, 0.85], [1.45, 0.45, 1.32]].forEach(([w, h, y]) => {
-      const step = new K.Mesh(new K.Box(w, h, w), stone);
-      step.position.y = y;
-      g.add(step);
+    const copper = lamb(0x3f9d6e);
+    copper.side = 2;
+    const copperDeep = lamb(0x2f7d52);
+    const stone = lamb(0xd4cdc2);
+    const stoneDark = lamb(0xb7b1a6);
+    let y = 0;
+    [[3.5, 0.34], [2.9, 0.28], [2.4, 0.24], [1.55, 0.18], [1.22, 1.9], [1.55, 0.18], [1.18, 0.16]].forEach((step, i) => {
+      const block = new K.Mesh(new K.Box(step[0], step[1], step[0] * 0.92), i % 2 ? stoneDark : stone);
+      block.position.y = y + step[1] / 2;
+      y += step[1];
+      block.castShadow = true;
+      g.add(block);
     });
-    const robe = new K.Mesh(new K.Cone(0.95, 3.6, 10), copper);
-    robe.position.y = 3.5;
-    const head = new K.Mesh(new K.Sphere(0.42, 12, 10), copper);
-    head.position.y = 5.55;
-    const band = new K.Mesh(new K.Cyl(0.46, 0.46, 0.16, 10), copper);
-    band.position.y = 5.9;
-    g.add(robe); g.add(head); g.add(band);
+    const figure = new K.Group();
+    figure.position.y = y;
+    const robe = lathe(K, [[0.95, 0], [0.84, 0.35], [0.66, 0.9], [0.52, 1.45], [0.4, 1.9], [0.36, 2.25], [0.44, 2.7], [0.34, 3.05], [0.2, 3.25]], 12, copper);
+    robe.castShadow = true;
+    figure.add(robe);
+    const fold = new K.Mesh(new K.Box(0.08, 2.4, 0.12), copperDeep);
+    fold.position.set(0, 1.3, 0.5);
+    figure.add(fold);
+    const head = new K.Mesh(new K.Sphere(0.32, 12, 10), copper);
+    head.position.set(0, 3.62, 0.02);
+    head.scale.set(1, 1.12, 0.95);
+    figure.add(head);
+    const nose = new K.Mesh(new K.Box(0.06, 0.08, 0.08), copperDeep);
+    nose.position.set(0, 3.58, 0.3);
+    figure.add(nose);
+    const band = new K.Mesh(new K.Cyl(0.34, 0.34, 0.1, 10), copper);
+    band.position.y = 3.92;
+    figure.add(band);
     for (let i = 0; i < 7; i++) {
-      const a = (i / 7) * Math.PI * 2;
-      const spike = new K.Mesh(new K.Cone(0.07, 0.7, 4), copper);
-      spike.position.set(Math.cos(a) * 0.34, 6.35, Math.sin(a) * 0.34);
-      g.add(spike);
+      const a = (i / 7) * Math.PI * 2 - Math.PI / 2;
+      const spike = new K.Mesh(new K.Cone(0.055, 0.62, 4), copper);
+      spike.position.set(Math.cos(a) * 0.28, 4.28, Math.sin(a) * 0.28);
+      spike.rotation.x = Math.sin(a) * 0.35;
+      spike.rotation.z = -Math.cos(a) * 0.35;
+      figure.add(spike);
     }
-    const arm = new K.Mesh(new K.Cyl(0.1, 0.1, 1.7, 6), copper);
-    arm.position.set(0.62, 6.15, 0);
-    arm.rotation.z = -0.35;
-    const cup = new K.Mesh(new K.Cyl(0.18, 0.12, 0.18, 8), copper);
-    cup.position.set(0.95, 6.95, 0);
-    const flame = new K.Mesh(new K.Cone(0.2, 0.55, 8), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 1 }));
-    flame.position.set(0.95, 7.35, 0);
-    const tablet = new K.Mesh(new K.Box(0.42, 0.7, 0.1), lamb(0xe6ee9c));
-    tablet.position.set(-0.7, 4.1, 0.35);
-    g.add(arm); g.add(cup); g.add(flame); g.add(tablet);
+    const arm = new K.Mesh(new K.Cyl(0.08, 0.1, 1.55, 6), copper);
+    arm.position.set(-0.48, 3.45, 0.22);
+    arm.rotation.z = 0.22;
+    arm.rotation.x = -0.15;
+    figure.add(arm);
+    const cup = new K.Mesh(new K.Cyl(0.16, 0.1, 0.16, 8), lamb(0xc9a227));
+    cup.position.set(-0.62, 4.22, 0.32);
+    const flame = new K.Mesh(new K.Cone(0.18, 0.55, 8), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 1.1 }));
+    flame.position.set(-0.62, 4.58, 0.32);
+    figure.add(cup); figure.add(flame);
+    const left = new K.Mesh(new K.Cyl(0.075, 0.09, 1.15, 6), copper);
+    left.position.set(0.48, 2.15, 0.28);
+    left.rotation.z = -0.7;
+    left.rotation.x = 0.25;
+    figure.add(left);
+    const tablet = new K.Mesh(new K.Box(0.42, 0.72, 0.08), lamb(0xe7d7b0));
+    tablet.position.set(0.78, 1.85, 0.42);
+    tablet.rotation.y = -0.4;
+    const tabletEdge = new K.Mesh(new K.Box(0.48, 0.78, 0.04), lamb(0xc4b48a));
+    tabletEdge.position.copy(tablet.position);
+    tabletEdge.position.z -= 0.04;
+    tabletEdge.rotation.y = -0.4;
+    figure.add(tabletEdge); figure.add(tablet);
+    g.add(figure);
     return g;
   }
   function needleMesh(K, lamb) {
     const g = new K.Group();
     const shaft = new K.Mesh(new K.Cyl(0.08, 0.12, 2.4, 8), lamb(0xeceff1));
     shaft.position.y = 1.2;
-    const saucer = new K.Mesh(new K.Cyl(0.55, 0.55, 0.12, 12), lamb(0xffc83d));
-    saucer.position.y = 2.3;
-    const legMat = lamb(0xb0bec5);
-    for (let i = 0; i < 3; i++) {
-      const leg = new K.Mesh(new K.Cyl(0.04, 0.04, 1.1, 5), legMat);
-      leg.position.set(Math.cos(i * 2.1) * 0.35, 0.4, Math.sin(i * 2.1) * 0.35);
-      leg.rotation.z = Math.cos(i) * 0.3;
-      g.add(leg);
-    }
-    g.add(shaft); g.add(saucer);
+    g.add(shaft);
     return g;
   }
   function rushmoreMesh(K, lamb) {
     const g = new K.Group();
-    const cliff = new K.Mesh(new K.Box(5.4, 3.6, 1.6), lamb(0x8d6e63));
-    cliff.position.y = 1.8;
+    const cliff = new K.Mesh(new K.Box(8.4, 4.6, 1.5), lamb(0x8d847c));
+    cliff.position.y = 2.3;
     g.add(cliff);
-    const names = [-1.9, -0.65, 0.6, 1.85];
-    names.forEach((x) => {
-      const face = new K.Mesh(new K.Sphere(0.48, 10, 8), lamb(0xd7ccc8));
-      face.position.set(x, 2.35, 0.7);
-      const brow = new K.Mesh(new K.Box(0.36, 0.08, 0.12), lamb(0xc8b8ae));
-      brow.position.set(x, 2.55, 1.05);
-      g.add(face); g.add(brow);
+    const skin = lamb(0xd7ccc8);
+    const hair = lamb(0xc8b8ae);
+    const faces = [
+      { x: -3.05, beard: 0, glasses: 0, hair: 0.42, nose: 0.16 },
+      { x: -1.05, beard: 0, glasses: 0, hair: 0.2, nose: 0.2 },
+      { x: 0.95, beard: 0, glasses: 1, hair: 0.16, nose: 0.14 },
+      { x: 2.95, beard: 1, glasses: 0, hair: 0.18, nose: 0.18 }
+    ];
+    faces.forEach((face) => {
+      const head = new K.Mesh(new K.Sphere(0.72, 10, 8), skin);
+      head.scale.set(0.86, 1.15, 0.72);
+      head.position.set(face.x, 2.55, 0.72);
+      g.add(head);
+      const brow = new K.Mesh(new K.Box(0.5, 0.08, 0.16), hair);
+      brow.position.set(face.x, 2.95, 1.15);
+      g.add(brow);
+      const nose = new K.Mesh(new K.Box(0.12, 0.22, face.nose), skin);
+      nose.position.set(face.x, 2.5, 1.22);
+      g.add(nose);
+      if (face.hair > 0.3) {
+        const wig = new K.Mesh(new K.Box(0.7, 0.28, 0.4), hair);
+        wig.position.set(face.x, 3.15, 0.55);
+        g.add(wig);
+      }
+      if (face.beard) {
+        const beard = new K.Mesh(new K.Box(0.46, 0.55, 0.28), hair);
+        beard.position.set(face.x, 1.85, 0.95);
+        g.add(beard);
+      }
+      if (face.glasses) {
+        [-0.18, 0.18].forEach((dx) => {
+          const eye = new K.Mesh(new K.Torus(0.1, 0.025, 4, 8), lamb(0x3e2723));
+          eye.position.set(face.x + dx, 2.72, 1.2);
+          g.add(eye);
+        });
+        const stache = new K.Mesh(new K.Box(0.28, 0.06, 0.08), hair);
+        stache.position.set(face.x, 2.28, 1.18);
+        g.add(stache);
+      }
     });
     return g;
   }
   function bridgeMesh(K, lamb) {
     const g = new K.Group();
-    const orange = lamb(0xf4511e);
-    const water = new K.Mesh(new K.Box(8, 0.08, 3.2), lamb(0x1e88e5));
-    water.position.y = 0.05;
-    g.add(water);
-    const deck = new K.Mesh(new K.Box(13.5, 0.16, 0.7), lamb(0x546e7a));
-    deck.position.y = 1.35;
+    const orange = lamb(0xf04a00);
+    const dark = lamb(0xc2410c);
+    const deck = new K.Mesh(new K.Box(12.5, 0.16, 1.15), lamb(0x546e7a));
+    deck.position.y = 2.05;
     g.add(deck);
-    [-4.2, 4.2].forEach((x) => {
-      const tower = new K.Mesh(new K.Box(0.45, 6.4, 0.45), orange);
-      tower.position.set(x, 3.2, 0);
-      g.add(tower);
-      [2.4, 4.2, 5.6].forEach((y) => {
-        const beam = new K.Mesh(new K.Box(0.7, 0.16, 0.55), orange);
+    [-0.52, 0.52].forEach((z) => {
+      const rail = new K.Mesh(new K.Box(12.4, 0.08, 0.06), lamb(0x37474f));
+      rail.position.set(0, 2.35, z);
+      g.add(rail);
+    });
+    [-3.5, 3.5].forEach((x) => {
+      [-0.42, 0.42].forEach((z) => {
+        const leg = new K.Mesh(new K.Box(0.28, 6.6, 0.28), orange);
+        leg.position.set(x, 3.3, z);
+        leg.castShadow = true;
+        g.add(leg);
+      });
+      [2.15, 4.15, 5.55, 6.35].forEach((y, i) => {
+        const beam = new K.Mesh(new K.Box(0.34, i === 3 ? 0.28 : 0.18, 1.15), i % 2 ? dark : orange);
         beam.position.set(x, y, 0);
         g.add(beam);
       });
+      const cap = new K.Mesh(new K.Box(0.7, 0.22, 1.35), orange);
+      cap.position.set(x, 6.7, 0);
+      g.add(cap);
     });
-    const n = 16;
-    for (let i = 0; i < n; i++) {
-      const t0 = i / n;
-      const t1 = (i + 1) / n;
-      const sag = (t) => 5.5 - Math.sin(t * Math.PI) * 3.4;
-      const x0 = -4.2 + t0 * 8.4;
-      const x1 = -4.2 + t1 * 8.4;
-      g.add(ribbon(K, orange, x0, sag(t0), x1, sag(t1), 0.08));
-      const drop = sag(t0) - 1.35;
-      if (drop > 0.25) {
-        const line = new K.Mesh(new K.Box(0.04, drop, 0.04), orange);
-        line.position.set(x0, 1.35 + drop / 2, 0);
-        g.add(line);
+    [-0.42, 0.42].forEach((z) => {
+      cable(K, orange, -8.2, 2.2, -3.5, 6.5, z).forEach((seg) => g.add(seg));
+      cable(K, orange, 3.5, 6.5, 8.2, 2.2, z).forEach((seg) => g.add(seg));
+      const n = 14;
+      for (let i = 0; i < n; i++) {
+        const t0 = i / n;
+        const t1 = (i + 1) / n;
+        const sag = (t) => 6.5 - Math.sin(t * Math.PI) * 3.15;
+        const x0 = -3.5 + t0 * 7;
+        const x1 = -3.5 + t1 * 7;
+        cable(K, orange, x0, sag(t0), x1, sag(t1), z).forEach((seg) => g.add(seg));
       }
+    });
+    for (let i = 1; i < 12; i++) {
+      const t = i / 12;
+      const x = -3.5 + t * 7;
+      const sag = 6.5 - Math.sin(t * Math.PI) * 3.15;
+      const drop = sag - 2.15;
+      if (drop < 0.2) continue;
+      [-0.42, 0.42].forEach((z) => {
+        const line = new K.Mesh(new K.Box(0.03, drop, 0.03), orange);
+        line.position.set(x, 2.15 + drop / 2, z);
+        g.add(line);
+      });
     }
+    [-6.4, 6.4].forEach((x) => {
+      const anch = new K.Mesh(new K.Box(0.7, 0.45, 1.1), lamb(0x8d847c));
+      anch.position.set(x, 1.7, 0);
+      g.add(anch);
+    });
     return g;
   }
-
+  function aimCamera(cam) {
+    if (!cam || !host || !lay) return;
+    if (window.__libertyAerial) {
+      cam.position.set(host.x + lay.fx * 22, 42, host.z + lay.fz * 22);
+      cam.lookAt(host.x, 2.2, host.z);
+      return;
+    }
+    if (session && session.id === "map" && mapAnchor) {
+      const p = mapAnchor;
+      cam.position.set(p.x + lay.fx * 3.4 + lay.rx * -6.2, p.y + 11.2, p.z + lay.fz * 3.4 + lay.rz * -6.2);
+      cam.lookAt(p.x + lay.rx * 1.5, p.y, p.z + lay.rz * 1.5);
+      if (cam.position.y < p.y + 5) cam.position.y = p.y + 5;
+      return;
+    }
+    if (cam.position.y > 40) return;
+    const cap = CA.captain;
+    if (!cap) return;
+    const walking = !CA.mode || CA.mode === "walk";
+    const q = toFS(cap.position.x - host.x, cap.position.z - host.z);
+    const on = Math.hypot(q.f, q.s) < 38;
+    if (walking && on && !inCaveFS(q) && Math.hypot(q.f - 6.55, q.s - 0.2) < 3.4) {
+      const w = worldFS(13.2, 0.4);
+      const gy = lowland(13.2, 0.4);
+      cam.position.set(host.x + w.x, (gy == null ? 1 : gy) + 3.4, host.z + w.z);
+      const mouth = worldFS(6.45, 0.2);
+      const my = heightFS(6.45, 0.2);
+      cam.lookAt(host.x + mouth.x, (my == null ? 1.2 : my) + 1.7, host.z + mouth.z);
+      return;
+    }
+    if (walking && on && inCaveFS(q)) {
+      const w = worldFS(4.35, 0.2);
+      const gy = heightFS(4.35, 0.2);
+      cam.position.set(host.x + w.x, (gy == null ? 1.3 : gy) + 1.45, host.z + w.z);
+      cam.lookAt(cap.position.x, cap.position.y + 1.2, cap.position.z);
+      return;
+    }
+    if (walking && on) {
+      const d = Math.hypot(q.f, q.s) || 1;
+      const cf = q.f + (q.f / d) * 12;
+      const cs = q.s + (q.s / d) * 12;
+      const w = worldFS(cf, cs);
+      let gy = sampleGround(w.x, w.z);
+      if (gy == null || gy < 0) gy = 0;
+      cam.position.set(host.x + w.x, Math.max(gy + 3.6, cap.position.y + 5.4), host.z + w.z);
+      cam.lookAt(cap.position.x, cap.position.y + 1.35, cap.position.z);
+    }
+    const g = sampleGround(cam.position.x - host.x, cam.position.z - host.z);
+    if (g != null && cam.position.y < g + 2.4) cam.position.y = g + 2.4;
+    if (!walking || !on) return;
+    for (let i = 1; i <= 5; i++) {
+      const t = i / 5;
+      const x = cap.position.x + (cam.position.x - cap.position.x) * t;
+      const z = cap.position.z + (cam.position.z - cap.position.z) * t;
+      const y = cap.position.y + 1.2 + (cam.position.y - cap.position.y - 1.2) * t;
+      const ground = sampleGround(x - host.x, z - host.z);
+      if (ground != null && y < ground + 0.85) {
+        const need = cap.position.y + 1.2 + (ground + 1.6 - cap.position.y - 1.2) / t;
+        if (cam.position.y < need) cam.position.y = need;
+      }
+    }
+  }
   function captainNear() {
     if (!CA.captain || !stations.length) return null;
     const p = CA.captain.position;
@@ -1356,30 +2187,42 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const root = CA.scene.getObjectByName("v51-root");
     if (!root) return;
     const ax = cam.position.x;
+    const ay = cam.position.y;
     const az = cam.position.z;
     const bx = CA.captain.position.x;
+    const by = CA.captain.position.y + 1.1;
     const bz = CA.captain.position.z;
     const abx = bx - ax;
+    const aby = by - ay;
     const abz = bz - az;
-    const ab2 = abx * abx + abz * abz || 1;
+    const ab2 = abx * abx + aby * aby + abz * abz || 1;
     root.traverse((o) => {
-      if (!o.isMesh || !o.material || o.name === "v51-map") return;
+      if (!o.isMesh || !o.material || o.userData.nofade) return;
+      if (!o.geometry) return;
+      if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+      const rad = (o.geometry.boundingSphere && o.geometry.boundingSphere.radius) || 0;
+      const sc = Math.max(o.scale.x, o.scale.y, o.scale.z);
+      if (rad * sc < 0.35 || rad * sc > 18) return;
       o.updateWorldMatrix(true, false);
       const e = o.matrixWorld.elements;
       const px = e[12];
+      const py = e[13];
       const pz = e[14];
-      const u = Math.max(0, Math.min(1, ((px - ax) * abx + (pz - az) * abz) / ab2));
+      const u = Math.max(0, Math.min(1, ((px - ax) * abx + (py - ay) * aby + (pz - az) * abz) / ab2));
       const dx = px - (ax + abx * u);
+      const dy = py - (ay + aby * u);
       const dz = pz - (az + abz * u);
-      const block = u > 0.2 && u < 0.9 && dx * dx + dz * dz < 3.2;
+      const reach = Math.max(0.8, rad * sc * 0.65);
+      const block = u > 0.12 && u < 0.92 && dx * dx + dy * dy + dz * dz < reach * reach;
       if (!o.userData.v51seen) {
+        o.material = o.material.clone();
         o.userData.v51base = o.material.opacity == null ? 1 : o.material.opacity;
         o.userData.v51trans = !!o.material.transparent;
         o.userData.v51seen = 1;
       }
       if (block) {
         o.material.transparent = true;
-        o.material.opacity = 0.14;
+        o.material.opacity = 0.12;
         o.material.depthWrite = false;
       } else if (o.userData.v51block) {
         o.material.opacity = o.userData.v51base;
@@ -1404,41 +2247,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       st.ring.scale.set(s, s, s);
     });
     if (monuments.wheel) monuments.wheel.rotation.y += session && session.mode === "wheel" ? 0.03 : 0.008;
-    const cam = CA.camera;
-    rooms.forEach((room) => {
-      const inside = cam && Math.hypot(cam.position.x - room.x, cam.position.z - room.z) < 7;
-      if (room.group) room.group.traverse((o) => {
-        if (!o.material) return;
-        o.material.transparent = true;
-        o.material.opacity = inside ? 0.08 : 0.16;
-        o.material.depthWrite = false;
-      });
-    });
-    fadeBetween(cam);
-    if (window.__libertyAerial && host && cam) {
-      cam.position.set(host.x + 40, 36, host.z + 52);
-      cam.lookAt(host.x, 3, host.z);
-      return;
-    }
-    const dark = CA.scene.getObjectByName("v51-cave-dark");
-    if (dark && cam && dark.material) {
-      dark.updateWorldMatrix(true, false);
-      const e = dark.matrixWorld.elements;
-      const near = Math.hypot(cam.position.x - e[12], cam.position.z - e[14]) < 10;
-      dark.material.opacity = near ? 0.2 : 0.92;
-    }
-    if (cam && CA.captain && host) {
-      const cap = CA.captain.position;
-      const dc = Math.hypot(cam.position.x - host.x, cam.position.z - host.z);
-      const dp = Math.hypot(cap.x - host.x, cap.z - host.z);
-      if (dp < 40 && dp > 8 && dc < dp - 2) {
-        const dx = cap.x - host.x;
-        const dz = cap.z - host.z;
-        const len = Math.hypot(dx, dz) || 1;
-        cam.position.set(cap.x + (dx / len) * 7, cap.y + 4.5, cap.z + (dz / len) * 7);
-        cam.lookAt(cap.x, cap.y + 1.2, cap.z);
-      }
-    }
+    prepView();
     if (CA.captain && (!CA.mode || CA.mode === "walk")) {
       const p = CA.captain.position;
       const onIsle = Math.hypot(p.x - isle.cx, p.z - isle.cz) < isle.R + 8;
@@ -1512,11 +2321,46 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (flag) flag.textContent = VER;
   }
 
+  function prepView() {
+    const cam = CA.camera;
+    if (!cam || !host) return;
+    aimCamera(cam);
+    const insideCave = inCaveFS(toFS(cam.position.x - host.x, cam.position.z - host.z));
+    rooms.forEach((room) => {
+      if (!room.group) return;
+      room.group.traverse((o) => {
+        if (!o.material) return;
+        o.material.transparent = !!insideCave;
+        o.material.opacity = insideCave ? 0.08 : 1;
+        o.material.depthWrite = !insideCave;
+      });
+    });
+    const dark = CA.scene.getObjectByName("v51-cave-dark");
+    if (dark && dark.material) {
+      dark.material.transparent = true;
+      dark.material.opacity = insideCave ? 0.1 : 0.94;
+      dark.material.depthWrite = !insideCave;
+    }
+    fadeBetween(cam);
+    const root = CA.scene.getObjectByName("v51-root");
+    if (root) root.traverse((o) => { if (o.name === "v51-label") o.visible = !session; });
+  }
+  function hookRender() {
+    const renderer = CA.renderer;
+    if (!renderer || renderer.__v51) return;
+    const prev = renderer.render.bind(renderer);
+    renderer.render = function (scene, camera) {
+      try { prepView(); } catch (err) { /* keep drawing */ }
+      return prev(scene, camera || CA.camera);
+    };
+    renderer.__v51 = 1;
+  }
   function boot() {
     bag();
     version();
     ensureUi();
     try { dress(); } catch (err) { console.error(err); }
+    try { hookRender(); } catch (err) { console.error(err); }
     document.addEventListener("keydown", onKey, true);
     const learn = document.getElementById("learn-card");
     if (learn) new MutationObserver(() => watchCard()).observe(learn, { childList: true });

@@ -51,7 +51,9 @@
   let caveAnchor = null;
   let caveWalls = null;
   let builderPlot = null;
+  let bridgeWalk = null;
   const GROW = 1.275;
+  const SHORE = 1.112;
   const CHAN = { s: 17.4, half: 1.65, f0: 16, f1: 34 };
   const CAVE = { f: 6.4, s: 0.3 };
   const LAYOUT = {
@@ -782,10 +784,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const dock = Math.exp(-(a * a) / 1.7) * 4.6;
     const cove = -3.5 * Math.exp(-Math.pow((a - 2.2) / 0.5, 2));
     const bulge = 3.3 * Math.exp(-Math.pow((a + 1.2) / 0.62, 2));
-    return 27.4
+    return SHORE * (27.4
       + 3.2 * Math.sin(a * 2 + 0.3)
       + 1.55 * Math.sin(a * 3 + 0.85)
-      + dock + cove + bulge;
+      + dock + cove + bulge);
   }
   function beachOf(f, s) {
     const a = Math.atan2(s, f);
@@ -1324,7 +1326,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       id: "liberty-mount",
       cx: center.x,
       cz: center.z,
-      R: 41,
+      R: 46,
       yaw: lay.yaw,
       ground(x, z) {
         const y = sampleGround(x - center.x, z - center.z);
@@ -1521,10 +1523,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     root.remove(hold);
   }
   function dressFoliage(K, root, lamb) {
-    [[21.2, -4.2, 0.4, 5.1, 1], [19.6, 5.6, -0.6, 4.5, 2], [15.4, -11.2, 0.8, 5.6, 3], [14.6, 8.8, 0.2, 4.3, 4],
-      [11.4, -16.2, -0.3, 5.0, 5], [10.2, 13.2, 0.5, 4.7, 6], [23.2, -9.4, 0.15, 3.9, 7], [8.6, -6.4, -0.4, 5.4, 8],
-      [16.8, 12.6, 0.35, 4.4, 9], [20.4, -15.2, 0.3, 4.6, 11], [8.2, 14.6, -0.4, 4.8, 12],
-      [14.8, 16.4, 0.2, 4.2, 13], [4.8, -8.6, 0.5, 5.2, 14]].forEach((row) => palmAt(K, root, row[0], row[1], row[2], row[3], row[4]));
+    [[-13.2, 17.4, 0.4, 4.6, 1], [-14.6, 19.2, -0.3, 5.1, 2], [-15.4, 21.0, 0.5, 4.4, 3],
+      [-13.8, -18.2, 0.2, 4.8, 4], [-15.2, -20.4, -0.4, 5.2, 5], [-16.2, -22.2, 0.3, 4.5, 6],
+      [0.6, -23.4, 0.5, 4.7, 7], [0.4, -25.6, -0.2, 5.0, 8], [-1.2, -21.6, 0.4, 4.3, 9],
+      [9.2, 22.4, 0.25, 4.6, 11], [10.4, 24.2, -0.35, 5.0, 12], [8.2, 20.6, 0.15, 4.4, 13]].forEach((row) => palmAt(K, root, row[0], row[1], row[2], row[3], row[4]));
     const bushes = [[18.4, -3.2], [16.2, 3.4], [12.8, -8.6], [11.2, 6.4], [20.4, 9.2], [9.4, -12.4], [21.6, -8.2], [14.2, 14.2], [8.2, 8.4], [19.2, -12.6]];
     bushes.forEach((b, i) => {
       const greens = [0x2f7d32, 0x388e3c, 0x1b5e20];
@@ -1942,11 +1944,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   function hookShore() {
     if (!host) return;
     if (CA.walkCircles) {
-      for (let f = -8; f <= 30; f += 3.1) {
-        for (let s = -26; s <= 26; s += 3.1) {
-          if (Math.hypot(f, s) > 29.5) continue;
+      for (let f = -16; f <= 36; f += 3.2) {
+        for (let s = -34; s <= 34; s += 3.2) {
+          if (Math.hypot(f, s) > 40) continue;
           if (Math.hypot(f + 1.3, s) < 3.7) continue;
-          if (Math.abs(s - CHAN.s) < CHAN.half + 0.35 && f > CHAN.f0 - 0.4 && f < CHAN.f1) continue;
           const w = worldFS(f, s);
           const y = sampleGround(w.x, w.z);
           if (y == null || y < 0.12 || y > 5.5 * GROW) continue;
@@ -1957,10 +1958,23 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
         const w = worldFS(f, 0);
         CA.walkCircles.push({ x: host.x + w.x, z: host.z + w.z, r: 2.15 });
       }
+      if (bridgeWalk) {
+        for (let t = 0; t <= bridgeWalk.len; t += 2.1) {
+          CA.walkCircles.push({
+            x: bridgeWalk.ax + bridgeWalk.ux * t,
+            z: bridgeWalk.az + bridgeWalk.uz * t,
+            r: 1.7
+          });
+        }
+      }
     }
     if (CA.obstacles) CA.obstacles.push({ x: host.x, z: host.z, r: 3.3 });
     window.__libertyGround = (x, z) => {
       if (!host) return null;
+      if (bridgeWalk && bridgeWalk.mesh && bridgeWalk.mesh.visible) {
+        const deck = bridgeDeckY(x, z);
+        if (deck != null) return deck;
+      }
       const y = sampleGround(x - host.x, z - host.z);
       if (y == null || y < -0.12) return null;
       return y;
@@ -2299,6 +2313,143 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const mesh = new K.Mesh(geo, mat);
     return mesh;
   }
+  function bridgeAnchors() {
+    const turtle = (CA.isl.L || []).find((j) => j.id === "turtle");
+    if (!turtle || !lay) return null;
+    const rel = toFS(turtle.cx - host.x, turtle.cz - host.z);
+    let ang = Math.atan2(rel.s, rel.f);
+    if (Math.abs(ang) < 0.75) ang = ang < 0 ? -0.95 : 0.95;
+    const dirF = Math.cos(ang);
+    const dirS = Math.sin(ang);
+    const shore = shoreOf(dirF, dirS);
+    const f = dirF * (shore - 1.6);
+    const s = dirS * (shore - 1.6);
+    const w = worldFS(f, s);
+    const ax = host.x + w.x;
+    const az = host.z + w.z;
+    const dx = ax - turtle.cx;
+    const dz = az - turtle.cz;
+    const d = Math.hypot(dx, dz) || 1;
+    const reach = (turtle.R || 19) - 3;
+    return {
+      ax: ax,
+      az: az,
+      bx: turtle.cx + (dx / d) * reach,
+      bz: turtle.cz + (dz / d) * reach,
+      turtle: turtle
+    };
+  }
+  function bridgeDeckY(x, z) {
+    if (!bridgeWalk) return null;
+    const b = bridgeWalk;
+    const dx = x - b.ax;
+    const dz = z - b.az;
+    const along = dx * b.ux + dz * b.uz;
+    const side = dx * b.px + dz * b.pz;
+    if (side < -1.35 || side > 1.35 || along < -0.4 || along > b.len + 0.4) return null;
+    const ramp = 5.5;
+    const deck = b.deckY;
+    if (along < ramp) {
+      const g = sampleGround(x - host.x, z - host.z);
+      const base = g != null && g > 0 ? g : 0.45;
+      const u = Math.max(0, along) / ramp;
+      return base + (deck - base) * u;
+    }
+    if (along > b.len - ramp) {
+      const u = Math.max(0, b.len - along) / ramp;
+      return 0.45 + (deck - 0.45) * u;
+    }
+    return deck;
+  }
+  function placeSpan(K, lamb, root) {
+    const ends = bridgeAnchors();
+    if (!ends) return null;
+    const dx = ends.bx - ends.ax;
+    const dz = ends.bz - ends.az;
+    const len = Math.hypot(dx, dz);
+    if (len < 8) return null;
+    const ux = dx / len;
+    const uz = dz / len;
+    const deckY = 3.45;
+    const g = new K.Group();
+    g.position.set((ends.ax + ends.bx) / 2, 0, (ends.az + ends.bz) / 2);
+    g.rotation.y = Math.atan2(dx, dz);
+    const orange = lamb(0xf04a00);
+    const dark = lamb(0xc2410c);
+    const deck = new K.Mesh(new K.Box(len, 0.2, 2.5), lamb(0x546e7a));
+    deck.position.y = deckY;
+    g.add(deck);
+    [-1.15, 1.15].forEach((z) => {
+      const rail = new K.Mesh(new K.Box(len - 0.4, 0.08, 0.08), lamb(0x37474f));
+      rail.position.set(0, deckY + 0.28, z);
+      g.add(rail);
+    });
+    const towerX = Math.max(2.5, len / 2 - 3.2);
+    [-towerX, towerX].forEach((x) => {
+      [-0.7, 0.7].forEach((z) => {
+        const leg = new K.Mesh(new K.Box(0.38, 6.4, 0.38), orange);
+        leg.position.set(x, deckY + 3.2, z);
+        g.add(leg);
+      });
+      const beam = new K.Mesh(new K.Box(0.42, 0.28, 1.9), dark);
+      beam.position.set(x, deckY + 5.5, 0);
+      g.add(beam);
+      const cap = new K.Mesh(new K.Box(0.72, 0.22, 2.1), orange);
+      cap.position.set(x, deckY + 5.95, 0);
+      g.add(cap);
+    });
+    const pos = [];
+    const idx = [];
+    function quad(a, b, c, d) {
+      const o = pos.length / 3;
+      [a, b, c, d].forEach((p) => pos.push(p[0], p[1], p[2]));
+      idx.push(o, o + 1, o + 2, o, o + 2, o + 3);
+    }
+    function cableStrip(z, x0, y0, x1, y1, sag) {
+      const n = 6;
+      for (let i = 0; i < n; i++) {
+        const t0 = i / n;
+        const t1 = (i + 1) / n;
+        const sx0 = x0 + (x1 - x0) * t0;
+        const sx1 = x0 + (x1 - x0) * t1;
+        const sy0 = y0 + (y1 - y0) * t0 - Math.sin(t0 * Math.PI) * sag;
+        const sy1 = y0 + (y1 - y0) * t1 - Math.sin(t1 * Math.PI) * sag;
+        quad([sx0, sy0, z - 0.09], [sx1, sy1, z - 0.09], [sx1, sy1, z + 0.09], [sx0, sy0, z + 0.09]);
+      }
+    }
+    const top = deckY + 5.95;
+    [-0.7, 0.7].forEach((z) => {
+      cableStrip(z, -len / 2 + 0.6, deckY + 0.35, -towerX, top, 0.2);
+      cableStrip(z, towerX, top, len / 2 - 0.6, deckY + 0.35, 0.2);
+      cableStrip(z, -towerX, top, towerX, top, 2.2);
+      for (let i = 1; i < 7; i++) {
+        const t = i / 7;
+        const x = -towerX + t * towerX * 2;
+        const y = top - Math.sin(t * Math.PI) * 2.2;
+        if (y - deckY < 0.55) continue;
+        quad([x - 0.045, deckY + 0.2, z], [x + 0.045, deckY + 0.2, z], [x + 0.045, y, z], [x - 0.045, y, z]);
+      }
+    });
+    const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(new Float32Array(pos), 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    g.add(new K.Mesh(geo, orange));
+    [-len / 2 + 1.4, len / 2 - 1.4].forEach((x) => {
+      const anch = new K.Mesh(new K.Box(1.6, 1.3, 2.4), lamb(0x8d847c));
+      anch.position.set(x, deckY - 0.85, 0);
+      g.add(anch);
+    });
+    root.add(g);
+    bridgeWalk = {
+      ax: ends.ax, az: ends.az, bx: ends.bx, bz: ends.bz,
+      ux: ux, uz: uz, px: -uz, pz: ux,
+      len: len, deckY: deckY, mesh: g
+    };
+    g.userData.span = bridgeWalk;
+    g.userData.role = "gate";
+    return g;
+  }
   function dressMonuments(K, root, lamb) {
     const makers = {
       bell: () => bellMesh(K, lamb),
@@ -2310,26 +2461,29 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       gate: () => bridgeMesh(K, lamb)
     };
     const spots = {
-      liberty: [25.2, -5.4, 0],
-      gate: [23.4, CHAN.s, 0],
-      arch: [4.2, -24.2, 0],
-      bell: [22.4, 19.6, 0],
-      alamo: [-1.6, 23.4, 0],
-      rushmore: [4.8, -3.2, -1.2]
+      liberty: [30.2, -8.2, 0],
+      arch: [24.2, 0.2, 0],
+      bell: [20.4, 3.2, 0],
+      alamo: [2.4, 12.6, 0],
+      needle: [15.2, 10.4, 0],
+      rushmore: [-1.3, -1.6, -1.7]
     };
     BANK.landmarks.forEach((lm) => {
-      const mesh = makers[lm.id]();
+      let mesh = null;
+      if (lm.id === "gate") mesh = placeSpan(K, lamb, root);
+      if (!mesh) mesh = makers[lm.id]();
       const at = spots[lm.id] || [0, 0, 0];
-      if (lm.id === "gate") {
-        const w = worldFS(at[0], at[1]);
-        mesh.position.set(host.x + w.x, 0, host.z + w.z);
-        root.add(mesh);
-      } else place(root, mesh, at[0], at[1], at[2] || 0);
-      if (lm.id === "liberty" || lm.id === "alamo" || lm.id === "bell" || lm.id === "rushmore") mesh.rotation.y = lay.yaw;
-      if (lm.id === "arch") mesh.rotation.y = lay.yaw + 0.55;
-      if (lm.id === "gate") mesh.rotation.y = Math.atan2(-lay.rz, lay.rx);
+      if (lm.id !== "gate") place(root, mesh, at[0], at[1], at[2] || 0);
+      if (lm.id === "liberty" || lm.id === "alamo" || lm.id === "bell" || lm.id === "rushmore" || lm.id === "needle") mesh.rotation.y = lay.yaw;
+      if (lm.id === "arch") {
+        mesh.rotation.y = lay.yaw;
+        mesh.scale.setScalar(3.5);
+        mesh.userData.role = "arch";
+      }
+      if (lm.id === "needle") mesh.scale.setScalar(2.2);
+      if (lm.id === "rushmore") mesh.scale.setScalar(1.05);
       mesh.name = "v51-monument";
-      mesh.visible = !!bag().landmarks[lm.id];
+      mesh.visible = lm.id === "gate" ? true : !!bag().landmarks[lm.id];
       monuments[lm.id] = mesh;
       const shade = new K.Mesh(new K.Circle(1.3, 12), new K.Basic({ color: 0x14301c, transparent: true, opacity: 0.22, depthWrite: false }));
       shade.rotation.x = -Math.PI / 2;
@@ -2369,6 +2523,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const clapper = new K.Mesh(new K.Sphere(0.1, 6, 5), lamb(0x5d4037));
     clapper.position.y = 1.15;
     g.add(clapper);
+    const roof = new K.Mesh(new K.Box(2.3, 0.12, 1.35), lamb(0x8d6e63));
+    roof.position.y = 3.2;
+    g.add(roof);
     return g;
   }
   function alamoMesh(K, lamb) {

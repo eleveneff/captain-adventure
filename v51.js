@@ -57,7 +57,7 @@
   const LAYOUT = {
     map: [18.6, -9.2],
     tunnel: [CAVE.f + 2.5, CAVE.s],
-    rally: [11.6, -18.6],
+    rally: [13.8, -12.4],
     builder: [11.2, 10.2],
     quiz: [19.4, 5.2],
     table: [19.6, -13.1],
@@ -179,8 +179,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const picked = session.order.map((n) => q.events[n].text);
       body = `<p class="liberty-fact"><b>Fact.</b> ${esc(q.fact)}</p><p>${esc(q.question)}</p><p>${picked.length ? esc(picked.join(" → ")) : "Tap the earliest event first."}</p>` +
         q.events.map((ev, i) => `<button data-i="${i}" ${session.order.indexOf(i) >= 0 ? "disabled" : ""}>${esc(ev.text)}</button>`).join("");
-    } else {
-      body = `<p class="liberty-fact"><b>Fact.</b> ${esc(q.fact)}</p><p>${esc(q.question)}</p>${choiceButtons(q)}`;
+    }     else {
+      let ask = q.question || "";
+      if (q.fact && ask.indexOf(q.fact) === 0) ask = ask.slice(q.fact.length).replace(/^[\s.]+/, "");
+      body = `<p class="liberty-fact"><b>Fact.</b> ${esc(q.fact)}</p><p>${esc(ask)}</p>${choiceButtons(q)}`;
     }
     const title = session.title || "Liberty Isle";
     showCard(`<h2>${esc(title)}</h2><p>${step}</p>${body}<p><button class="ghost" id="liberty-exit">Exit</button></p>`);
@@ -408,7 +410,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       qs.push({
         type: "choice",
         fact: s.fact,
-        question: s.fact + " Which of these states shares a border with " + s.name + "?",
+        question: "Which of these states shares a border with " + s.name + "?",
         choices,
         answer: 0,
         explanation: neighbor + " is a neighbor of " + s.name + ". The others on this list are not.",
@@ -710,13 +712,11 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function shoreOf(f, s) {
     const a = Math.atan2(s, f);
-    const n = hsh(Math.round(a * 9) * 1.7 + 2.2);
-    return 25.6
-      + 3.6 * Math.sin(a * 2 + 0.35)
-      + 2.4 * Math.sin(a * 3 + 1.6)
-      + 1.7 * Math.sin(a * 5 - 0.5)
-      + 1.15 * Math.sin(a * 7 + 2.2)
-      + (n - 0.5) * 2.6;
+    const dock = Math.exp(-(a * a) / 1.6) * 4.8;
+    return 29.2
+      + 1.8 * Math.sin(a * 2 + 0.4)
+      + 0.85 * Math.sin(a * 3 + 1.1)
+      + dock;
   }
   function facetNoise(f, s) {
     const qf = Math.round(f * 0.62) / 0.62;
@@ -736,8 +736,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const cellF = Math.round(f * 0.42);
     const cellS = Math.round(s * 0.42);
     const spike = hsh(cellF * 8.3 + cellS * 4.9 + 1.2);
-    if (spike < 0.7) return 0;
-    return 0.8 + (spike - 0.7) * 7;
+    if (d > shore - 9) return 0;
+    if (spike < 0.74) return 0;
+    return 0.45 + (spike - 0.74) * 3.2;
   }
   function inMouth(f, s) {
     return f > CAVE.f - 2.6 && f < CAVE.f + 6.8 && Math.abs(s - CAVE.s) < 2.5;
@@ -758,39 +759,61 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (inMouth(f, s)) rock = Math.min(rock, 1.26);
     return rock * GROW;
   }
+  function knob(f, s, cf, cs, radius, height, power) {
+    const ang = Math.atan2(s - cs, f - cf);
+    let warp = 1 + 0.2 * Math.sin(ang * 2 + cf * 0.7) + 0.12 * Math.sin(ang * 3 + 1.2);
+    if (warp < 0.8) warp = 0.8;
+    const u = Math.hypot(f - cf, s - cs) / (radius * warp);
+    if (u >= 1) return 0;
+    return height * Math.pow(1 - u, power);
+  }
+  function ridge(f, s) {
+    let rock = 0;
+    rock = Math.max(rock, knob(f, s, -5.2, 0.6, 8.4, 13.6, 1.28));
+    rock = Math.max(rock, knob(f, s, -2.2, -6.4, 6.6, 9.2, 1.42));
+    rock = Math.max(rock, knob(f, s, -4.6, 6.2, 6.2, 8.1, 1.48));
+    rock = Math.max(rock, knob(f, s, 0.8, -1.6, 5.6, 4.4, 1.62));
+    if (rock <= 0.05) return 0;
+    rock += facetNoise(f, s) * 0.62 + facetNoise(f + 2.4, s - 1.4) * 0.28;
+    return rock > 0 ? rock : 0;
+  }
   function lowland(f, s) {
     const d = Math.hypot(f, s);
     const shore = shoreOf(f, s);
-    if (d > shore + 12) return null;
-    const rf = f - 10;
-    const rs = s + 1;
-    const planes = rockPlanes(rf, rs);
-    let rock = planes[0];
-    for (let i = 1; i < planes.length; i++) if (planes[i] > rock) rock = planes[i];
-    rock += (hsh(Math.round(rf * 0.45) * 3 + Math.round(rs * 0.45) * 7) - 0.5) * 3.4;
-    const reach = 1 - smoothstep((Math.hypot(rf, rs) - 2) / 16);
-    rock *= reach;
-    const qf = Math.round(f * 0.38) / 0.38;
-    const qs = Math.round(s * 0.38) / 0.38;
-    let grass = 0.7 + (hsh(qf * 3.7 + qs * 8.1) - 0.5) * 1.15 + facetNoise(f, s) * 0.2;
-    let y = rock > grass + 0.35 ? rock : grass;
-    y += outcropAt(f, s);
-    const band = shore - d;
-    if (band < 4.5 && band >= 0) {
-      const u = smoothstep(1 - band / 4.5);
-      y = y * (1 - u) + (0.32 + facetNoise(f, s) * 0.08) * u;
+    if (d > shore + 9) return null;
+    const qf = Math.round(f * 0.48) / 0.48;
+    const qs = Math.round(s * 0.48) / 0.48;
+    let grass = 1.02
+      + Math.sin(f * 0.22 + 0.5) * Math.cos(s * 0.18 + 0.2) * 0.28
+      + (hsh(qf * 4.1 + qs * 7.7) - 0.5) * 0.46;
+    const rock = ridge(f, s);
+    const tree = 1.85 + facetNoise(f + 1.2, s) * 0.55 + Math.sin(f * 0.62 + s * 0.41) * 0.22;
+    let y = grass;
+    if (rock > 0.2) y = rock < tree ? Math.max(grass, rock * 0.58 + 0.82) : rock;
+    const pads = [LAYOUT.map, LAYOUT.rally, LAYOUT.builder, LAYOUT.quiz, LAYOUT.table, LAYOUT.flag];
+    for (let i = 0; i < pads.length; i++) {
+      const pd = Math.hypot(f - pads[i][0], s - pads[i][1]);
+      if (pd >= 4.4) continue;
+      const u = smoothstep(pd / 4.4);
+      const flat = Math.min(Math.max(y, 0.98), 1.18);
+      y = flat * (1 - u) + y * u;
     }
-    if (d > shore) {
-      const u = smoothstep((d - shore) / 11);
-      y = y * (1 - u) + (-1.35) * u;
+    const band = shore - d;
+    const beach = 7.2;
+    const wet = -0.36;
+    if (band < beach) {
+      const lip = Math.min(Math.max(y, 0.85), 1.25);
+      if (band >= 0) {
+        const u = smoothstep(band / beach);
+        y = wet + (lip - wet) * u;
+      } else {
+        const u = Math.min(1, -band / 6.8);
+        const su = u * u * (3 - 2 * u);
+        y = wet * (1 - su) + (-1.5) * su;
+      }
     }
     if (inMouth(f, s)) y = Math.min(y, 1.26);
     if (inRoomFS(f, s)) y = 1.22;
-    const ds = Math.abs(s - CHAN.s);
-    if (ds < CHAN.half + 1.15 && f > CHAN.f0 - 0.8 && f < CHAN.f1 + 0.5) {
-      const u = ds > CHAN.half ? smoothstep((ds - CHAN.half) / 1.15) : 0;
-      y = -0.95 * (1 - u) + y * u;
-    }
     return y * GROW;
   }
   function heightFS(f, s) {
@@ -829,48 +852,43 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return Math.abs(q.x) < 1.85 && q.z < -0.45 && q.z > -6.2 && q.y > -0.5 && q.y < 3.2;
   }
   function sinkDome() {
-    let mesh = null;
+    const turtle = (CA.isl.L || []).find((j) => j.id === "turtle");
     CA.scene.traverse((o) => {
-      if (mesh || !o.isMesh || !o.geometry || o.geometry.type !== "BufferGeometry") return;
-      const pos = o.geometry.attributes && o.geometry.attributes.position;
-      if (pos && pos.count > 20000) mesh = o;
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      const pos = o.geometry.attributes.position;
+      const col = o.geometry.attributes.color;
+      let changed = false;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const z = pos.getZ(i);
+        if (y < -0.12) continue;
+        if (Math.hypot(x - host.x, z - host.z) > 44) continue;
+        if (turtle && Math.hypot(x - turtle.cx, z - turtle.cz) < turtle.R + 5) continue;
+        pos.setY(i, -3.2);
+        if (col) col.setXYZ(i, 0.04, 0.14, 0.24);
+        changed = true;
+      }
+      if (!changed) return;
+      pos.needsUpdate = true;
+      if (col) col.needsUpdate = true;
+      o.geometry.computeVertexNormals();
     });
-    if (!mesh) return;
-    const pos = mesh.geometry.attributes.position;
-    const col = mesh.geometry.attributes.color;
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i);
-      const z = pos.getZ(i);
-      if (Math.hypot(x - host.x, z - host.z) > 50) continue;
-      if (pos.getY(i) < -0.45) continue;
-      pos.setY(i, -2.4);
-      if (col) col.setXYZ(i, 0.04, 0.16, 0.28);
-    }
-    pos.needsUpdate = true;
-    if (col) col.needsUpdate = true;
-    mesh.geometry.computeVertexNormals();
   }
   function faceColor(y, f, s) {
     const K = kit();
     const h = y / GROW;
     const salt = Math.floor(hsh(f * 3.1 + s * 5.7 + h) * 4);
+    const rock = ridge(f, s);
+    const tree = 1.85 + facetNoise(f + 1.2, s) * 0.55;
     let hex = 0x3c9a45;
-    if (h < -0.15) hex = [0xb08958, 0x9a7848, 0xc4a06e][salt % 3];
-    else if (h < 0.08) hex = [0xc4a06e, 0xb08b58, 0xd0b07a][salt % 3];
-    else if (h < 0.85) hex = [0xf0d5a4, 0xe4c48c, 0xf6e2b8, 0xd7b57a][salt % 4];
-    else if (h < 1.7 && outcropAt(f, s) < 0.3 && (Math.hypot(f, s) > shoreOf(f, s) - 7 || hsh(Math.round(f * 0.5) * 2 + Math.round(s * 0.5) * 5) > 0.55)) hex = [0x3c9a45, 0x2f7d38, 0x4caf50, 0x347d3c][salt % 4];
-    else {
-      const planes = rockPlanes(f, s);
-      let id = 0;
-      for (let i = 1; i < planes.length; i++) if (planes[i] > planes[id]) id = i;
-      const families = [
-        [0x9c958e, 0x8e877f, 0xa39c94],
-        [0x7d766e, 0x6e675f, 0x8a837a],
-        [0x6a635c, 0x7a736c, 0x5e5852],
-        [0x8a847c, 0x7c766e, 0x968f86]
-      ];
-      hex = families[id][salt % 3];
-    }
+    if (h < 0.15) hex = [0xb08958, 0x9a7848, 0xc4a06e, 0xd2b48c][salt % 4];
+    else if (h < 0.78) hex = [0xf0d5a4, 0xe4c48c, 0xf6e2b8, 0xd7b57a][salt % 4];
+    else if (rock > tree && h > 1.5) {
+      const families = [0x9c958e, 0x7d766e, 0x6a635c, 0x8a847c, 0x6e675f, 0xa39c94];
+      hex = families[salt % families.length];
+    } else if (facetNoise(f, s) > 0.55 && h > 1.15 && h < 3.2) hex = [0x8e877c, 0x7a736c, 0xb7aa96][salt % 3];
+    else hex = [0x3c9a45, 0x2f7d38, 0x4caf50, 0x347d3c, 0x2e7d32][salt % 5];
     return new K.Color(hex);
   }
   function gridMesh(K, N, half, sample, skip) {
@@ -879,10 +897,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const index = [];
     for (let iz = 0; iz <= N; iz++) {
       for (let ix = 0; ix <= N; ix++) {
-        const jf = (hsh(ix * 3.1 + iz * 1.7) - 0.5) * 0.22;
-        const js = (hsh(iz * 2.7 + ix * 1.3) - 0.5) * 0.22;
-        const f = -half + (ix / N) * half * 2 + jf;
-        const s = -half + (iz / N) * half * 2 + js;
+        const f = -half + (ix / N) * half * 2;
+        const s = -half + (iz / N) * half * 2;
         const y = sample(f, s);
         const w = worldFS(f, s);
         const col = faceColor(y == null ? -1 : y, f, s);
@@ -899,7 +915,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
         const b = a + 1;
         const c = a + N + 1;
         const d = c + 1;
-        index.push(a, b, d, a, d, c);
+        index.push(a, d, b, a, c, d);
       }
     }
     const geo = new K.Geo();
@@ -912,15 +928,25 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   function buildTerrain(K) {
     const geo = gridMesh(K, 96, 46, (f, s) => lowland(f, s), (f, s) => lowland(f, s) == null);
     const pos = geo.attributes.position;
-    const col = geo.attributes.color;
-    for (let i = 0; i < pos.count; i++) {
-      const r = col.getX(i);
-      const g = col.getY(i);
-      const b = col.getZ(i);
-      if (g > r + 0.05 && g > b && pos.getY(i) > 1.2 * GROW) {
-        pos.setY(i, 1.05 * GROW + (hsh(i * 0.13 + 4) - 0.5) * 0.55);
-      }
+    const index = geo.index;
+    const keep = [];
+    for (let t = 0; t < index.count; t += 6) {
+      const ids = [index.getX(t), index.getX(t + 1), index.getX(t + 2), index.getX(t + 4)];
+      let minY = Infinity;
+      let maxY = -Infinity;
+      let offshore = 0;
+      ids.forEach((id) => {
+        const y = pos.getY(id);
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        const q = toFS(pos.getX(id) - host.x, pos.getZ(id) - host.z);
+        if (Math.hypot(q.f, q.s) > shoreOf(q.f, q.s) + 0.2) offshore++;
+      });
+      if (offshore === 4 && maxY > -0.02) continue;
+      if (maxY - minY > 2.6 && minY < 0.4) continue;
+      keep.push(index.getX(t), index.getX(t + 1), index.getX(t + 2), index.getX(t + 3), index.getX(t + 4), index.getX(t + 5));
     }
+    geo.setIndex(keep);
     pos.needsUpdate = true;
     geo.computeVertexNormals();
     const mesh = new K.Mesh(geo, new K.Lambert({ vertexColors: true, flatShading: true }));
@@ -1013,6 +1039,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const dz = q.wz - p.wz;
       const len = Math.hypot(dx, dz) || 1;
       if (len < 0.08 || len > 4) continue;
+      if (p.y > 2.5 || q.y > 2.5) continue;
+      if (p.y < 0.2 || q.y < 0.2) continue;
+      if (Math.abs(p.y - q.y) > 0.7) continue;
       const px = -dz / len * half;
       const pz = dx / len * half;
       const y0 = p.y + 0.07;
@@ -1174,12 +1203,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     isleLabel.name = "v51-label";
     root.add(isleLabel);
     ribbon(K, root, [
-      [[24.6, 0], [19.4, -0.6], [15.4, -1.4]],
-      [[15.4, -1.4], [here.map[0], here.map[1]], [here.rally[0], here.rally[1]]],
-      [[15.4, -1.4], [here.quiz[0], here.quiz[1]], [here.builder[0], here.builder[1]]],
-      [[15.4, -1.4], [11.2, 0.15], [9.4, 0.25]]
-    ], 0.72, 0xc4a06a);
-    ribbon(K, root, [[[9.4, 0.25], [here.tunnel[0], here.tunnel[1]]]], 0.84, 0x9a9188);
+      [[26.4, 0.6], [23.2, -2.4], [20.6, -5.6], [18.2, -8.4], [here.map[0], here.map[1]]],
+      [[20.6, -5.6], [17.2, -9.6], [14.8, -13.8], [here.rally[0] + 2.4, here.rally[1] + 4.2]],
+      [[23.2, -2.4], [21.6, 1.2], [here.quiz[0], here.quiz[1]]],
+      [[21.6, 1.2], [17.4, 5.2], [here.builder[0], here.builder[1]]],
+      [[20.6, -5.6], [15.4, -2.8], [12.2, -0.6], [here.tunnel[0] + 1.6, here.tunnel[1]]]
+    ], 0.78, 0xc4a06a);
     dressDock(K, root, lamb);
     dressFlag(K, root, lamb);
     dressFoliage(K, root, lamb);
@@ -1423,23 +1452,37 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const rally = [];
     const start = LAYOUT.rally;
     const toward = LAYOUT.map;
-    for (let i = 0; i < 5; i++) {
-      const t = 0.06 + i * 0.07;
-      const f = start[0] + (toward[0] - start[0]) * t;
-      const s = start[1] + (toward[1] - start[1]) * t;
-      const at = propAt(f, s, 0.05);
-      rally.push(Object.assign({ geo: new K.Box(2.2, 0.08, 1.35), color: 0x5e5a55 }, at));
+    const span = Math.hypot(toward[0] - start[0], toward[1] - start[1]) || 1;
+    const fx = (toward[0] - start[0]) / span;
+    const fs = (toward[1] - start[1]) / span;
+    const px = -fs;
+    const ps = fx;
+    const from = worldFS(start[0], start[1]);
+    const to = worldFS(toward[0], toward[1]);
+    const heading = Math.atan2(to.x - from.x, to.z - from.z);
+    const along = (dist, side, dy) => {
+      const p = spot(start[0] + fx * dist + px * side, start[1] + fs * dist + ps * side);
+      return { x: p.wx, y: p.y + dy, z: p.wz, rot: heading };
+    };
+    for (let i = 0; i < 7; i++) {
+      const dist = 1.6 + i * 1.45;
+      const seg = along(dist, 0, 0.14);
+      if (seg.y < 0.45) continue;
+      rally.push(Object.assign({ geo: new K.Box(6.6, 0.22, 3.3), color: 0x3a3a40 }, seg));
+      rally.push(Object.assign({ geo: new K.Box(0.18, 0.04, 2.5), color: 0xf5f5f5 }, along(dist, -2.95, 0.28)));
+      rally.push(Object.assign({ geo: new K.Box(0.18, 0.04, 2.5), color: 0xf5f5f5 }, along(dist, 2.95, 0.28)));
+      if (i % 2 === 0) rally.push(Object.assign({ geo: new K.Box(0.2, 0.04, 0.9), color: 0xf6d451 }, along(dist, 0, 0.28)));
     }
-    [[0.4, -1.3], [1.6, 1.1]].forEach((off, n) => {
-      const at = propAt(start[0] + off[0], start[1] + off[1], 0);
-      rally.push(Object.assign({ geo: new K.Cyl(0.06, 0.07, 1.35, 6), color: 0x6d4c2f }, propAt(start[0] + off[0], start[1] + off[1], 0.7)));
-      rally.push(Object.assign({ geo: new K.Box(0.72, 0.42, 0.08), color: n ? 0x1565c0 : 0xc62828 }, propAt(start[0] + off[0], start[1] + off[1], 1.35)));
+    [[0.6, -3.6], [2.4, 3.4]].forEach((off, n) => {
+      rally.push(Object.assign({ geo: new K.Cyl(0.1, 0.11, 2.4, 6), color: 0x6d4c2f }, along(off[0], off[1], 1.2)));
+      rally.push(Object.assign({ geo: new K.Box(1.35, 0.78, 0.1), color: n ? 0x1565c0 : 0xc62828 }, along(off[0], off[1], 2.25)));
     });
-    const car = propAt(start[0] + 0.8, start[1] + 1.6, 0.28);
-    rally.push(Object.assign({ geo: new K.Box(1.15, 0.38, 0.62), color: 0xe53935 }, car));
-    rally.push(Object.assign({ geo: new K.Box(0.55, 0.32, 0.5), color: 0xb3e5fc }, propAt(start[0] + 0.8, start[1] + 1.6, 0.58)));
-    [[-0.38, -0.28], [0.38, -0.28], [-0.38, 0.28], [0.38, 0.28]].forEach((w) => {
-      rally.push(Object.assign({ geo: new K.Cyl(0.16, 0.16, 0.12, 8), color: 0x263238, rx: Math.PI / 2 }, propAt(start[0] + 0.8 + w[0], start[1] + 1.6 + w[1], 0.16)));
+    const car = along(5.2, 1.7, 0);
+    rally.push(Object.assign({ geo: new K.Box(2.15, 1.05, 4.7), color: 0xe53935 }, { x: car.x, y: car.y + 0.95, z: car.z, rot: heading }));
+    rally.push(Object.assign({ geo: new K.Box(1.9, 0.78, 2.15), color: 0xb3e5fc }, { x: car.x, y: car.y + 1.72, z: car.z, rot: heading }));
+    [[-0.95, -1.35], [0.95, -1.35], [-0.95, 1.45], [0.95, 1.45]].forEach((w) => {
+      const wheel = along(5.2 + w[1], 1.7 + w[0], 0.48);
+      rally.push(Object.assign({ geo: new K.Cyl(0.48, 0.48, 0.32, 10), color: 0x263238, rx: Math.PI / 2 }, wheel));
     });
     paintProps(K, root, "v51-rally-set", rally);
 

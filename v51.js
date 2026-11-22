@@ -712,10 +712,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function shoreOf(f, s) {
     const a = Math.atan2(s, f);
-    const dock = Math.exp(-(a * a) / 1.6) * 4.8;
-    return 29.2
-      + 1.8 * Math.sin(a * 2 + 0.4)
-      + 0.85 * Math.sin(a * 3 + 1.1)
+    const dock = Math.exp(-(a * a) / 2.4) * 3.1;
+    return 28.4
+      + 2.35 * Math.sin(a * 2 + 0.4)
+      + 1.05 * Math.sin(a * 3 + 1.15)
       + dock;
   }
   function facetNoise(f, s) {
@@ -781,11 +781,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const d = Math.hypot(f, s);
     const shore = shoreOf(f, s);
     if (d > shore + 9) return null;
-    const qf = Math.round(f * 0.48) / 0.48;
-    const qs = Math.round(s * 0.48) / 0.48;
-    let grass = 1.02
-      + Math.sin(f * 0.22 + 0.5) * Math.cos(s * 0.18 + 0.2) * 0.28
-      + (hsh(qf * 4.1 + qs * 7.7) - 0.5) * 0.46;
+    let grass = 1.06
+      + Math.sin(f * 0.14 + 0.5) * Math.cos(s * 0.11 + 0.25) * 0.14
+      + Math.sin(f * 0.06 - s * 0.05 + 1.2) * 0.08;
     const rock = ridge(f, s);
     const tree = 1.85 + facetNoise(f + 1.2, s) * 0.55 + Math.sin(f * 0.62 + s * 0.41) * 0.22;
     let y = grass;
@@ -799,18 +797,14 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       y = flat * (1 - u) + y * u;
     }
     const band = shore - d;
-    const beach = 7.2;
-    const wet = -0.36;
-    if (band < beach) {
-      const lip = Math.min(Math.max(y, 0.85), 1.25);
-      if (band >= 0) {
-        const u = smoothstep(band / beach);
-        y = wet + (lip - wet) * u;
-      } else {
-        const u = Math.min(1, -band / 6.8);
-        const su = u * u * (3 - 2 * u);
-        y = wet * (1 - su) + (-1.5) * su;
-      }
+    const beach = 2.6;
+    const waterU = -0.55 / GROW;
+    if (band < beach + 5) {
+      const lip = Math.min(Math.max(y, 0.98), 1.12);
+      const slope = (lip - waterU) / beach;
+      let skirt = waterU + band * slope;
+      if (skirt < -1.65) skirt = -1.65;
+      y = skirt;
     }
     if (inMouth(f, s)) y = Math.min(y, 1.26);
     if (inRoomFS(f, s)) y = 1.22;
@@ -851,45 +845,110 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const q = caveLocal(pos.x, pos.y, pos.z);
     return Math.abs(q.x) < 1.85 && q.z < -0.45 && q.z > -6.2 && q.y > -0.5 && q.y < 3.2;
   }
-  function sinkDome() {
+  function dropOldShore() {
     const turtle = (CA.isl.L || []).find((j) => j.id === "turtle");
+    const doomed = [];
+    const K = kit();
     CA.scene.traverse((o) => {
       if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      if (o.parent && o.parent.name === "v51-root") return;
+      const name = o.name || "";
+      if (/turtle|pirate|parrot|lair|whale|dolphin|light|buoy|boat/i.test(name)) return;
       const pos = o.geometry.attributes.position;
-      const col = o.geometry.attributes.color;
-      let changed = false;
-      for (let i = 0; i < pos.count; i++) {
-        const x = pos.getX(i);
-        const y = pos.getY(i);
-        const z = pos.getZ(i);
-        if (y < -0.12) continue;
-        if (Math.hypot(x - host.x, z - host.z) > 44) continue;
-        if (turtle && Math.hypot(x - turtle.cx, z - turtle.cz) < turtle.R + 5) continue;
-        pos.setY(i, -3.2);
-        if (col) col.setXYZ(i, 0.04, 0.14, 0.24);
-        changed = true;
+      if (pos.count < 8000) return;
+      const xz = (i) => ({ x: pos.getX(i), z: pos.getZ(i) });
+      const close = (i) => {
+        const p = xz(i);
+        return Math.hypot(p.x - host.x, p.z - host.z) < 74;
+      };
+      const index = o.geometry.index;
+      if (!index) {
+        const next = [];
+        const color = o.geometry.attributes.color;
+        const colors = [];
+        let dropped = 0;
+        for (let i = 0; i + 2 < pos.count; i += 3) {
+          const pa = xz(i);
+          const pb = xz(i + 1);
+          const pc = xz(i + 2);
+          const mx = (pa.x + pb.x + pc.x) / 3;
+          const mz = (pa.z + pb.z + pc.z) / 3;
+          const near = close(i) || close(i + 1) || close(i + 2);
+          const allInTurtle = turtle && [i, i + 1, i + 2].every((k) => Math.hypot(pos.getX(k) - turtle.cx, pos.getZ(k) - turtle.cz) < turtle.R + 2);
+          if (near && !allInTurtle) {
+            dropped++;
+            continue;
+          }
+          for (let k = 0; k < 3; k++) {
+            next.push(pos.getX(i + k), pos.getY(i + k), pos.getZ(i + k));
+            if (color) colors.push(color.getX(i + k), color.getY(i + k), color.getZ(i + k));
+          }
+        }
+        if (!dropped) return;
+        o.geometry.setAttribute("position", new K.Attr(new Float32Array(next), 3));
+        if (color) o.geometry.setAttribute("color", new K.Attr(new Float32Array(colors), 3));
+        o.geometry.deleteAttribute("normal");
+        o.geometry.computeVertexNormals();
+        if (!next.length) doomed.push(o);
+        return;
       }
-      if (!changed) return;
-      pos.needsUpdate = true;
-      if (col) col.needsUpdate = true;
+      const keep = [];
+      let dropped = 0;
+      for (let t = 0; t < index.count; t += 3) {
+        const a = index.getX(t);
+        const b = index.getX(t + 1);
+        const c = index.getX(t + 2);
+        const pa = xz(a);
+        const pb = xz(b);
+        const pc = xz(c);
+        const mx = (pa.x + pb.x + pc.x) / 3;
+        const mz = (pa.z + pb.z + pc.z) / 3;
+        const near = close(a) || close(b) || close(c);
+        const allInTurtle = turtle && [a, b, c].every((k) => Math.hypot(pos.getX(k) - turtle.cx, pos.getZ(k) - turtle.cz) < turtle.R + 2);
+        if (near && !allInTurtle) {
+          dropped++;
+          continue;
+        }
+        keep.push(a, b, c);
+      }
+      if (!dropped) return;
+      o.geometry.setIndex(new K.Attr(new Uint32Array(keep), 1));
       o.geometry.computeVertexNormals();
+      if (!keep.length) doomed.push(o);
     });
+    doomed.forEach((o) => {
+      o.visible = false;
+      if (o.parent) o.parent.remove(o);
+    });
+  }
+  function mixHex(K, a, b, t) {
+    const col = new K.Color(a);
+    col.lerp(new K.Color(b), t < 0 ? 0 : t > 1 ? 1 : t);
+    return col;
+  }
+  function toneAt(f, s) {
+    return 0.5
+      + 0.5 * Math.sin(f * 0.085 + 0.7) * Math.cos(s * 0.07 + 0.4)
+      + 0.16 * Math.sin(f * 0.04 - s * 0.035 + 1.3);
   }
   function faceColor(y, f, s) {
     const K = kit();
     const h = y / GROW;
-    const salt = Math.floor(hsh(f * 3.1 + s * 5.7 + h) * 4);
+    const t = toneAt(f, s);
+    const sand = mixHex(K, 0xf6e0b8, 0xd7b57a, t);
+    const wet = mixHex(K, 0xc9a56e, 0xa88852, t);
+    const grass = mixHex(K, 0x5cb85c, 0x2f7d38, t);
+    const rockC = mixHex(K, 0xa39c94, 0x6e675f, t);
     const rock = ridge(f, s);
-    const tree = 1.85 + facetNoise(f + 1.2, s) * 0.55;
-    let hex = 0x3c9a45;
-    if (h < 0.15) hex = [0xb08958, 0x9a7848, 0xc4a06e, 0xd2b48c][salt % 4];
-    else if (h < 0.78) hex = [0xf0d5a4, 0xe4c48c, 0xf6e2b8, 0xd7b57a][salt % 4];
-    else if (rock > tree && h > 1.5) {
-      const families = [0x9c958e, 0x7d766e, 0x6a635c, 0x8a847c, 0x6e675f, 0xa39c94];
-      hex = families[salt % families.length];
-    } else if (facetNoise(f, s) > 0.55 && h > 1.15 && h < 3.2) hex = [0x8e877c, 0x7a736c, 0xb7aa96][salt % 3];
-    else hex = [0x3c9a45, 0x2f7d38, 0x4caf50, 0x347d3c, 0x2e7d32][salt % 5];
-    return new K.Color(hex);
+    const tree = 2.15 + Math.sin(f * 0.16 + s * 0.12) * 0.35;
+    if (rock > tree && h > 1.75) return rockC;
+    if (h < 0.08) return wet;
+    if (h < 0.72) {
+      const u = Math.max(0, Math.min(1, (h - 0.08) / 0.64));
+      sand.lerp(grass, u * u * u);
+      return sand;
+    }
+    return grass;
   }
   function gridMesh(K, N, half, sample, skip) {
     const positions = [];
@@ -926,30 +985,44 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return geo;
   }
   function buildTerrain(K) {
-    const geo = gridMesh(K, 96, 46, (f, s) => lowland(f, s), (f, s) => lowland(f, s) == null);
-    const pos = geo.attributes.position;
-    const index = geo.index;
-    const keep = [];
-    for (let t = 0; t < index.count; t += 6) {
-      const ids = [index.getX(t), index.getX(t + 1), index.getX(t + 2), index.getX(t + 4)];
-      let minY = Infinity;
-      let maxY = -Infinity;
-      let offshore = 0;
-      ids.forEach((id) => {
-        const y = pos.getY(id);
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-        const q = toFS(pos.getX(id) - host.x, pos.getZ(id) - host.z);
-        if (Math.hypot(q.f, q.s) > shoreOf(q.f, q.s) + 0.2) offshore++;
-      });
-      if (offshore === 4 && maxY > -0.02) continue;
-      if (maxY - minY > 2.6 && minY < 0.4) continue;
-      keep.push(index.getX(t), index.getX(t + 1), index.getX(t + 2), index.getX(t + 3), index.getX(t + 4), index.getX(t + 5));
+    const A = 720;
+    const R = 28;
+    const skirt = 4.6;
+    const positions = [];
+    const colors = [];
+    const index = [];
+    for (let ia = 0; ia <= A; ia++) {
+      const ang = (ia / A) * Math.PI * 2;
+      const cf = Math.cos(ang);
+      const cs = Math.sin(ang);
+      const shore = shoreOf(cf, cs);
+      for (let ir = 0; ir <= R; ir++) {
+        const rad = (ir / R) * (shore + skirt);
+        const f = cf * rad;
+        const s = cs * rad;
+        const y = lowland(f, s);
+        const w = worldFS(f, s);
+        const col = faceColor(y == null ? -2 : y, f, s);
+        positions.push(host.x + w.x, y == null ? -2 : y, host.z + w.z);
+        colors.push(col.r, col.g, col.b);
+      }
     }
-    geo.setIndex(keep);
-    pos.needsUpdate = true;
+    const stride = R + 1;
+    for (let ia = 0; ia < A; ia++) {
+      for (let ir = 0; ir < R; ir++) {
+        const a = ia * stride + ir;
+        const b = a + 1;
+        const c = a + stride;
+        const d = c + 1;
+        index.push(a, c, b, b, c, d);
+      }
+    }
+    const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
+    geo.setAttribute("color", new K.Attr(new Float32Array(colors), 3));
+    geo.setIndex(index);
     geo.computeVertexNormals();
-    const mesh = new K.Mesh(geo, new K.Lambert({ vertexColors: true, flatShading: true }));
+    const mesh = new K.Mesh(geo, new K.Lambert({ vertexColors: true }));
     mesh.receiveShadow = true;
     mesh.name = "v51-terrain";
     mesh.userData.nofade = 1;
@@ -1166,7 +1239,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       boatSpot: host.dock
     };
     mountainBlock = { x: center.x, z: center.z, r: 4.5 };
-    sinkDome();
+    dropOldShore();
     const root = new K.Group();
     root.name = "v51-root";
     CA.scene.add(root);
@@ -1580,6 +1653,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   function dressMapTable(K, root, lamb) {
     const p = spot(LAYOUT.table[0], LAYOUT.table[1]);
     const table = new K.Group();
+    table.name = "v51-map-table";
     table.position.set(p.wx, p.y, p.wz);
     table.rotation.y = lay.yaw;
     const top = new K.Mesh(new K.Box(6.5, 0.14, 4.35), lamb(0x8d5a2b));
@@ -2551,9 +2625,18 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     cam.position.set(w.x, w.y, w.z);
     cam.lookAt(cap.position.x, cap.position.y + 1.02, cap.position.z);
   }
+  function rallyCover(hide) {
+    const root = CA.scene.getObjectByName("v51-root");
+    if (!root || root.userData.rallyCover === hide) return;
+    root.userData.rallyCover = hide;
+    root.traverse((o) => {
+      if (o.name === "v51-palm" || o.name === "v51-map-table") o.visible = !hide;
+    });
+  }
   function aimCamera(cam) {
     if (!cam || !host || !lay) return;
     if (cam.clearViewOffset) cam.clearViewOffset();
+    rallyCover(!!(session && session.id === "rally"));
     if (window.__libertyAerial) {
       cam.position.set(host.x + lay.fx * 78, 58, host.z + lay.fz * 78);
       cam.lookAt(host.x, 6, host.z);
@@ -2599,6 +2682,15 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const mouth = worldFS(CAVE.f - 0.1, CAVE.s);
       const my = heightFS(CAVE.f - 0.1, CAVE.s);
       cam.lookAt(host.x + mouth.x, (my == null ? 1.2 : my) + 1.7, host.z + mouth.z);
+      return;
+    }
+    if (walking && on && session && session.id === "rally") {
+      const d = Math.hypot(q.f, q.s) || 1;
+      const cf = q.f + (q.f / d) * 8 + (-q.s / d) * 5.5;
+      const cs = q.s + (q.s / d) * 8 + (q.f / d) * 5.5;
+      const w = worldFS(cf, cs);
+      cam.position.set(host.x + w.x, cap.position.y + 7.2, host.z + w.z);
+      cam.lookAt(cap.position.x, cap.position.y + 1.2, cap.position.z);
       return;
     }
     if (walking && on) {

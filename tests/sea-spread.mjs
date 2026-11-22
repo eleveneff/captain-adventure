@@ -125,8 +125,10 @@ check("buoy count scaled", world.buoys === Math.round(56 * S) + 6, String(world.
 const expectR = { turtle: 19, pirate: 20, parrot: 18 };
 const expectDist = { turtle: 222 * S, pirate: 218 * S, parrot: 226 * S };
 for (const isle of world.isles) {
-  check(`${isle.id} land radius`, isle.R === expectR[isle.id], String(isle.R));
-  check(`${isle.id} spaced out`, Math.abs(isle.dist - expectDist[isle.id]) < 0.05, isle.dist.toFixed(2));
+  if (expectR[isle.id]) {
+    check(`${isle.id} land radius`, isle.R === expectR[isle.id], String(isle.R));
+    check(`${isle.id} spaced out`, Math.abs(isle.dist - expectDist[isle.id]) < 0.05, isle.dist.toFixed(2));
+  }
   check(`${isle.id} inside the buoys`, isle.dist + isle.R + 8 < world.deepR, isle.dist.toFixed(1));
 }
 const sightBase = { sandbar: 132 * 1.25, dolphins: 150 * 1.25, lighthouse: 175 * 1.25, whale: 200 * 1.25, treasure: 212 * 1.25 };

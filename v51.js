@@ -275,7 +275,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       "Mount Rushmore": { id: "rushmore", price: 45, questions: [
         q("Sculptor Gutzon Borglum and about 400 workers carved four faces between 1927 and 1941.", "Who directed the carving of Mount Rushmore?", ["Gutzon Borglum", "Thomas Jefferson", "Neil Armstrong", "Roger Williams"], 0, "Borglum led about 400 workers from 1927 to 1941."),
         q("The faces are Washington, Jefferson, Theodore Roosevelt, and Lincoln. Each face is about 60 feet tall.", "About how tall is each face on Mount Rushmore?", ["60 feet", "6 feet", "600 feet", "6,000 feet"], 0, "Each carved face is about 60 feet tall."),
-        q("The Black Hills are sacred to the Lakota, and the United States took them in the 1870s despite an 1868 treaty. The Supreme Court later ruled that taking was wrong.", "The Supreme Court later ruled that taking the Black Hills broke which 1868 promise?", ["A treaty with the Lakota", "The Mayflower Compact", "The golden spike", "The Bill of Rights' ban on newspapers"], 0, "An 1868 treaty protected the Black Hills. The Court later said the United States was wrong to take them.")
+        q("Mount Rushmore is in the Black Hills of South Dakota. The four faces are Washington, Jefferson, Theodore Roosevelt and Lincoln.", "Which state is home to Mount Rushmore?", ["South Dakota", "Virginia", "Hawaii", "Maine"], 0, "The memorial is in the Black Hills of South Dakota.")
       ]},
       "Golden Gate Bridge": { id: "gate", price: 50, questions: [
         q("The Golden Gate Bridge opened in 1937 across the entrance to San Francisco Bay.", "The Golden Gate Bridge opened in 1937. Which city does it serve?", ["San Francisco", "Philadelphia", "St. Louis", "Boston"], 0, "It crosses the entrance to San Francisco Bay."),
@@ -285,12 +285,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       "The Alamo": { id: "alamo", price: 30, questions: [
         q("In 1836, Texan defenders held the Alamo for 13 days. The fort fell, and nearly all inside were killed.", "In 1836, the Alamo was a battle in which present-day state?", ["Texas", "Florida", "Virginia", "Maine"], 0, "The Alamo is in San Antonio, Texas."),
         q("The Alamo was an old Spanish mission before the battle.", "Before the 1836 battle, the Alamo had been what?", ["A Spanish mission", "A railroad station", "A moon rocket", "A New England school"], 0, "Spain built it as a mission. The chapel still stands."),
-        q("One cause of the conflict was that many American settlers held enslaved people, and Mexico had moved to end slavery.", "Which fact was one cause of the fight at the Alamo?", ["Mexico had moved to end slavery, and many American settlers held enslaved people", "Mexico had banned all churches", "The defenders wanted to join Canada", "Spain still ruled Texas in 1836"], 0, "Mexico was ending slavery. Many settlers from the United States wanted to keep enslaved people. That was one cause of the Texas Revolution.")
+        q("After the fall of the Alamo, Texan forces won independence at the Battle of San Jacinto on April 21, 1836.", "Where did Texan forces win independence in April 1836?", ["San Jacinto", "Gettysburg", "Yorktown", "Fort Sumter"], 0, "The Battle of San Jacinto was fought in Texas on April 21, 1836. Texas then became an independent republic.")
       ]},
       "Liberty Bell": { id: "bell", price: 25, questions: [
         q("The Liberty Bell hung in the Pennsylvania State House, now called Independence Hall.", "The Liberty Bell hung in which building?", ["The Pennsylvania State House, now Independence Hall", "The Alamo", "The Golden Gate Bridge", "Mount Rushmore"], 0, "Independence Hall in Philadelphia was the Pennsylvania State House."),
         q("The bell is inscribed 'Proclaim LIBERTY throughout all the Land unto all the Inhabitants thereof.'", "The words on the Liberty Bell proclaim what throughout the land?", ["Liberty", "A king's tax", "A state church", "A closed harbor"], 0, "The inscription says Proclaim LIBERTY throughout all the Land."),
-        q("In the 1830s, people working to end slavery named it the Liberty Bell and made it their symbol.", "Who made the bell a symbol in the 1830s?", ["People working to end slavery", "The crew of Columbus", "The builders of the Space Needle", "The Supreme Court in 1954"], 0, "Abolitionists, people who worked to end slavery, gave the bell the name Liberty Bell.")
+        q("A crack in the Liberty Bell grew in the 1840s, and the bell stopped ringing.", "What stopped the Liberty Bell from regular ringing?", ["A crack in the metal", "A move to the Moon", "A flood in 1964", "A law against bells"], 0, "The bell cracked, was repaired and cracked again. That crack is why it is no longer rung hard.")
       ]},
       "Gateway Arch": { id: "arch", price: 35, questions: [
         q("The Gateway Arch, finished in 1965, is 630 feet tall and 630 feet wide.", "The Gateway Arch was finished in 1965. How tall is it?", ["630 feet", "63 feet", "6,300 feet", "12 feet"], 0, "It is 630 feet tall and 630 feet wide."),
@@ -396,28 +396,95 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     }));
   }
 
+  function makeBorderQuestion(s) {
+    const neighbor = s.neighbors.find((n) => n !== s.name);
+    if (!neighbor) return null;
+    const wrong = BANK.states.map((x) => x.name).filter((n) => n !== s.name && s.neighbors.indexOf(n) < 0);
+    for (let i = wrong.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const swap = wrong[i];
+      wrong[i] = wrong[j];
+      wrong[j] = swap;
+    }
+    if (wrong.length < 3) return null;
+    return {
+      type: "choice",
+      fact: s.fact,
+      question: "Which of these states shares a border with " + s.name + "?",
+      choices: [neighbor, wrong[0], wrong[1], wrong[2]],
+      answer: 0,
+      explanation: neighbor + " is a neighbor of " + s.name + ". The others on this list are not.",
+      postcard: s.name
+    };
+  }
   function rallyQuestions() {
     const withN = BANK.states.filter((s) => s.neighbors.length);
     const qs = [];
     const used = new Set();
-    while (qs.length < 3) {
+    let guard = 0;
+    while (qs.length < 3 && guard < 80) {
+      guard++;
       const s = withN[Math.floor(Math.random() * withN.length)];
       if (used.has(s.name)) continue;
+      const q = makeBorderQuestion(s);
+      if (!q) continue;
       used.add(s.name);
-      const neighbor = s.neighbors[0];
-      const wrong = BANK.states.map((x) => x.name).filter((n) => n !== neighbor && s.neighbors.indexOf(n) < 0);
-      const choices = [neighbor, wrong[0], wrong[3], wrong[7]];
-      qs.push({
-        type: "choice",
-        fact: s.fact,
-        question: "Which of these states shares a border with " + s.name + "?",
-        choices,
-        answer: 0,
-        explanation: neighbor + " is a neighbor of " + s.name + ". The others on this list are not.",
-        postcard: s.name
-      });
+      qs.push(q);
     }
     return qs;
+  }
+  function contentProblems() {
+    const problems = [];
+    function checkQ(q, label) {
+      if (!q || !q.choices) return;
+      const choices = q.choices.map((c) => String(c).trim());
+      if (choices.length < 2) problems.push(label + " has too few choices");
+      if (new Set(choices.map((c) => c.toLowerCase())).size !== choices.length) problems.push(label + " has duplicate choices");
+      if (!(q.answer >= 0 && q.answer < choices.length)) problems.push(label + " is missing its correct answer");
+      const match = String(q.question || "").match(/border with (.+)\?$/);
+      if (!match) return;
+      const subject = match[1];
+      const state = BANK.states.find((s) => s.name === subject);
+      if (choices.indexOf(subject) >= 0) problems.push(label + " lists " + subject + " as a choice about itself");
+      const hits = choices.filter((c) => state && state.neighbors.indexOf(c) >= 0);
+      if (hits.length !== 1) problems.push(label + " has " + hits.length + " bordering choices");
+      if (!state || state.neighbors.indexOf(choices[q.answer]) < 0) problems.push(label + " correct answer does not border " + subject);
+    }
+    const capitals = {};
+    const flags = {};
+    BANK.states.forEach((s) => {
+      if (s.neighbors.indexOf(s.name) >= 0) problems.push(s.name + " lists itself as a neighbor");
+      capitals[s.capital] = (capitals[s.capital] || 0) + 1;
+      if (s.flag) flags[s.flag] = (flags[s.flag] || 0) + 1;
+      if (!s.neighbors.length) return;
+      const neighbor = s.neighbors.find((n) => n !== s.name);
+      const wrong = BANK.states.map((x) => x.name).filter((n) => n !== s.name && s.neighbors.indexOf(n) < 0);
+      checkQ({
+        question: "Which of these states shares a border with " + s.name + "?",
+        choices: [neighbor, wrong[0], wrong[1], wrong[2]],
+        answer: 0
+      }, "border " + s.name);
+    });
+    Object.keys(capitals).forEach((cap) => {
+      if (capitals[cap] !== 1) problems.push(cap + " is the capital of more than one state");
+    });
+    Object.keys(flags).forEach((line) => {
+      if (flags[line] !== 1) problems.push("duplicate flag fact");
+    });
+    BANK.states.forEach((s) => {
+      const others = BANK.states.filter((x) => x.name !== s.name);
+      const capitalChoices = [s.name, others[0].name, others[1].name, others[2].name];
+      if (new Set(capitalChoices).size !== capitalChoices.length) problems.push(s.name + " capital choices repeat");
+      const hits = capitalChoices.filter((name) => BANK.states.some((x) => x.name === name && x.capital === s.capital));
+      if (hits.length !== 1) problems.push(s.name + " capital question has " + hits.length + " correct states");
+    });
+    BANK.history.forEach((q, i) => checkQ(q, "history " + (q.id || i)));
+    const gates = landmarkGates();
+    Object.keys(gates).forEach((name) => gates[name].questions.forEach((q, i) => checkQ(q, name + " " + i)));
+    BANK.states.forEach((s) => {
+      if (REGIONS.indexOf(s.region) < 0) problems.push(s.name + " has no region choice");
+    });
+    return problems;
   }
 
   function quizQuestions(category) {
@@ -2999,7 +3066,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     build: startBuild,
     spin: spinWheel,
     near: captainNear,
-    session: () => session
+    session: () => session,
+    contentProblems
   };
   window.CaptainLiberty = CA.liberty;
 })();

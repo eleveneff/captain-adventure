@@ -1,0 +1,1949 @@
+{
+  "meta": {
+    "title": "Liberty Isle US History Pack",
+    "version": "1.0.0",
+    "date": "2026-11-22",
+    "audience": "ISEE Lower Level student, age 11-12; written at a 5th-6th grade reading level",
+    "rules": [
+      "Nothing before 1500, except the opening question q00 about Columbus's 1492 voyage.",
+      "Focus mainly on North America and the lands that became the United States, not Central/South America or Europe.",
+      "Facts first, with an American exceptionalism focus: the founding ideals, the Declaration, the Constitution and Bill of Rights, self-government, opportunity and innovation, immigrants, and ending slavery and extending civil rights as America living up to its ideals.",
+      "Every fact must be accurate.",
+      "Hard history is included and told honestly and age-appropriately: slavery, the treatment of Native peoples, Jim Crow."
+    ],
+    "sources": [
+      "National Archives, America's Founding Documents: https://www.archives.gov/founding-docs",
+      "National Park Service (Jamestown, St. Augustine/Castillo de San Marcos, Independence Hall, Trail of Tears, Statue of Liberty, Mount Rushmore, Gateway Arch, Golden Gate): https://www.nps.gov",
+      "NPS, Trail of Tears deaths: https://www.nps.gov/articles/000/what-happened-on-the-trail-of-tears.htm",
+      "NPS, Theodore Roosevelt and Conservation: https://www.nps.gov/thro/learn/historyculture/theodore-roosevelt-and-conservation.htm",
+      "Library of Congress, Primary Documents in American History: https://guides.loc.gov/primary-documents-in-american-history",
+      "Smithsonian National Museum of American History: https://americanhistory.si.edu",
+      "US Senate and House history offices (amendments and ratification dates): https://history.house.gov"
+    ],
+    "for": "Captain Adventure: Liberty Isle side quest (Princess Prep Content Bot)"
+  },
+  "eras": [
+    {
+      "id": "e1",
+      "name": "Explorers and First Peoples",
+      "startYear": 1500,
+      "endYear": 1606,
+      "summary": "Millions of Native people already lived across North America when Spanish, French and English explorers arrived. The newcomers brought horses and new goods, but also diseases like smallpox that killed huge numbers of Native people."
+    },
+    {
+      "id": "e2",
+      "name": "Thirteen Colonies Take Root",
+      "startYear": 1607,
+      "endYear": 1753,
+      "summary": "English colonists built settlements along the Atlantic coast and began to govern themselves with elected assemblies. At the same time, enslaved Africans were forced to work in the colonies, and Native nations lost land in wars and treaties."
+    },
+    {
+      "id": "e3",
+      "name": "Revolution and a New Nation",
+      "startYear": 1754,
+      "endYear": 1789,
+      "summary": "Colonists protested British taxes, declared independence in 1776 and won the Revolutionary War. They then wrote the Constitution, creating a government run by the people."
+    },
+    {
+      "id": "e4",
+      "name": "A Growing Nation",
+      "startYear": 1790,
+      "endYear": 1849,
+      "summary": "The United States added the Bill of Rights, doubled in size and pushed west. Growth brought canals and new freedoms for many, but it also spread slavery and forced Native nations off their homelands."
+    },
+    {
+      "id": "e5",
+      "name": "Civil War and Reconstruction",
+      "startYear": 1850,
+      "endYear": 1877,
+      "summary": "Arguments over slavery split the nation, and the Civil War began in 1861. The Union won, slavery was ended by the 13th Amendment, and new amendments promised citizenship and voting rights to formerly enslaved people."
+    },
+    {
+      "id": "e6",
+      "name": "Inventions, Immigrants and Reform",
+      "startYear": 1878,
+      "endYear": 1928,
+      "summary": "Millions of immigrants arrived, and inventors and factories changed daily life. Reformers fought for women's right to vote, while Black Americans faced Jim Crow laws and Native peoples lost more land."
+    },
+    {
+      "id": "e7",
+      "name": "Hard Times and World War II",
+      "startYear": 1929,
+      "endYear": 1945,
+      "summary": "The Great Depression left millions without jobs until the New Deal and the war effort brought work back. Americans then helped win World War II, though Japanese Americans were unfairly forced into camps at home."
+    },
+    {
+      "id": "e8",
+      "name": "Civil Rights, Space and Modern America",
+      "startYear": 1946,
+      "endYear": 2026,
+      "summary": "Black Americans and their allies used courts, marches and votes to end legal segregation. Americans also walked on the Moon, built new technology and kept working to live up to the nation's founding ideals."
+    }
+  ],
+  "events": [
+    {
+      "id": "e1-ev01",
+      "era": "e1",
+      "year": 1513,
+      "title": "Ponce de León reaches Florida",
+      "fact": "Spanish explorer Juan Ponce de León landed on the coast of Florida in 1513 and named it La Florida.",
+      "whyItMatters": "It was the first known European landing on what is now the US mainland."
+    },
+    {
+      "id": "e1-ev02",
+      "era": "e1",
+      "year": 1524,
+      "title": "Verrazzano sails the Atlantic coast",
+      "fact": "Giovanni da Verrazzano, an Italian sailing for France, explored the Atlantic coast and sailed into New York Harbor in 1524.",
+      "whyItMatters": "Europeans began to map the eastern coast of North America."
+    },
+    {
+      "id": "e1-ev03",
+      "era": "e1",
+      "year": 1534,
+      "title": "Cartier explores for France",
+      "fact": "Jacques Cartier sailed into the Gulf of St. Lawrence in 1534 and claimed land for France.",
+      "whyItMatters": "It began France's claims in North America, which later stretched down to Louisiana."
+    },
+    {
+      "id": "e1-ev04",
+      "era": "e1",
+      "year": 1540,
+      "title": "Coronado searches the Southwest",
+      "fact": "Francisco Vázquez de Coronado led an army from Mexico into the American Southwest in 1540, searching for cities of gold that did not exist.",
+      "whyItMatters": "His trip reached as far as present-day Kansas and showed how big the continent was."
+    },
+    {
+      "id": "e1-ev05",
+      "era": "e1",
+      "year": 1541,
+      "title": "De Soto reaches the Mississippi",
+      "fact": "Hernando de Soto's Spanish expedition crossed the Southeast and reached the Mississippi River in 1541.",
+      "whyItMatters": "His soldiers attacked many Native towns, and the diseases they carried spread to Native peoples."
+    },
+    {
+      "id": "e1-ev06",
+      "era": "e1",
+      "year": 1565,
+      "title": "St. Augustine is founded",
+      "fact": "Pedro Menéndez de Avilés founded St. Augustine, Florida, in 1565.",
+      "whyItMatters": "It is the oldest continuously lived-in city founded by Europeans in the United States."
+    },
+    {
+      "id": "e1-ev07",
+      "era": "e1",
+      "year": 1587,
+      "title": "The Lost Colony of Roanoke",
+      "fact": "English colonists settled on Roanoke Island in 1587, and Virginia Dare became the first English child born in the Americas.",
+      "whyItMatters": "When supply ships returned in 1590 the colonists were gone, and their fate is still a mystery."
+    },
+    {
+      "id": "e1-ev08",
+      "era": "e1",
+      "year": 1598,
+      "title": "Oñate leads settlers into New Mexico",
+      "fact": "Juan de Oñate led Spanish settlers north into New Mexico in 1598.",
+      "whyItMatters": "Spain's colony there was harsh toward the Pueblo people, who later rose up against Spanish rule."
+    },
+    {
+      "id": "e2-ev01",
+      "era": "e2",
+      "year": 1607,
+      "title": "Jamestown is founded",
+      "fact": "English colonists founded Jamestown, Virginia, in 1607.",
+      "whyItMatters": "It was the first permanent English settlement in North America."
+    },
+    {
+      "id": "e2-ev02",
+      "era": "e2",
+      "year": 1610,
+      "title": "Santa Fe is founded",
+      "fact": "Spanish settlers founded Santa Fe, New Mexico, around 1610.",
+      "whyItMatters": "It is the oldest state capital city in the United States."
+    },
+    {
+      "id": "e2-ev03",
+      "era": "e2",
+      "year": 1619,
+      "title": "First elected assembly meets",
+      "fact": "Virginia's House of Burgesses met in 1619 as the first elected lawmaking assembly in English America.",
+      "whyItMatters": "It planted the idea of self-government that grew into American democracy."
+    },
+    {
+      "id": "e2-ev04",
+      "era": "e2",
+      "year": 1619,
+      "title": "Enslaved Africans arrive in Virginia",
+      "fact": "In 1619 a ship brought about 20 captive Africans to Virginia, the first Africans recorded in the English colony.",
+      "whyItMatters": "Slavery grew in the colonies after this and lasted until 1865."
+    },
+    {
+      "id": "e2-ev05",
+      "era": "e2",
+      "year": 1620,
+      "title": "The Mayflower Compact",
+      "fact": "Before landing at Plymouth in 1620, the Pilgrims signed the Mayflower Compact, agreeing to make fair laws and obey them.",
+      "whyItMatters": "It was an early example of people agreeing to govern themselves."
+    },
+    {
+      "id": "e2-ev06",
+      "era": "e2",
+      "year": 1636,
+      "title": "Roger Williams founds Providence",
+      "fact": "Roger Williams founded Providence in 1636 as a place where people could worship freely.",
+      "whyItMatters": "It helped make religious freedom an American value."
+    },
+    {
+      "id": "e2-ev07",
+      "era": "e2",
+      "year": 1675,
+      "title": "King Philip's War",
+      "fact": "In 1675 the Wampanoag leader Metacom, called King Philip by the English, led Native nations in a war against New England colonists who were taking their land.",
+      "whyItMatters": "It was one of the deadliest wars in colonial America, and Native nations in New England lost much of their land."
+    },
+    {
+      "id": "e2-ev08",
+      "era": "e2",
+      "year": 1680,
+      "title": "The Pueblo Revolt",
+      "fact": "In 1680 the Pueblo people, led by Popé, drove Spanish colonists out of New Mexico.",
+      "whyItMatters": "The Pueblo people ruled themselves for 12 years before Spain returned."
+    },
+    {
+      "id": "e2-ev09",
+      "era": "e2",
+      "year": 1681,
+      "title": "William Penn's colony",
+      "fact": "King Charles II granted William Penn the colony of Pennsylvania in 1681.",
+      "whyItMatters": "Penn welcomed people of many faiths, and Philadelphia became a leading city."
+    },
+    {
+      "id": "e2-ev10",
+      "era": "e2",
+      "year": 1739,
+      "title": "The Stono Rebellion",
+      "fact": "In 1739 enslaved people near the Stono River in South Carolina rose up and marched toward freedom in Spanish Florida.",
+      "whyItMatters": "It was the largest uprising of enslaved people in Britain's mainland colonies and showed that enslaved people resisted slavery."
+    },
+    {
+      "id": "e3-ev01",
+      "era": "e3",
+      "year": 1754,
+      "title": "French and Indian War begins",
+      "fact": "In 1754 fighting broke out between Britain and France, each with Native allies, over land in the Ohio River Valley.",
+      "whyItMatters": "Britain won in 1763 but needed money afterward, so it began taxing the colonists."
+    },
+    {
+      "id": "e3-ev02",
+      "era": "e3",
+      "year": 1765,
+      "title": "The Stamp Act",
+      "fact": "Britain's Stamp Act of 1765 taxed printed papers in the colonies, such as newspapers and legal documents.",
+      "whyItMatters": "Colonists protested 'no taxation without representation' because they had no vote in Parliament."
+    },
+    {
+      "id": "e3-ev03",
+      "era": "e3",
+      "year": 1773,
+      "title": "The Boston Tea Party",
+      "fact": "In December 1773 colonists in Boston dumped 342 chests of British tea into the harbor to protest a tax on tea.",
+      "whyItMatters": "Britain punished Boston with harsh laws, pushing the colonies toward war."
+    },
+    {
+      "id": "e3-ev04",
+      "era": "e3",
+      "year": 1775,
+      "title": "Lexington and Concord",
+      "fact": "On April 19, 1775, colonial militia fought British soldiers at Lexington and Concord in Massachusetts.",
+      "whyItMatters": "These were the first battles of the American Revolution."
+    },
+    {
+      "id": "e3-ev05",
+      "era": "e3",
+      "year": 1776,
+      "title": "The Declaration of Independence",
+      "fact": "On July 4, 1776, the Continental Congress approved the Declaration of Independence, written mostly by Thomas Jefferson.",
+      "whyItMatters": "It declared that all men are created equal with rights to life, liberty and the pursuit of happiness."
+    },
+    {
+      "id": "e3-ev06",
+      "era": "e3",
+      "year": 1777,
+      "title": "Victory at Saratoga",
+      "fact": "The Americans defeated a British army at Saratoga, New York, in 1777.",
+      "whyItMatters": "The win convinced France to join the war on the American side in 1778."
+    },
+    {
+      "id": "e3-ev07",
+      "era": "e3",
+      "year": 1781,
+      "title": "Victory at Yorktown",
+      "fact": "In 1781 British General Cornwallis surrendered to American and French forces at Yorktown, Virginia.",
+      "whyItMatters": "It was the last major battle of the Revolutionary War."
+    },
+    {
+      "id": "e3-ev08",
+      "era": "e3",
+      "year": 1783,
+      "title": "Treaty of Paris",
+      "fact": "In the Treaty of Paris of 1783, Britain recognized the United States as an independent nation.",
+      "whyItMatters": "The new nation's land stretched west to the Mississippi River."
+    },
+    {
+      "id": "e3-ev09",
+      "era": "e3",
+      "year": 1787,
+      "title": "The Constitution is written",
+      "fact": "Delegates signed the US Constitution in Philadelphia on September 17, 1787.",
+      "whyItMatters": "It created a government with three branches and checks and balances, and it is still in use today."
+    },
+    {
+      "id": "e3-ev10",
+      "era": "e3",
+      "year": 1789,
+      "title": "Washington becomes president",
+      "fact": "George Washington took the oath as the first president of the United States in New York City in 1789.",
+      "whyItMatters": "He set examples, like stepping down after two terms, that later presidents followed."
+    },
+    {
+      "id": "e4-ev01",
+      "era": "e4",
+      "year": 1791,
+      "title": "Bill of Rights ratified",
+      "fact": "The first ten amendments to the Constitution, called the Bill of Rights, were ratified in 1791.",
+      "whyItMatters": "They protect freedoms such as speech, religion, the press and fair trials."
+    },
+    {
+      "id": "e4-ev02",
+      "era": "e4",
+      "year": 1793,
+      "title": "The cotton gin",
+      "fact": "Eli Whitney invented the cotton gin in 1793, a machine that quickly pulled seeds out of cotton.",
+      "whyItMatters": "Cotton became very profitable, and sadly slavery grew much larger in the South."
+    },
+    {
+      "id": "e4-ev03",
+      "era": "e4",
+      "year": 1803,
+      "title": "The Louisiana Purchase",
+      "fact": "In 1803 the United States bought the Louisiana Territory from France for $15 million.",
+      "whyItMatters": "It roughly doubled the size of the country."
+    },
+    {
+      "id": "e4-ev04",
+      "era": "e4",
+      "year": 1804,
+      "title": "Lewis and Clark set out",
+      "fact": "Meriwether Lewis and William Clark set out in 1804 to explore the West, helped later by a Shoshone woman named Sacagawea.",
+      "whyItMatters": "They reached the Pacific Ocean in 1805 and brought back maps and knowledge of the West."
+    },
+    {
+      "id": "e4-ev05",
+      "era": "e4",
+      "year": 1814,
+      "title": "The Star-Spangled Banner",
+      "fact": "During the War of 1812, Francis Scott Key watched the flag still flying over Fort McHenry in 1814 and wrote the poem that became the national anthem.",
+      "whyItMatters": "The song became a symbol of American courage and pride."
+    },
+    {
+      "id": "e4-ev06",
+      "era": "e4",
+      "year": 1825,
+      "title": "The Erie Canal opens",
+      "fact": "The Erie Canal opened in 1825, connecting the Great Lakes to the Hudson River and New York City.",
+      "whyItMatters": "It made shipping goods much cheaper and helped the country grow."
+    },
+    {
+      "id": "e4-ev07",
+      "era": "e4",
+      "year": 1830,
+      "title": "Indian Removal Act and Trail of Tears",
+      "fact": "The Indian Removal Act of 1830 led to forced removals, including the Cherokee Trail of Tears in 1838-1839, when about 4,000 Cherokee people died.",
+      "whyItMatters": "It is one of the saddest chapters in American history and a broken promise to Native nations."
+    },
+    {
+      "id": "e4-ev08",
+      "era": "e4",
+      "year": 1836,
+      "title": "The Alamo and Texas independence",
+      "fact": "After the fall of the Alamo in 1836, Texans won independence from Mexico at the Battle of San Jacinto.",
+      "whyItMatters": "Texas became its own republic and joined the United States in 1845."
+    },
+    {
+      "id": "e4-ev09",
+      "era": "e4",
+      "year": 1848,
+      "title": "The Seneca Falls Convention",
+      "fact": "In 1848 women and men met at Seneca Falls, New York, and declared that all men and women are created equal.",
+      "whyItMatters": "It started the organized movement for women's rights, including the right to vote."
+    },
+    {
+      "id": "e4-ev10",
+      "era": "e4",
+      "year": 1848,
+      "title": "War with Mexico ends and gold is found",
+      "fact": "In 1848 the Mexican-American War ended with the US gaining California and much of the Southwest, and gold was found in California that same year.",
+      "whyItMatters": "The Gold Rush of 1849 brought people from around the world to California."
+    },
+    {
+      "id": "e5-ev01",
+      "era": "e5",
+      "year": 1850,
+      "title": "Compromise of 1850",
+      "fact": "The Compromise of 1850 let California join as a free state but added a tough Fugitive Slave Act.",
+      "whyItMatters": "The law forced Northerners to help return people who escaped slavery, which angered many in the North."
+    },
+    {
+      "id": "e5-ev02",
+      "era": "e5",
+      "year": 1857,
+      "title": "The Dred Scott decision",
+      "fact": "In 1857 the Supreme Court ruled in the Dred Scott case that Black Americans could not be citizens.",
+      "whyItMatters": "The ruling was deeply unjust and pushed the nation closer to war."
+    },
+    {
+      "id": "e5-ev03",
+      "era": "e5",
+      "year": 1861,
+      "title": "The Civil War begins",
+      "fact": "The Civil War began on April 12, 1861, when Confederate forces fired on Fort Sumter in South Carolina.",
+      "whyItMatters": "Southern states had left the Union mainly to protect slavery."
+    },
+    {
+      "id": "e5-ev04",
+      "era": "e5",
+      "year": 1863,
+      "title": "The Emancipation Proclamation",
+      "fact": "On January 1, 1863, President Lincoln's Emancipation Proclamation declared enslaved people in Confederate areas free.",
+      "whyItMatters": "It made ending slavery a goal of the war and let Black men join the Union army."
+    },
+    {
+      "id": "e5-ev05",
+      "era": "e5",
+      "year": 1863,
+      "title": "Gettysburg",
+      "fact": "The Union won the Battle of Gettysburg in July 1863, and Lincoln gave the Gettysburg Address there that November.",
+      "whyItMatters": "Lincoln said the war was for a 'new birth of freedom' and government 'of the people, by the people, for the people.'"
+    },
+    {
+      "id": "e5-ev06",
+      "era": "e5",
+      "year": 1865,
+      "title": "The war ends",
+      "fact": "General Robert E. Lee surrendered to General Ulysses S. Grant at Appomattox Court House, Virginia, on April 9, 1865.",
+      "whyItMatters": "The Union was saved, but just days later Lincoln was assassinated."
+    },
+    {
+      "id": "e5-ev07",
+      "era": "e5",
+      "year": 1865,
+      "title": "The 13th Amendment",
+      "fact": "The 13th Amendment, ratified in December 1865, ended slavery in the United States.",
+      "whyItMatters": "About 4 million people who had been enslaved were now free."
+    },
+    {
+      "id": "e5-ev08",
+      "era": "e5",
+      "year": 1868,
+      "title": "The 14th Amendment",
+      "fact": "The 14th Amendment, ratified in 1868, made everyone born in the US a citizen and promised equal protection of the laws.",
+      "whyItMatters": "It later became the basis for many civil rights victories."
+    },
+    {
+      "id": "e5-ev09",
+      "era": "e5",
+      "year": 1869,
+      "title": "Transcontinental railroad",
+      "fact": "The first transcontinental railroad was completed at Promontory Summit, Utah, on May 10, 1869.",
+      "whyItMatters": "A trip across the country dropped from months to about a week; Chinese and Irish immigrants did much of the hard building work."
+    },
+    {
+      "id": "e5-ev10",
+      "era": "e5",
+      "year": 1877,
+      "title": "Reconstruction ends",
+      "fact": "In 1877 the last federal troops left the South, ending Reconstruction.",
+      "whyItMatters": "Without protection, Black Southerners lost many rights to new Jim Crow laws."
+    },
+    {
+      "id": "e6-ev01",
+      "era": "e6",
+      "year": 1882,
+      "title": "Chinese Exclusion Act",
+      "fact": "The Chinese Exclusion Act of 1882 banned most Chinese workers from coming to the United States.",
+      "whyItMatters": "It was the first major law to keep out a group based on nationality and was not repealed until 1943."
+    },
+    {
+      "id": "e6-ev02",
+      "era": "e6",
+      "year": 1886,
+      "title": "Statue of Liberty dedicated",
+      "fact": "The Statue of Liberty, a gift from the people of France, was dedicated in New York Harbor in 1886.",
+      "whyItMatters": "It became a welcome sign of freedom for immigrants arriving by ship."
+    },
+    {
+      "id": "e6-ev03",
+      "era": "e6",
+      "year": 1890,
+      "title": "Wounded Knee",
+      "fact": "In December 1890 US soldiers killed more than 250 Lakota men, women and children at Wounded Knee in South Dakota.",
+      "whyItMatters": "It marked the tragic end of the wars on the Great Plains."
+    },
+    {
+      "id": "e6-ev04",
+      "era": "e6",
+      "year": 1892,
+      "title": "Ellis Island opens",
+      "fact": "Ellis Island opened in New York Harbor in 1892 to welcome and check new immigrants.",
+      "whyItMatters": "About 12 million immigrants passed through it before it closed in 1954."
+    },
+    {
+      "id": "e6-ev05",
+      "era": "e6",
+      "year": 1896,
+      "title": "Plessy v. Ferguson",
+      "fact": "In 1896 the Supreme Court ruled in Plessy v. Ferguson that 'separate but equal' segregation was allowed.",
+      "whyItMatters": "It let Jim Crow segregation spread until the ruling was overturned in 1954."
+    },
+    {
+      "id": "e6-ev06",
+      "era": "e6",
+      "year": 1903,
+      "title": "First airplane flight",
+      "fact": "On December 17, 1903, Orville and Wilbur Wright made the first powered airplane flights near Kitty Hawk, North Carolina.",
+      "whyItMatters": "It began the age of flight."
+    },
+    {
+      "id": "e6-ev07",
+      "era": "e6",
+      "year": 1908,
+      "title": "The Model T",
+      "fact": "Henry Ford introduced the Model T car in 1908, and his moving assembly line, started in 1913, made it cheap enough for many families.",
+      "whyItMatters": "Cars changed how and where Americans lived and worked."
+    },
+    {
+      "id": "e6-ev08",
+      "era": "e6",
+      "year": 1917,
+      "title": "America enters World War I",
+      "fact": "The United States entered World War I in April 1917.",
+      "whyItMatters": "American troops helped the Allies win the war in 1918."
+    },
+    {
+      "id": "e6-ev09",
+      "era": "e6",
+      "year": 1920,
+      "title": "Women win the vote",
+      "fact": "The 19th Amendment, ratified in 1920, gave women the right to vote.",
+      "whyItMatters": "It was a huge step toward the promise that all are created equal."
+    },
+    {
+      "id": "e6-ev10",
+      "era": "e6",
+      "year": 1924,
+      "title": "Indian Citizenship Act",
+      "fact": "The Indian Citizenship Act of 1924 made all Native Americans born in the US citizens.",
+      "whyItMatters": "Some states still blocked Native people from voting for years afterward."
+    },
+    {
+      "id": "e7-ev01",
+      "era": "e7",
+      "year": 1929,
+      "title": "The stock market crash",
+      "fact": "The stock market crashed in October 1929, helping start the Great Depression.",
+      "whyItMatters": "At its worst, about one in four American workers had no job."
+    },
+    {
+      "id": "e7-ev02",
+      "era": "e7",
+      "year": 1933,
+      "title": "The New Deal begins",
+      "fact": "President Franklin D. Roosevelt took office in 1933 and began the New Deal, programs to create jobs and help people.",
+      "whyItMatters": "It changed what Americans expected the federal government to do."
+    },
+    {
+      "id": "e7-ev03",
+      "era": "e7",
+      "year": 1935,
+      "title": "The Dust Bowl and Social Security",
+      "fact": "In 1935 giant dust storms swept the Great Plains, and Congress passed the Social Security Act.",
+      "whyItMatters": "Many Dust Bowl families moved west to find work, and Social Security still helps older Americans today."
+    },
+    {
+      "id": "e7-ev04",
+      "era": "e7",
+      "year": 1941,
+      "title": "Pearl Harbor",
+      "fact": "Japan attacked the US naval base at Pearl Harbor, Hawaii, on December 7, 1941.",
+      "whyItMatters": "The next day the United States entered World War II."
+    },
+    {
+      "id": "e7-ev05",
+      "era": "e7",
+      "year": 1942,
+      "title": "Japanese American incarceration",
+      "fact": "In 1942 an order by President Roosevelt forced about 120,000 people of Japanese ancestry on the West Coast into camps, most of them US citizens.",
+      "whyItMatters": "In 1988 the US government formally apologized and paid survivors."
+    },
+    {
+      "id": "e7-ev06",
+      "era": "e7",
+      "year": 1942,
+      "title": "Navajo Code Talkers",
+      "fact": "Starting in 1942, Navajo Marines used their language as a secret code the enemy never broke.",
+      "whyItMatters": "Their skill helped win battles in the Pacific, such as Iwo Jima."
+    },
+    {
+      "id": "e7-ev07",
+      "era": "e7",
+      "year": 1944,
+      "title": "D-Day",
+      "fact": "On June 6, 1944, American, British and Canadian troops landed on the beaches of Normandy, France.",
+      "whyItMatters": "It began the push that freed Western Europe from Nazi Germany."
+    },
+    {
+      "id": "e7-ev08",
+      "era": "e7",
+      "year": 1945,
+      "title": "World War II ends",
+      "fact": "Germany surrendered in May 1945, and Japan surrendered after the US dropped two atomic bombs, ending the war in September 1945.",
+      "whyItMatters": "The United States came out of the war as a world leader."
+    },
+    {
+      "id": "e8-ev01",
+      "era": "e8",
+      "year": 1947,
+      "title": "Jackie Robinson breaks the color line",
+      "fact": "Jackie Robinson played his first game for the Brooklyn Dodgers on April 15, 1947.",
+      "whyItMatters": "He became the first Black player in modern Major League Baseball."
+    },
+    {
+      "id": "e8-ev02",
+      "era": "e8",
+      "year": 1954,
+      "title": "Brown v. Board of Education",
+      "fact": "In 1954 the Supreme Court ruled in Brown v. Board of Education that segregated public schools were unconstitutional.",
+      "whyItMatters": "It overturned 'separate but equal' and gave the civil rights movement a big legal win."
+    },
+    {
+      "id": "e8-ev03",
+      "era": "e8",
+      "year": 1955,
+      "title": "The Montgomery bus boycott",
+      "fact": "After Rosa Parks was arrested on December 1, 1955, for not giving up her bus seat, Black residents of Montgomery, Alabama, boycotted the buses for 381 days.",
+      "whyItMatters": "The boycott ended bus segregation there and made Martin Luther King Jr. a national leader."
+    },
+    {
+      "id": "e8-ev04",
+      "era": "e8",
+      "year": 1959,
+      "title": "Alaska and Hawaii join",
+      "fact": "Alaska and Hawaii became the 49th and 50th states in 1959.",
+      "whyItMatters": "The flag got its 50 stars in 1960."
+    },
+    {
+      "id": "e8-ev05",
+      "era": "e8",
+      "year": 1963,
+      "title": "March on Washington",
+      "fact": "On August 28, 1963, about 250,000 people marched in Washington, D.C., where Martin Luther King Jr. gave his 'I Have a Dream' speech.",
+      "whyItMatters": "It pushed Congress to pass new civil rights laws."
+    },
+    {
+      "id": "e8-ev06",
+      "era": "e8",
+      "year": 1964,
+      "title": "Civil Rights Act and Voting Rights Act",
+      "fact": "The Civil Rights Act of 1964 banned segregation in public places, and the Voting Rights Act of 1965 protected Black Americans' right to vote.",
+      "whyItMatters": "Together they ended legal Jim Crow and helped America live up to its ideals."
+    },
+    {
+      "id": "e8-ev07",
+      "era": "e8",
+      "year": 1969,
+      "title": "Apollo 11 lands on the Moon",
+      "fact": "On July 20, 1969, American astronauts Neil Armstrong and Buzz Aldrin became the first people to walk on the Moon.",
+      "whyItMatters": "It showed what American science and teamwork could do."
+    },
+    {
+      "id": "e8-ev08",
+      "era": "e8",
+      "year": 2001,
+      "title": "September 11 attacks",
+      "fact": "On September 11, 2001, terrorists hijacked four planes and killed nearly 3,000 people in New York, at the Pentagon and in Pennsylvania.",
+      "whyItMatters": "Americans came together, and the attacks changed how the country protects itself."
+    },
+    {
+      "id": "e8-ev09",
+      "era": "e8",
+      "year": 2008,
+      "title": "First Black president elected",
+      "fact": "In 2008 Barack Obama was elected the first African American president.",
+      "whyItMatters": "It showed how far the nation had come since the days of slavery and Jim Crow."
+    },
+    {
+      "id": "e8-ev10",
+      "era": "e8",
+      "year": 2026,
+      "title": "America turns 250",
+      "fact": "July 4, 2026, marked 250 years since the Declaration of Independence.",
+      "whyItMatters": "It was a time to remember the founding ideals that Americans still work to live up to."
+    }
+  ],
+  "people": [
+    {
+      "name": "Pocahontas",
+      "years": "c. 1596–1617",
+      "era": "e2",
+      "whatTheyDid": "A Powhatan girl who helped keep peace between her people and the Jamestown colonists, she later married colonist John Rolfe and traveled to England."
+    },
+    {
+      "name": "Squanto (Tisquantum)",
+      "years": "c. 1585–1622",
+      "era": "e2",
+      "whatTheyDid": "A Patuxet man who had been kidnapped to Europe and learned English, he taught the Plymouth Pilgrims how to plant corn and helped them talk with the Wampanoag."
+    },
+    {
+      "name": "Popé",
+      "years": "died c. 1688",
+      "era": "e2",
+      "whatTheyDid": "A Pueblo religious leader, he led the 1680 Pueblo Revolt that drove Spanish rulers out of New Mexico for 12 years."
+    },
+    {
+      "name": "William Penn",
+      "years": "1644–1718",
+      "era": "e2",
+      "whatTheyDid": "A Quaker, he founded Pennsylvania as a colony with religious freedom and made treaties with the Lenape people."
+    },
+    {
+      "name": "Benjamin Franklin",
+      "years": "1706–1790",
+      "era": "e3",
+      "whatTheyDid": "A printer, scientist and inventor, he helped write the Declaration of Independence, won France's help in the Revolution and helped write the Constitution."
+    },
+    {
+      "name": "George Washington",
+      "years": "1732–1799",
+      "era": "e3",
+      "whatTheyDid": "He led the Continental Army to victory in the Revolution and became the first president, stepping down after two terms."
+    },
+    {
+      "name": "Thomas Jefferson",
+      "years": "1743–1826",
+      "era": "e3",
+      "whatTheyDid": "He wrote most of the Declaration of Independence and, as the third president, made the Louisiana Purchase, though he also enslaved hundreds of people."
+    },
+    {
+      "name": "Phillis Wheatley",
+      "years": "c. 1753–1784",
+      "era": "e3",
+      "whatTheyDid": "Kidnapped from West Africa and enslaved in Boston, she published a book of poems in 1773, the first by an African American woman."
+    },
+    {
+      "name": "James Madison",
+      "years": "1751–1836",
+      "era": "e3",
+      "whatTheyDid": "Called the Father of the Constitution, he planned much of it and wrote the Bill of Rights, then became the fourth president."
+    },
+    {
+      "name": "Sacagawea",
+      "years": "c. 1788–1812",
+      "era": "e4",
+      "whatTheyDid": "A Shoshone woman, she guided and translated for Lewis and Clark while carrying her baby son."
+    },
+    {
+      "name": "Sequoyah",
+      "years": "c. 1770–1843",
+      "era": "e4",
+      "whatTheyDid": "A Cherokee silversmith, he created a writing system for the Cherokee language in 1821, and soon thousands of Cherokee could read and write."
+    },
+    {
+      "name": "Elizabeth Cady Stanton",
+      "years": "1815–1902",
+      "era": "e4",
+      "whatTheyDid": "She helped organize the 1848 Seneca Falls Convention and wrote its Declaration of Sentiments for women's rights."
+    },
+    {
+      "name": "Frederick Douglass",
+      "years": "1818–1895",
+      "era": "e5",
+      "whatTheyDid": "He escaped slavery, became a famous speaker and writer against slavery, and urged Lincoln to let Black soldiers fight."
+    },
+    {
+      "name": "Harriet Tubman",
+      "years": "c. 1822–1913",
+      "era": "e5",
+      "whatTheyDid": "She escaped slavery and returned to lead about 70 people to freedom on the Underground Railroad, then served as a Union scout and spy."
+    },
+    {
+      "name": "Abraham Lincoln",
+      "years": "1809–1865",
+      "era": "e5",
+      "whatTheyDid": "The 16th president, he led the Union through the Civil War, issued the Emancipation Proclamation and pushed for the 13th Amendment."
+    },
+    {
+      "name": "Chief Joseph",
+      "years": "1840–1904",
+      "era": "e5",
+      "whatTheyDid": "A Nez Perce leader, he led his people on a 1,000-mile retreat in 1877 before surrendering with the words 'I will fight no more forever.'"
+    },
+    {
+      "name": "Susan B. Anthony",
+      "years": "1820–1906",
+      "era": "e6",
+      "whatTheyDid": "She spent more than 50 years fighting for women's right to vote; the 19th Amendment is sometimes called the Susan B. Anthony Amendment."
+    },
+    {
+      "name": "Thomas Edison",
+      "years": "1847–1931",
+      "era": "e6",
+      "whatTheyDid": "An inventor with more than 1,000 patents, he created a practical light bulb and the phonograph."
+    },
+    {
+      "name": "Andrew Carnegie",
+      "years": "1835–1919",
+      "era": "e6",
+      "whatTheyDid": "A poor immigrant from Scotland, he built a giant steel company and gave much of his fortune to build more than 2,500 public libraries."
+    },
+    {
+      "name": "Ida B. Wells",
+      "years": "1862–1931",
+      "era": "e6",
+      "whatTheyDid": "A Black journalist, she bravely reported on lynching and helped start the NAACP."
+    },
+    {
+      "name": "Wilbur and Orville Wright",
+      "years": "1867–1912 and 1871–1948",
+      "era": "e6",
+      "whatTheyDid": "Brothers who ran a bicycle shop in Dayton, Ohio, they built and flew the first powered airplane in 1903."
+    },
+    {
+      "name": "Theodore Roosevelt",
+      "years": "1858–1919",
+      "era": "e6",
+      "whatTheyDid": "As the 26th president, he protected about 230 million acres of public land, including national forests and parks."
+    },
+    {
+      "name": "Franklin D. Roosevelt",
+      "years": "1882–1945",
+      "era": "e7",
+      "whatTheyDid": "The only president elected four times, he led the country through the Great Depression with the New Deal and through most of World War II."
+    },
+    {
+      "name": "Jackie Robinson",
+      "years": "1919–1972",
+      "era": "e8",
+      "whatTheyDid": "In 1947 he became the first Black player in modern Major League Baseball, facing insults with courage and skill."
+    },
+    {
+      "name": "Rosa Parks",
+      "years": "1913–2005",
+      "era": "e8",
+      "whatTheyDid": "Her arrest for refusing to give up her bus seat in 1955 sparked the Montgomery bus boycott."
+    },
+    {
+      "name": "Martin Luther King Jr.",
+      "years": "1929–1968",
+      "era": "e8",
+      "whatTheyDid": "A minister who led the civil rights movement with peaceful protest, he gave the 'I Have a Dream' speech and won the Nobel Peace Prize in 1964."
+    },
+    {
+      "name": "Neil Armstrong",
+      "years": "1930–2012",
+      "era": "e8",
+      "whatTheyDid": "Born in Ohio, he became the first person to walk on the Moon in 1969."
+    }
+  ],
+  "questions": [
+    {
+      "id": "q00",
+      "type": "mc",
+      "era": "e1",
+      "year": 1492,
+      "fact": "In 1492 Christopher Columbus sailed west from Spain and reached islands in the Caribbean.",
+      "question": "Which country paid for Christopher Columbus's 1492 voyage?",
+      "choices": [
+        "England",
+        "Portugal",
+        "Spain",
+        "Italy"
+      ],
+      "answerIndex": 2,
+      "explanation": "Columbus was born in Genoa, in today's Italy, but Queen Isabella and King Ferdinand of Spain paid for his trip. He landed in the Bahamas on October 12, 1492, and the meeting of Europe and the Americas changed both forever."
+    },
+    {
+      "id": "q01",
+      "type": "mc",
+      "era": "e1",
+      "year": 1513,
+      "fact": "Juan Ponce de León landed in Florida in 1513.",
+      "question": "Which explorer named Florida?",
+      "choices": [
+        "Christopher Columbus",
+        "Juan Ponce de León",
+        "Hernando de Soto",
+        "Jacques Cartier"
+      ],
+      "answerIndex": 1,
+      "explanation": "Ponce de León landed in 1513 and named it La Florida. De Soto came through Florida later, in 1539."
+    },
+    {
+      "id": "q02",
+      "type": "mc",
+      "era": "e1",
+      "year": 1565,
+      "fact": "St. Augustine, Florida, was founded in 1565.",
+      "question": "What is the oldest continuously lived-in city founded by Europeans in the United States?",
+      "choices": [
+        "St. Augustine",
+        "Plymouth",
+        "Boston",
+        "Jamestown"
+      ],
+      "answerIndex": 0,
+      "explanation": "St. Augustine was founded by the Spanish in 1565, 42 years before Jamestown."
+    },
+    {
+      "id": "q03",
+      "type": "mc",
+      "era": "e1",
+      "year": 1587,
+      "fact": "The Roanoke colonists had vanished by the time supply ships returned in 1590.",
+      "question": "Why is Roanoke called the 'Lost Colony'?",
+      "choices": [
+        "It was hidden on a secret map",
+        "It was moved to Canada",
+        "It sank into the ocean",
+        "Its colonists disappeared, and no one knows for sure what happened"
+      ],
+      "answerIndex": 3,
+      "explanation": "When John White returned in 1590 he found only the word CROATOAN carved on a post. The colonists' fate is still a mystery."
+    },
+    {
+      "id": "q04",
+      "type": "mc",
+      "era": "e1",
+      "year": 1540,
+      "fact": "Diseases brought by Europeans killed huge numbers of Native people in the 1500s and after.",
+      "question": "What was the biggest cause of death for Native peoples after Europeans arrived?",
+      "choices": [
+        "Battles with explorers",
+        "Earthquakes",
+        "Diseases like smallpox",
+        "Lack of horses"
+      ],
+      "answerIndex": 2,
+      "explanation": "Native peoples had never been exposed to smallpox and measles, so these diseases killed huge numbers of them, more than wars did."
+    },
+    {
+      "id": "q05",
+      "type": "mc",
+      "era": "e2",
+      "year": 1607,
+      "fact": "Jamestown, founded in 1607, was the first permanent English settlement in North America.",
+      "question": "What was the first permanent English settlement in North America?",
+      "choices": [
+        "Plymouth",
+        "Jamestown",
+        "Roanoke",
+        "Boston"
+      ],
+      "answerIndex": 1,
+      "explanation": "Jamestown, Virginia, was founded in 1607. Roanoke failed, and Plymouth came later, in 1620."
+    },
+    {
+      "id": "q06",
+      "type": "mc",
+      "era": "e2",
+      "year": 1619,
+      "fact": "The House of Burgesses, first meeting in 1619, was the first elected assembly in English America.",
+      "question": "What was special about Virginia's House of Burgesses?",
+      "choices": [
+        "It was the first elected lawmaking assembly in English America",
+        "It was the king's palace",
+        "It was the first school in America",
+        "It was a fort against the Spanish"
+      ],
+      "answerIndex": 0,
+      "explanation": "Colonists elected its members, an early step toward self-government in America."
+    },
+    {
+      "id": "q07",
+      "type": "mc",
+      "era": "e2",
+      "year": 1620,
+      "fact": "The Pilgrims signed the Mayflower Compact in 1620.",
+      "question": "What did the Mayflower Compact do?",
+      "choices": [
+        "It declared independence from England",
+        "It set up a fair trade deal with France",
+        "It ended slavery in Massachusetts",
+        "It said the settlers would make and obey fair laws together"
+      ],
+      "answerIndex": 3,
+      "explanation": "The Pilgrims agreed to govern themselves by laws made for the good of the colony, an early example of self-government."
+    },
+    {
+      "id": "q08",
+      "type": "mc",
+      "era": "e2",
+      "year": 1680,
+      "fact": "Popé led the Pueblo Revolt in 1680.",
+      "question": "What happened in the Pueblo Revolt of 1680?",
+      "choices": [
+        "The French captured Florida",
+        "The Pilgrims fought the Wampanoag",
+        "The Pueblo people drove the Spanish out of New Mexico",
+        "The Pueblo people sold their land to England"
+      ],
+      "answerIndex": 2,
+      "explanation": "The Pueblo people pushed the Spanish out of New Mexico and governed themselves for 12 years."
+    },
+    {
+      "id": "q09",
+      "type": "mc",
+      "era": "e2",
+      "year": 1739,
+      "fact": "The Stono Rebellion took place in South Carolina in 1739.",
+      "question": "The Stono Rebellion of 1739 was an uprising by whom?",
+      "choices": [
+        "Colonists against British taxes",
+        "Enslaved people seeking freedom",
+        "French soldiers",
+        "Pilgrims against the king"
+      ],
+      "answerIndex": 1,
+      "explanation": "Enslaved people in South Carolina rose up and marched toward Spanish Florida, where they hoped to be free. It shows that enslaved people resisted slavery."
+    },
+    {
+      "id": "q10",
+      "type": "mc",
+      "era": "e3",
+      "year": 1765,
+      "fact": "The Stamp Act of 1765 taxed printed papers in the colonies.",
+      "question": "What did colonists mean by 'no taxation without representation'?",
+      "choices": [
+        "They did not want to be taxed by a Parliament where they had no vote",
+        "They wanted no taxes at all, ever",
+        "They wanted France to pay their taxes",
+        "They wanted to tax British soldiers"
+      ],
+      "answerIndex": 0,
+      "explanation": "Colonists had no elected members in Parliament, so they said Parliament had no right to tax them."
+    },
+    {
+      "id": "q11",
+      "type": "mc",
+      "era": "e3",
+      "year": 1773,
+      "fact": "Colonists dumped British tea into Boston Harbor in December 1773.",
+      "question": "Why did colonists hold the Boston Tea Party?",
+      "choices": [
+        "To celebrate a holiday",
+        "To welcome new ships",
+        "Because the tea was spoiled",
+        "To protest a British tax on tea"
+      ],
+      "answerIndex": 3,
+      "explanation": "They dumped 342 chests of tea to protest a tax passed without their consent."
+    },
+    {
+      "id": "q12",
+      "type": "mc",
+      "era": "e3",
+      "year": 1775,
+      "fact": "The first battles of the Revolution were fought at Lexington and Concord on April 19, 1775.",
+      "question": "Where were the first battles of the American Revolution fought?",
+      "choices": [
+        "Yorktown and Saratoga",
+        "Philadelphia and New York",
+        "Lexington and Concord",
+        "Gettysburg and Antietam"
+      ],
+      "answerIndex": 2,
+      "explanation": "Fighting began at Lexington and Concord, Massachusetts. Yorktown was near the end, and Gettysburg was in the Civil War."
+    },
+    {
+      "id": "q13",
+      "type": "mc",
+      "era": "e3",
+      "year": 1776,
+      "fact": "Congress approved the Declaration of Independence on July 4, 1776.",
+      "question": "Who wrote most of the Declaration of Independence?",
+      "choices": [
+        "George Washington",
+        "Thomas Jefferson",
+        "Benjamin Franklin",
+        "John Hancock"
+      ],
+      "answerIndex": 1,
+      "explanation": "Thomas Jefferson wrote the first draft. Franklin and John Adams helped edit it, and John Hancock signed it first and largest."
+    },
+    {
+      "id": "q14",
+      "type": "mc",
+      "era": "e3",
+      "year": 1776,
+      "fact": "The Declaration says all men are created equal with rights to life, liberty and the pursuit of happiness.",
+      "question": "Which rights does the Declaration of Independence name?",
+      "choices": [
+        "Life, liberty and the pursuit of happiness",
+        "Speech, press and religion",
+        "Food, shelter and clothing",
+        "Voting, jury and travel"
+      ],
+      "answerIndex": 0,
+      "explanation": "The Declaration names life, liberty and the pursuit of happiness. Speech, press and religion are protected by the First Amendment in the Bill of Rights."
+    },
+    {
+      "id": "q15",
+      "type": "mc",
+      "era": "e3",
+      "year": 1777,
+      "fact": "The American victory at Saratoga came in 1777.",
+      "question": "Why was the Battle of Saratoga a turning point?",
+      "choices": [
+        "It ended the war",
+        "George Washington was captured",
+        "It was the first battle of the war",
+        "It convinced France to join the American side"
+      ],
+      "answerIndex": 3,
+      "explanation": "After Saratoga, France signed an alliance with the United States in 1778 and sent soldiers, ships and money."
+    },
+    {
+      "id": "q16",
+      "type": "mc",
+      "era": "e3",
+      "year": 1787,
+      "fact": "The Constitution was signed in Philadelphia on September 17, 1787.",
+      "question": "The Constitution splits the government into how many branches?",
+      "choices": [
+        "Two",
+        "Three",
+        "Four",
+        "Five"
+      ],
+      "answerIndex": 1,
+      "explanation": "There are three branches, legislative, executive and judicial, and checks and balances keep any one from becoming too powerful."
+    },
+    {
+      "id": "q17",
+      "type": "mc",
+      "era": "e4",
+      "year": 1791,
+      "fact": "The Bill of Rights was ratified in 1791.",
+      "question": "What is the Bill of Rights?",
+      "choices": [
+        "A list of taxes",
+        "The first ten amendments to the Constitution",
+        "The peace treaty with Britain",
+        "The Declaration of Independence"
+      ],
+      "answerIndex": 1,
+      "explanation": "The Bill of Rights is the first ten amendments, protecting freedoms like speech, religion and a fair trial."
+    },
+    {
+      "id": "q18",
+      "type": "mc",
+      "era": "e4",
+      "year": 1803,
+      "fact": "The US bought the Louisiana Territory from France in 1803.",
+      "question": "From which country did the United States buy the Louisiana Territory?",
+      "choices": [
+        "France",
+        "Britain",
+        "Spain",
+        "Mexico"
+      ],
+      "answerIndex": 0,
+      "explanation": "Napoleon of France sold it for $15 million, roughly doubling the size of the country."
+    },
+    {
+      "id": "q19",
+      "type": "mc",
+      "era": "e4",
+      "year": 1805,
+      "fact": "Sacagawea helped the Lewis and Clark expedition, which reached the Pacific in 1805.",
+      "question": "How did Sacagawea help Lewis and Clark?",
+      "choices": [
+        "She drew the map of the Louisiana Purchase",
+        "She sold them horses in St. Louis",
+        "She was their ship captain",
+        "She translated and helped guide them"
+      ],
+      "answerIndex": 3,
+      "explanation": "A Shoshone woman, she translated, helped them get horses from her people and showed that the group came in peace."
+    },
+    {
+      "id": "q20",
+      "type": "mc",
+      "era": "e4",
+      "year": 1838,
+      "fact": "About 4,000 Cherokee people died as a result of their forced removal in 1838-1839.",
+      "question": "What was the Trail of Tears?",
+      "choices": [
+        "A trail for gold miners",
+        "A trail used by Lewis and Clark",
+        "The forced removal of the Cherokee from their homeland to Indian Territory",
+        "An escape route on the Underground Railroad"
+      ],
+      "answerIndex": 2,
+      "explanation": "After the Indian Removal Act of 1830, the US Army forced the Cherokee west to present-day Oklahoma, and thousands died along the way."
+    },
+    {
+      "id": "q21",
+      "type": "mc",
+      "era": "e4",
+      "year": 1848,
+      "fact": "The Seneca Falls Convention for women's rights met in 1848.",
+      "question": "What was the Seneca Falls Convention about?",
+      "choices": [
+        "Building canals",
+        "Women's rights",
+        "The Gold Rush",
+        "Ending the War of 1812"
+      ],
+      "answerIndex": 1,
+      "explanation": "Its Declaration of Sentiments said 'all men and women are created equal' and asked for women's right to vote."
+    },
+    {
+      "id": "q22",
+      "type": "mc",
+      "era": "e5",
+      "year": 1850,
+      "fact": "Harriet Tubman led about 70 people to freedom on the Underground Railroad.",
+      "question": "What was the Underground Railroad?",
+      "choices": [
+        "A secret network of people helping enslaved people escape to freedom",
+        "A subway under New York",
+        "The first railroad across the country",
+        "A Confederate supply line"
+      ],
+      "answerIndex": 0,
+      "explanation": "It was not a real railroad. It was a network of routes and safe houses, and 'conductors' like Harriet Tubman guided people north."
+    },
+    {
+      "id": "q23",
+      "type": "mc",
+      "era": "e5",
+      "year": 1861,
+      "fact": "The Civil War began at Fort Sumter on April 12, 1861.",
+      "question": "What was the main cause of the Civil War?",
+      "choices": [
+        "Taxes on tea",
+        "Who would own Alaska",
+        "A war with Mexico",
+        "Slavery and whether it would spread"
+      ],
+      "answerIndex": 3,
+      "explanation": "Southern states left the Union mainly to protect slavery, and the North would not let the nation be split."
+    },
+    {
+      "id": "q24",
+      "type": "mc",
+      "era": "e5",
+      "year": 1863,
+      "fact": "Lincoln issued the Emancipation Proclamation on January 1, 1863.",
+      "question": "What did the Emancipation Proclamation do?",
+      "choices": [
+        "Ended the Civil War",
+        "Gave women the right to vote",
+        "Declared enslaved people in Confederate areas free",
+        "Made Lincoln president"
+      ],
+      "answerIndex": 2,
+      "explanation": "It freed enslaved people in areas fighting against the Union. Slavery everywhere ended with the 13th Amendment in 1865."
+    },
+    {
+      "id": "q25",
+      "type": "mc",
+      "era": "e5",
+      "year": 1865,
+      "fact": "The 13th Amendment was ratified in December 1865.",
+      "question": "Which amendment ended slavery in the United States?",
+      "choices": [
+        "1st Amendment",
+        "13th Amendment",
+        "15th Amendment",
+        "19th Amendment"
+      ],
+      "answerIndex": 1,
+      "explanation": "The 13th Amendment ended slavery. The 15th protected Black men's right to vote, and the 19th gave women the vote."
+    },
+    {
+      "id": "q26",
+      "type": "mc",
+      "era": "e5",
+      "year": 1869,
+      "fact": "The transcontinental railroad was completed at Promontory Summit, Utah, in 1869.",
+      "question": "Which immigrant groups did much of the work building the transcontinental railroad?",
+      "choices": [
+        "Chinese and Irish workers",
+        "German and Italian workers",
+        "Spanish and French workers",
+        "Swedish and Polish workers"
+      ],
+      "answerIndex": 0,
+      "explanation": "Chinese workers built much of the Central Pacific line through the mountains, and many Irish workers built the Union Pacific."
+    },
+    {
+      "id": "q27",
+      "type": "mc",
+      "era": "e6",
+      "year": 1886,
+      "fact": "The Statue of Liberty was dedicated in 1886.",
+      "question": "Which country gave the Statue of Liberty to the United States?",
+      "choices": [
+        "England",
+        "Spain",
+        "Italy",
+        "France"
+      ],
+      "answerIndex": 3,
+      "explanation": "The people of France gave the statue as a gift of friendship, honoring the two nations' shared love of liberty."
+    },
+    {
+      "id": "q28",
+      "type": "mc",
+      "era": "e6",
+      "year": 1892,
+      "fact": "Ellis Island opened in 1892.",
+      "question": "What was Ellis Island?",
+      "choices": [
+        "A Civil War fort",
+        "A gold mine in California",
+        "An immigration station in New York Harbor",
+        "A navy base in Hawaii"
+      ],
+      "answerIndex": 2,
+      "explanation": "About 12 million immigrants were checked in at Ellis Island between 1892 and 1954."
+    },
+    {
+      "id": "q29",
+      "type": "mc",
+      "era": "e6",
+      "year": 1896,
+      "fact": "Plessy v. Ferguson in 1896 allowed 'separate but equal' segregation.",
+      "question": "What were Jim Crow laws?",
+      "choices": [
+        "Laws that protected voting rights",
+        "Laws in many states, mostly in the South, that forced Black and white people apart",
+        "Laws that ended slavery",
+        "Laws about building railroads"
+      ],
+      "answerIndex": 1,
+      "explanation": "Jim Crow laws segregated schools, trains and more, and kept many Black citizens from voting. Brown v. Board (1954) and laws in 1964 and 1965 ended legal Jim Crow."
+    },
+    {
+      "id": "q30",
+      "type": "mc",
+      "era": "e6",
+      "year": 1903,
+      "fact": "The Wright brothers made the first powered airplane flights in 1903.",
+      "question": "Where did the Wright brothers make the first airplane flight?",
+      "choices": [
+        "Near Kitty Hawk, North Carolina",
+        "Dayton, Ohio",
+        "St. Louis, Missouri",
+        "New York City"
+      ],
+      "answerIndex": 0,
+      "explanation": "They built their plane in Dayton, Ohio, but flew it near Kitty Hawk, North Carolina, where strong, steady winds helped."
+    },
+    {
+      "id": "q31",
+      "type": "mc",
+      "era": "e6",
+      "year": 1920,
+      "fact": "The 19th Amendment was ratified in 1920.",
+      "question": "What did the 19th Amendment do?",
+      "choices": [
+        "Ended slavery",
+        "Made Native Americans citizens",
+        "Created the income tax",
+        "Gave women the right to vote"
+      ],
+      "answerIndex": 3,
+      "explanation": "After more than 70 years of struggle since Seneca Falls, women won the vote in 1920."
+    },
+    {
+      "id": "q32",
+      "type": "mc",
+      "era": "e7",
+      "year": 1929,
+      "fact": "The stock market crash of 1929 helped start the Great Depression.",
+      "question": "What was the Great Depression?",
+      "choices": [
+        "A big storm in Florida",
+        "A war with Britain",
+        "A time when many people lost jobs and money",
+        "A time of great inventions"
+      ],
+      "answerIndex": 2,
+      "explanation": "After the 1929 crash, businesses and banks failed, and about one in four workers had no job at the worst point."
+    },
+    {
+      "id": "q33",
+      "type": "mc",
+      "era": "e7",
+      "year": 1933,
+      "fact": "Franklin D. Roosevelt began the New Deal in 1933.",
+      "question": "Which president started the New Deal?",
+      "choices": [
+        "Theodore Roosevelt",
+        "Franklin D. Roosevelt",
+        "Abraham Lincoln",
+        "Herbert Hoover"
+      ],
+      "answerIndex": 1,
+      "explanation": "Franklin D. Roosevelt started the New Deal. Theodore Roosevelt, his distant cousin, was president earlier, from 1901 to 1909."
+    },
+    {
+      "id": "q34",
+      "type": "mc",
+      "era": "e7",
+      "year": 1941,
+      "fact": "Japan attacked Pearl Harbor on December 7, 1941.",
+      "question": "What event brought the United States into World War II?",
+      "choices": [
+        "The attack on Pearl Harbor",
+        "The sinking of the Titanic",
+        "D-Day",
+        "The stock market crash"
+      ],
+      "answerIndex": 0,
+      "explanation": "Japan's surprise attack on Pearl Harbor, Hawaii, led Congress to declare war the next day."
+    },
+    {
+      "id": "q35",
+      "type": "mc",
+      "era": "e7",
+      "year": 1942,
+      "fact": "About 120,000 people of Japanese ancestry were forced into camps starting in 1942.",
+      "question": "Why is the forced removal of Japanese Americans in World War II seen as wrong today?",
+      "choices": [
+        "They were paid too much",
+        "They chose to move",
+        "They were sent to fight in Europe",
+        "They were jailed without trials, mostly US citizens, only because of their ancestry"
+      ],
+      "answerIndex": 3,
+      "explanation": "Most had done nothing wrong and were US citizens. In 1988 Congress apologized and paid survivors."
+    },
+    {
+      "id": "q36",
+      "type": "mc",
+      "era": "e8",
+      "year": 1954,
+      "fact": "The Supreme Court decided Brown v. Board of Education in 1954.",
+      "question": "What did the Brown v. Board of Education decision say?",
+      "choices": [
+        "Schools could stay segregated",
+        "Women could vote",
+        "Segregated public schools were unconstitutional",
+        "Only some states needed public schools"
+      ],
+      "answerIndex": 2,
+      "explanation": "The Court said separate schools for Black and white children were not equal, overturning Plessy v. Ferguson."
+    },
+    {
+      "id": "q37",
+      "type": "mc",
+      "era": "e8",
+      "year": 1955,
+      "fact": "Rosa Parks was arrested in Montgomery, Alabama, on December 1, 1955.",
+      "question": "What did Rosa Parks refuse to do?",
+      "choices": [
+        "Pay her taxes",
+        "Give up her bus seat to a white passenger",
+        "Go to school",
+        "Sign a petition"
+      ],
+      "answerIndex": 1,
+      "explanation": "Her arrest sparked the 381-day Montgomery bus boycott, which ended bus segregation in the city."
+    },
+    {
+      "id": "q38",
+      "type": "mc",
+      "era": "e8",
+      "year": 1963,
+      "fact": "Martin Luther King Jr. gave his 'I Have a Dream' speech on August 28, 1963.",
+      "question": "Where did Martin Luther King Jr. give his 'I Have a Dream' speech?",
+      "choices": [
+        "At the Lincoln Memorial in Washington, D.C.",
+        "Atlanta, Georgia",
+        "Montgomery, Alabama",
+        "Independence Hall in Philadelphia"
+      ],
+      "answerIndex": 0,
+      "explanation": "He spoke at the Lincoln Memorial during the March on Washington, calling on America to live up to the promise that all men are created equal."
+    },
+    {
+      "id": "q39",
+      "type": "mc",
+      "era": "e8",
+      "year": 1965,
+      "fact": "The Voting Rights Act was passed in 1965.",
+      "question": "What did the Voting Rights Act of 1965 do?",
+      "choices": [
+        "Gave women the vote",
+        "Created the Electoral College",
+        "Lowered the voting age to 18",
+        "Protected Black Americans' right to vote by banning unfair tests"
+      ],
+      "answerIndex": 3,
+      "explanation": "It banned literacy tests and other tricks used to keep Black citizens from voting. The voting age was lowered to 18 later, in 1971."
+    },
+    {
+      "id": "q40",
+      "type": "mc",
+      "era": "e8",
+      "year": 1969,
+      "fact": "Apollo 11 landed on the Moon on July 20, 1969.",
+      "question": "Who was the first person to walk on the Moon?",
+      "choices": [
+        "Buzz Aldrin",
+        "John Glenn",
+        "Neil Armstrong",
+        "Alan Shepard"
+      ],
+      "answerIndex": 2,
+      "explanation": "Neil Armstrong stepped out first, and Buzz Aldrin followed. John Glenn was the first American to orbit Earth, in 1962."
+    },
+    {
+      "id": "q41",
+      "type": "order",
+      "era": "e1",
+      "events": [
+        {
+          "title": "Roanoke colony settled",
+          "year": 1587
+        },
+        {
+          "title": "Columbus reaches the Caribbean",
+          "year": 1492
+        },
+        {
+          "title": "St. Augustine is founded",
+          "year": 1565
+        }
+      ],
+      "correctOrder": [
+        1,
+        2,
+        0
+      ],
+      "explanation": "Columbus sailed in 1492, the Spanish founded St. Augustine in 1565, and the English tried Roanoke in 1587."
+    },
+    {
+      "id": "q42",
+      "type": "order",
+      "era": "e2",
+      "events": [
+        {
+          "title": "Pennsylvania granted to William Penn",
+          "year": 1681
+        },
+        {
+          "title": "Jamestown founded",
+          "year": 1607
+        },
+        {
+          "title": "Mayflower Compact signed",
+          "year": 1620
+        }
+      ],
+      "correctOrder": [
+        1,
+        2,
+        0
+      ],
+      "explanation": "Jamestown (1607) came before Plymouth's Mayflower Compact (1620), and Penn's colony came much later (1681)."
+    },
+    {
+      "id": "q43",
+      "type": "order",
+      "era": "e3",
+      "events": [
+        {
+          "title": "Declaration of Independence",
+          "year": 1776
+        },
+        {
+          "title": "Constitution signed",
+          "year": 1787
+        },
+        {
+          "title": "Boston Tea Party",
+          "year": 1773
+        }
+      ],
+      "correctOrder": [
+        2,
+        0,
+        1
+      ],
+      "explanation": "Protest came first (1773), then independence (1776), then a new plan of government (1787)."
+    },
+    {
+      "id": "q44",
+      "type": "order",
+      "era": "e3",
+      "events": [
+        {
+          "title": "Surrender at Yorktown",
+          "year": 1781
+        },
+        {
+          "title": "Lexington and Concord",
+          "year": 1775
+        },
+        {
+          "title": "Battle of Saratoga",
+          "year": 1777
+        }
+      ],
+      "correctOrder": [
+        1,
+        2,
+        0
+      ],
+      "explanation": "The war began in 1775, turned at Saratoga in 1777 and ended in victory at Yorktown in 1781."
+    },
+    {
+      "id": "q45",
+      "type": "order",
+      "era": "e4",
+      "events": [
+        {
+          "title": "Louisiana Purchase",
+          "year": 1803
+        },
+        {
+          "title": "Bill of Rights ratified",
+          "year": 1791
+        },
+        {
+          "title": "Seneca Falls Convention",
+          "year": 1848
+        }
+      ],
+      "correctOrder": [
+        1,
+        0,
+        2
+      ],
+      "explanation": "The Bill of Rights (1791) came first, then the Louisiana Purchase (1803), then Seneca Falls (1848)."
+    },
+    {
+      "id": "q46",
+      "type": "order",
+      "era": "e5",
+      "events": [
+        {
+          "title": "Emancipation Proclamation",
+          "year": 1863
+        },
+        {
+          "title": "13th Amendment ratified",
+          "year": 1865
+        },
+        {
+          "title": "Dred Scott decision",
+          "year": 1857
+        }
+      ],
+      "correctOrder": [
+        2,
+        0,
+        1
+      ],
+      "explanation": "The unjust Dred Scott ruling (1857) came before the Emancipation Proclamation (1863), and slavery finally ended with the 13th Amendment (1865)."
+    },
+    {
+      "id": "q47",
+      "type": "order",
+      "era": "e6",
+      "events": [
+        {
+          "title": "Statue of Liberty dedicated",
+          "year": 1886
+        },
+        {
+          "title": "19th Amendment ratified",
+          "year": 1920
+        },
+        {
+          "title": "Wright brothers' first flight",
+          "year": 1903
+        }
+      ],
+      "correctOrder": [
+        0,
+        2,
+        1
+      ],
+      "explanation": "The statue was dedicated in 1886, the first flight came in 1903 and women won the vote in 1920."
+    },
+    {
+      "id": "q48",
+      "type": "order",
+      "era": "e8",
+      "events": [
+        {
+          "title": "March on Washington",
+          "year": 1963
+        },
+        {
+          "title": "Apollo 11 Moon landing",
+          "year": 1969
+        },
+        {
+          "title": "Brown v. Board of Education",
+          "year": 1954
+        }
+      ],
+      "correctOrder": [
+        2,
+        0,
+        1
+      ],
+      "explanation": "Brown v. Board was in 1954, the March on Washington in 1963 and the Moon landing in 1969."
+    }
+  ],
+  "landmarks": [
+    {
+      "name": "Statue of Liberty",
+      "location": "New York Harbor, New York",
+      "story": "The people of France gave the Statue of Liberty to the United States, and it was dedicated in 1886. Broken chains lie at her feet, and a plaque inside holds Emma Lazarus's poem welcoming the 'huddled masses yearning to breathe free.' For millions of immigrants arriving by ship, she was their first sight of America."
+    },
+    {
+      "name": "Mount Rushmore",
+      "location": "Black Hills, South Dakota",
+      "story": "Sculptor Gutzon Borglum and about 400 workers carved the faces of Washington, Jefferson, Theodore Roosevelt and Lincoln into the mountain between 1927 and 1941. Each face is about 60 feet tall. The Black Hills are sacred to the Lakota, and the US took them in the 1870s despite an 1868 treaty, which the Supreme Court later ruled was wrong."
+    },
+    {
+      "name": "Golden Gate Bridge",
+      "location": "San Francisco, California",
+      "story": "The Golden Gate Bridge opened in 1937 across the windy, foggy entrance to San Francisco Bay. Its 4,200-foot main span was the longest of any suspension bridge in the world at the time. Its famous color is called International Orange."
+    },
+    {
+      "name": "The Alamo",
+      "location": "San Antonio, Texas",
+      "story": "The Alamo was an old Spanish mission where Texan defenders, including Davy Crockett and Jim Bowie, held out against the Mexican army for 13 days in 1836 before nearly all were killed. Weeks later Texans shouted 'Remember the Alamo!' as they won independence at San Jacinto. One cause of the conflict was that many American settlers held enslaved people, and Mexico had moved to end slavery."
+    },
+    {
+      "name": "Liberty Bell",
+      "location": "Philadelphia, Pennsylvania",
+      "story": "The Liberty Bell hung in the Pennsylvania State House, now called Independence Hall, and it is inscribed 'Proclaim LIBERTY throughout all the Land unto all the Inhabitants thereof.' In the 1830s, people working to end slavery named it the Liberty Bell and made it their symbol. A famous crack stopped it from ringing by the 1840s."
+    },
+    {
+      "name": "Gateway Arch",
+      "location": "St. Louis, Missouri",
+      "story": "The Gateway Arch, finished in 1965, is 630 feet tall and 630 feet wide, making it the tallest monument in the United States. It honors St. Louis as the 'Gateway to the West,' near where Lewis and Clark began their journey in 1804. Visitors can ride a small tram to the top."
+    }
+  ],
+  "states": [
+    {
+      "state": "Alabama",
+      "fact": "The Montgomery bus boycott of 1955-1956 helped end segregation on the city's buses."
+    },
+    {
+      "state": "Alaska",
+      "fact": "The United States bought Alaska from Russia in 1867 for $7.2 million, and it became the 49th state in 1959."
+    },
+    {
+      "state": "Arizona",
+      "fact": "Arizona became the 48th state on February 14, 1912, the last of the lower 48 states to join."
+    },
+    {
+      "state": "Arkansas",
+      "fact": "In 1957 nine Black students, the Little Rock Nine, needed soldiers to protect them as they integrated Central High School."
+    },
+    {
+      "state": "California",
+      "fact": "Gold found at Sutter's Mill in 1848 started the Gold Rush, and California became a state in 1850."
+    },
+    {
+      "state": "Colorado",
+      "fact": "Colorado joined in 1876, 100 years after the Declaration of Independence, so it is called the Centennial State."
+    },
+    {
+      "state": "Connecticut",
+      "fact": "Connecticut's Fundamental Orders of 1639 were one of the first written plans of government in America, which is why it is called the Constitution State."
+    },
+    {
+      "state": "Delaware",
+      "fact": "Delaware was the first state to ratify the Constitution, on December 7, 1787."
+    },
+    {
+      "state": "Florida",
+      "fact": "St. Augustine, founded by the Spanish in 1565, is the oldest continuously lived-in European-founded city in the US."
+    },
+    {
+      "state": "Georgia",
+      "fact": "Georgia, founded by James Oglethorpe in 1733, was the last of the thirteen colonies."
+    },
+    {
+      "state": "Hawaii",
+      "fact": "Japan's attack on Pearl Harbor on December 7, 1941, brought the United States into World War II."
+    },
+    {
+      "state": "Idaho",
+      "fact": "Lewis and Clark crossed Idaho's rugged Bitterroot Mountains in 1805 on their way to the Pacific."
+    },
+    {
+      "state": "Illinois",
+      "fact": "Abraham Lincoln built his law career in Springfield, which is why Illinois calls itself the Land of Lincoln."
+    },
+    {
+      "state": "Indiana",
+      "fact": "Abraham Lincoln grew up on a farm in southern Indiana from age 7 to age 21."
+    },
+    {
+      "state": "Iowa",
+      "fact": "Herbert Hoover, born in West Branch in 1874, was the first president born west of the Mississippi River."
+    },
+    {
+      "state": "Kansas",
+      "fact": "The Brown v. Board of Education case that ended school segregation in 1954 began in Topeka."
+    },
+    {
+      "state": "Kentucky",
+      "fact": "Abraham Lincoln was born in a log cabin in Kentucky on February 12, 1809."
+    },
+    {
+      "state": "Louisiana",
+      "fact": "Andrew Jackson's army won the Battle of New Orleans in January 1815, the last major battle of the War of 1812."
+    },
+    {
+      "state": "Maine",
+      "fact": "Maine was part of Massachusetts until it became a separate state in 1820."
+    },
+    {
+      "state": "Maryland",
+      "fact": "Francis Scott Key wrote 'The Star-Spangled Banner' after watching the British attack Fort McHenry in Baltimore in 1814."
+    },
+    {
+      "state": "Massachusetts",
+      "fact": "The first battles of the American Revolution were fought at Lexington and Concord on April 19, 1775."
+    },
+    {
+      "state": "Michigan",
+      "fact": "Henry Ford started his moving assembly line at Highland Park, Michigan, in 1913, making cars affordable for many families."
+    },
+    {
+      "state": "Minnesota",
+      "fact": "Minnesota was the first state to offer volunteer soldiers to President Lincoln when the Civil War began in 1861."
+    },
+    {
+      "state": "Mississippi",
+      "fact": "During Freedom Summer in 1964, volunteers came to Mississippi to help Black citizens register to vote."
+    },
+    {
+      "state": "Missouri",
+      "fact": "Lewis and Clark set off up the Missouri River from near St. Louis in 1804."
+    },
+    {
+      "state": "Montana",
+      "fact": "At the Battle of the Little Bighorn in 1876, Lakota, Cheyenne and Arapaho warriors defeated George Custer's soldiers."
+    },
+    {
+      "state": "Nebraska",
+      "fact": "Daniel Freeman made one of the first claims under the Homestead Act near Beatrice on January 1, 1863."
+    },
+    {
+      "state": "Nevada",
+      "fact": "Nevada joined the Union in 1864 during the Civil War, which is why its motto is 'Battle Born.'"
+    },
+    {
+      "state": "New Hampshire",
+      "fact": "In January 1776 New Hampshire became the first colony to adopt its own constitution, separate from British rule."
+    },
+    {
+      "state": "New Jersey",
+      "fact": "George Washington crossed the icy Delaware River on December 25-26, 1776, and surprised enemy troops at Trenton."
+    },
+    {
+      "state": "New Mexico",
+      "fact": "Santa Fe, founded around 1610, is the oldest state capital in the United States."
+    },
+    {
+      "state": "New York",
+      "fact": "George Washington was sworn in as the first president at Federal Hall in New York City in 1789."
+    },
+    {
+      "state": "North Carolina",
+      "fact": "The Wright brothers made the first powered airplane flights near Kitty Hawk on December 17, 1903."
+    },
+    {
+      "state": "North Dakota",
+      "fact": "Lewis and Clark spent the winter of 1804-1805 at Fort Mandan, where they met Sacagawea."
+    },
+    {
+      "state": "Ohio",
+      "fact": "Neil Armstrong, the first person to walk on the Moon, was born in Wapakoneta, Ohio."
+    },
+    {
+      "state": "Oklahoma",
+      "fact": "The Trail of Tears ended in Indian Territory, which is now Oklahoma, after the Cherokee were forced west in 1838-1839."
+    },
+    {
+      "state": "Oregon",
+      "fact": "The Oregon Trail, about 2,000 miles long, carried hundreds of thousands of settlers west to places like Oregon's Willamette Valley."
+    },
+    {
+      "state": "Pennsylvania",
+      "fact": "Both the Declaration of Independence and the Constitution were signed at Independence Hall in Philadelphia."
+    },
+    {
+      "state": "Rhode Island",
+      "fact": "Roger Williams founded Providence in 1636 as a place of religious freedom."
+    },
+    {
+      "state": "South Carolina",
+      "fact": "The Civil War began when Confederate forces fired on Fort Sumter in Charleston Harbor on April 12, 1861."
+    },
+    {
+      "state": "South Dakota",
+      "fact": "Mount Rushmore, carved from 1927 to 1941, shows four presidents in the Black Hills."
+    },
+    {
+      "state": "Tennessee",
+      "fact": "In 1920 Tennessee became the 36th state to ratify the 19th Amendment, the final vote needed to give women the right to vote."
+    },
+    {
+      "state": "Texas",
+      "fact": "Texas was an independent country, the Republic of Texas, from 1836 until it joined the US in 1845."
+    },
+    {
+      "state": "Utah",
+      "fact": "The first transcontinental railroad was completed at Promontory Summit, Utah, on May 10, 1869."
+    },
+    {
+      "state": "Vermont",
+      "fact": "Vermont's 1777 constitution was the first in America to ban slavery for adults."
+    },
+    {
+      "state": "Virginia",
+      "fact": "Jamestown, the first permanent English settlement, was founded in 1607, and the Revolution's last big battle was at Yorktown in 1781."
+    },
+    {
+      "state": "Washington",
+      "fact": "Washington is the only state named after a president."
+    },
+    {
+      "state": "West Virginia",
+      "fact": "West Virginia split from Virginia during the Civil War and became a state in 1863."
+    },
+    {
+      "state": "Wisconsin",
+      "fact": "In 1932 Wisconsin passed the first state unemployment insurance law in the country."
+    },
+    {
+      "state": "Wyoming",
+      "fact": "In 1869 Wyoming Territory became the first place in the United States to give women the right to vote."
+    }
+  ]
+}

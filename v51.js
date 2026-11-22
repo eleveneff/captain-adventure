@@ -51,7 +51,20 @@
   let caveAnchor = null;
   let caveWalls = null;
   let builderPlot = null;
+  const GROW = 1.275;
   const CHAN = { s: 17.4, half: 1.65, f0: 16, f1: 34 };
+  const CAVE = { f: 6.4, s: 0.3 };
+  const LAYOUT = {
+    map: [18.6, -9.2],
+    tunnel: [CAVE.f + 2.5, CAVE.s],
+    rally: [13.8, -12.4],
+    builder: [11.2, 10.2],
+    quiz: [19.4, 5.2],
+    table: [19.6, -13.1],
+    plot: [13.4, 8.2],
+    flag: [25.6, 3.2],
+    isleSign: [23.0, 3.5]
+  };
   const ui = { layer: null, prompt: null };
 
   function worldPos(x, z) {
@@ -166,8 +179,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const picked = session.order.map((n) => q.events[n].text);
       body = `<p class="liberty-fact"><b>Fact.</b> ${esc(q.fact)}</p><p>${esc(q.question)}</p><p>${picked.length ? esc(picked.join(" → ")) : "Tap the earliest event first."}</p>` +
         q.events.map((ev, i) => `<button data-i="${i}" ${session.order.indexOf(i) >= 0 ? "disabled" : ""}>${esc(ev.text)}</button>`).join("");
-    } else {
-      body = `<p class="liberty-fact"><b>Fact.</b> ${esc(q.fact)}</p><p>${esc(q.question)}</p>${choiceButtons(q)}`;
+    }     else {
+      let ask = q.question || "";
+      if (q.fact && ask.indexOf(q.fact) === 0) ask = ask.slice(q.fact.length).replace(/^[\s.]+/, "");
+      body = `<p class="liberty-fact"><b>Fact.</b> ${esc(q.fact)}</p><p>${esc(ask)}</p>${choiceButtons(q)}`;
     }
     const title = session.title || "Liberty Isle";
     showCard(`<h2>${esc(title)}</h2><p>${step}</p>${body}<p><button class="ghost" id="liberty-exit">Exit</button></p>`);
@@ -260,7 +275,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       "Mount Rushmore": { id: "rushmore", price: 45, questions: [
         q("Sculptor Gutzon Borglum and about 400 workers carved four faces between 1927 and 1941.", "Who directed the carving of Mount Rushmore?", ["Gutzon Borglum", "Thomas Jefferson", "Neil Armstrong", "Roger Williams"], 0, "Borglum led about 400 workers from 1927 to 1941."),
         q("The faces are Washington, Jefferson, Theodore Roosevelt, and Lincoln. Each face is about 60 feet tall.", "About how tall is each face on Mount Rushmore?", ["60 feet", "6 feet", "600 feet", "6,000 feet"], 0, "Each carved face is about 60 feet tall."),
-        q("The Black Hills are sacred to the Lakota, and the United States took them in the 1870s despite an 1868 treaty. The Supreme Court later ruled that taking was wrong.", "The Supreme Court later ruled that taking the Black Hills broke which 1868 promise?", ["A treaty with the Lakota", "The Mayflower Compact", "The golden spike", "The Bill of Rights' ban on newspapers"], 0, "An 1868 treaty protected the Black Hills. The Court later said the United States was wrong to take them.")
+        q("Mount Rushmore is in the Black Hills of South Dakota. The four faces are Washington, Jefferson, Theodore Roosevelt and Lincoln.", "Which state is home to Mount Rushmore?", ["South Dakota", "Virginia", "Hawaii", "Maine"], 0, "The memorial is in the Black Hills of South Dakota.")
       ]},
       "Golden Gate Bridge": { id: "gate", price: 50, questions: [
         q("The Golden Gate Bridge opened in 1937 across the entrance to San Francisco Bay.", "The Golden Gate Bridge opened in 1937. Which city does it serve?", ["San Francisco", "Philadelphia", "St. Louis", "Boston"], 0, "It crosses the entrance to San Francisco Bay."),
@@ -270,12 +285,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       "The Alamo": { id: "alamo", price: 30, questions: [
         q("In 1836, Texan defenders held the Alamo for 13 days. The fort fell, and nearly all inside were killed.", "In 1836, the Alamo was a battle in which present-day state?", ["Texas", "Florida", "Virginia", "Maine"], 0, "The Alamo is in San Antonio, Texas."),
         q("The Alamo was an old Spanish mission before the battle.", "Before the 1836 battle, the Alamo had been what?", ["A Spanish mission", "A railroad station", "A moon rocket", "A New England school"], 0, "Spain built it as a mission. The chapel still stands."),
-        q("One cause of the conflict was that many American settlers held enslaved people, and Mexico had moved to end slavery.", "Which fact was one cause of the fight at the Alamo?", ["Mexico had moved to end slavery, and many American settlers held enslaved people", "Mexico had banned all churches", "The defenders wanted to join Canada", "Spain still ruled Texas in 1836"], 0, "Mexico was ending slavery. Many settlers from the United States wanted to keep enslaved people. That was one cause of the Texas Revolution.")
+        q("After the fall of the Alamo, Texan forces won independence at the Battle of San Jacinto on April 21, 1836.", "Where did Texan forces win independence in April 1836?", ["San Jacinto", "Gettysburg", "Yorktown", "Fort Sumter"], 0, "The Battle of San Jacinto was fought in Texas on April 21, 1836. Texas then became an independent republic.")
       ]},
       "Liberty Bell": { id: "bell", price: 25, questions: [
         q("The Liberty Bell hung in the Pennsylvania State House, now called Independence Hall.", "The Liberty Bell hung in which building?", ["The Pennsylvania State House, now Independence Hall", "The Alamo", "The Golden Gate Bridge", "Mount Rushmore"], 0, "Independence Hall in Philadelphia was the Pennsylvania State House."),
         q("The bell is inscribed 'Proclaim LIBERTY throughout all the Land unto all the Inhabitants thereof.'", "The words on the Liberty Bell proclaim what throughout the land?", ["Liberty", "A king's tax", "A state church", "A closed harbor"], 0, "The inscription says Proclaim LIBERTY throughout all the Land."),
-        q("In the 1830s, people working to end slavery named it the Liberty Bell and made it their symbol.", "Who made the bell a symbol in the 1830s?", ["People working to end slavery", "The crew of Columbus", "The builders of the Space Needle", "The Supreme Court in 1954"], 0, "Abolitionists, people who worked to end slavery, gave the bell the name Liberty Bell.")
+        q("A crack in the Liberty Bell grew in the 1840s, and the bell stopped ringing.", "What stopped the Liberty Bell from regular ringing?", ["A crack in the metal", "A move to the Moon", "A flood in 1964", "A law against bells"], 0, "The bell cracked, was repaired and cracked again. That crack is why it is no longer rung hard.")
       ]},
       "Gateway Arch": { id: "arch", price: 35, questions: [
         q("The Gateway Arch, finished in 1965, is 630 feet tall and 630 feet wide.", "The Gateway Arch was finished in 1965. How tall is it?", ["630 feet", "63 feet", "6,300 feet", "12 feet"], 0, "It is 630 feet tall and 630 feet wide."),
@@ -381,28 +396,95 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     }));
   }
 
+  function makeBorderQuestion(s) {
+    const neighbor = s.neighbors.find((n) => n !== s.name);
+    if (!neighbor) return null;
+    const wrong = BANK.states.map((x) => x.name).filter((n) => n !== s.name && s.neighbors.indexOf(n) < 0);
+    for (let i = wrong.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const swap = wrong[i];
+      wrong[i] = wrong[j];
+      wrong[j] = swap;
+    }
+    if (wrong.length < 3) return null;
+    return {
+      type: "choice",
+      fact: s.fact,
+      question: "Which of these states shares a border with " + s.name + "?",
+      choices: [neighbor, wrong[0], wrong[1], wrong[2]],
+      answer: 0,
+      explanation: neighbor + " is a neighbor of " + s.name + ". The others on this list are not.",
+      postcard: s.name
+    };
+  }
   function rallyQuestions() {
     const withN = BANK.states.filter((s) => s.neighbors.length);
     const qs = [];
     const used = new Set();
-    while (qs.length < 3) {
+    let guard = 0;
+    while (qs.length < 3 && guard < 80) {
+      guard++;
       const s = withN[Math.floor(Math.random() * withN.length)];
       if (used.has(s.name)) continue;
+      const q = makeBorderQuestion(s);
+      if (!q) continue;
       used.add(s.name);
-      const neighbor = s.neighbors[0];
-      const wrong = BANK.states.map((x) => x.name).filter((n) => n !== neighbor && s.neighbors.indexOf(n) < 0);
-      const choices = [neighbor, wrong[0], wrong[3], wrong[7]];
-      qs.push({
-        type: "choice",
-        fact: s.fact,
-        question: s.fact + " Which of these states shares a border with " + s.name + "?",
-        choices,
-        answer: 0,
-        explanation: neighbor + " is a neighbor of " + s.name + ". The others on this list are not.",
-        postcard: s.name
-      });
+      qs.push(q);
     }
     return qs;
+  }
+  function contentProblems() {
+    const problems = [];
+    function checkQ(q, label) {
+      if (!q || !q.choices) return;
+      const choices = q.choices.map((c) => String(c).trim());
+      if (choices.length < 2) problems.push(label + " has too few choices");
+      if (new Set(choices.map((c) => c.toLowerCase())).size !== choices.length) problems.push(label + " has duplicate choices");
+      if (!(q.answer >= 0 && q.answer < choices.length)) problems.push(label + " is missing its correct answer");
+      const match = String(q.question || "").match(/border with (.+)\?$/);
+      if (!match) return;
+      const subject = match[1];
+      const state = BANK.states.find((s) => s.name === subject);
+      if (choices.indexOf(subject) >= 0) problems.push(label + " lists " + subject + " as a choice about itself");
+      const hits = choices.filter((c) => state && state.neighbors.indexOf(c) >= 0);
+      if (hits.length !== 1) problems.push(label + " has " + hits.length + " bordering choices");
+      if (!state || state.neighbors.indexOf(choices[q.answer]) < 0) problems.push(label + " correct answer does not border " + subject);
+    }
+    const capitals = {};
+    const flags = {};
+    BANK.states.forEach((s) => {
+      if (s.neighbors.indexOf(s.name) >= 0) problems.push(s.name + " lists itself as a neighbor");
+      capitals[s.capital] = (capitals[s.capital] || 0) + 1;
+      if (s.flag) flags[s.flag] = (flags[s.flag] || 0) + 1;
+      if (!s.neighbors.length) return;
+      const neighbor = s.neighbors.find((n) => n !== s.name);
+      const wrong = BANK.states.map((x) => x.name).filter((n) => n !== s.name && s.neighbors.indexOf(n) < 0);
+      checkQ({
+        question: "Which of these states shares a border with " + s.name + "?",
+        choices: [neighbor, wrong[0], wrong[1], wrong[2]],
+        answer: 0
+      }, "border " + s.name);
+    });
+    Object.keys(capitals).forEach((cap) => {
+      if (capitals[cap] !== 1) problems.push(cap + " is the capital of more than one state");
+    });
+    Object.keys(flags).forEach((line) => {
+      if (flags[line] !== 1) problems.push("duplicate flag fact");
+    });
+    BANK.states.forEach((s) => {
+      const others = BANK.states.filter((x) => x.name !== s.name);
+      const capitalChoices = [s.name, others[0].name, others[1].name, others[2].name];
+      if (new Set(capitalChoices).size !== capitalChoices.length) problems.push(s.name + " capital choices repeat");
+      const hits = capitalChoices.filter((name) => BANK.states.some((x) => x.name === name && x.capital === s.capital));
+      if (hits.length !== 1) problems.push(s.name + " capital question has " + hits.length + " correct states");
+    });
+    BANK.history.forEach((q, i) => checkQ(q, "history " + (q.id || i)));
+    const gates = landmarkGates();
+    Object.keys(gates).forEach((name) => gates[name].questions.forEach((q, i) => checkQ(q, name + " " + i)));
+    BANK.states.forEach((s) => {
+      if (REGIONS.indexOf(s.region) < 0) problems.push(s.name + " has no region choice");
+    });
+    return problems;
   }
 
   function quizQuestions(category) {
@@ -671,10 +753,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return best || { x: anchor.x, y: 10, z: anchor.z };
   }
   function toFS(dx, dz) {
-    return { f: dx * lay.fx + dz * lay.fz, s: dx * lay.rx + dz * lay.rz };
+    return { f: (dx * lay.fx + dz * lay.fz) / GROW, s: (dx * lay.rx + dz * lay.rz) / GROW };
   }
   function worldFS(f, s) {
-    return { x: lay.fx * f + lay.rx * s, z: lay.fz * f + lay.rz * s };
+    return { x: lay.fx * f * GROW + lay.rx * s * GROW, z: lay.fz * f * GROW + lay.rz * s * GROW };
   }
   function smoothstep(t) {
     t = t < 0 ? 0 : t > 1 ? 1 : t;
@@ -697,58 +779,123 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function shoreOf(f, s) {
     const a = Math.atan2(s, f);
-    return 27.4 + 2.05 * Math.sin(a * 3 + 0.45) + 1.15 * Math.sin(a * 5 + 1.7) + 0.45 * Math.sin(a * 8 - 0.4);
+    const dock = Math.exp(-(a * a) / 1.7) * 4.6;
+    const cove = -3.5 * Math.exp(-Math.pow((a - 2.2) / 0.5, 2));
+    const bulge = 3.3 * Math.exp(-Math.pow((a + 1.2) / 0.62, 2));
+    return 27.4
+      + 3.2 * Math.sin(a * 2 + 0.3)
+      + 1.55 * Math.sin(a * 3 + 0.85)
+      + dock + cove + bulge;
+  }
+  function beachOf(f, s) {
+    const a = Math.atan2(s, f);
+    return 2.15 + 0.9 * Math.sin(a * 2 + 0.5) + 0.55 * Math.sin(a * 3 + 1.8);
+  }
+  function facetNoise(f, s) {
+    const qf = Math.round(f * 0.62) / 0.62;
+    const qs = Math.round(s * 0.62) / 0.62;
+    return (hsh(qf * 2.4 + qs * 5.1) - 0.5) * 1.7 + Math.sin(qf * 1.15 + qs * 0.8) * 0.28;
+  }
+  function outcropAt(f, s) {
+    const d = Math.hypot(f, s);
+    const shore = shoreOf(f, s);
+    if (d < 7.5 || d > shore - 5.5) return 0;
+    if (inMouth(f, s) || inRoomFS(f, s)) return 0;
+    if (Math.abs(s) < 2.4 && f > 18) return 0;
+    const spots = [LAYOUT.map, LAYOUT.tunnel, LAYOUT.rally, LAYOUT.builder, LAYOUT.quiz, LAYOUT.table, LAYOUT.plot];
+    for (let i = 0; i < spots.length; i++) {
+      if (Math.hypot(f - spots[i][0], s - spots[i][1]) < 3.4) return 0;
+    }
+    const cellF = Math.round(f * 0.42);
+    const cellS = Math.round(s * 0.42);
+    const spike = hsh(cellF * 8.3 + cellS * 4.9 + 1.2);
+    if (d > shore - 9) return 0;
+    if (spike < 0.74) return 0;
+    return 0.45 + (spike - 0.74) * 3.2;
   }
   function inMouth(f, s) {
-    return f > 4.05 && f < 8.55 && Math.abs(s - 0.2) < 1.62;
+    return f > CAVE.f - 2.6 && f < CAVE.f + 6.8 && Math.abs(s - CAVE.s) < 2.5;
   }
   function inRoomFS(f, s) {
-    const side = Math.abs(s - 0.2);
-    if (f <= 0.15 || f >= 6.7 || side >= 2.15) return false;
-    if (f > 5.6 && side >= 1.7) return false;
+    const side = Math.abs(s - CAVE.s);
+    const depth = CAVE.f - f;
+    if (depth < -0.35 || depth > 6.4 || side >= 2.15) return false;
+    if (depth < 0.9 && side >= 1.7) return false;
     return true;
   }
   function rockTop(f, s) {
-    if (inRoomFS(f, s)) return 1.22;
+    if (inRoomFS(f, s)) return 1.22 * GROW;
     const planes = rockPlanes(f, s);
     let rock = planes[0];
     for (let i = 1; i < planes.length; i++) if (planes[i] > rock) rock = planes[i];
-    if (f > 5.4 && f < 13 && Math.abs(s - 0.2) < 2.6) rock = Math.min(rock, 1.35 + Math.max(0, (f - 7) * 0.05));
+    if (f > CAVE.f - 2 && f < CAVE.f + 6 && Math.abs(s - CAVE.s) < 2.6) rock = Math.min(rock, 1.35 + Math.max(0, (f - CAVE.f) * 0.05));
     if (inMouth(f, s)) rock = Math.min(rock, 1.26);
-    return rock;
+    return rock * GROW;
+  }
+  function knob(f, s, cf, cs, radius, height, power) {
+    const ang = Math.atan2(s - cs, f - cf);
+    let warp = 1 + 0.2 * Math.sin(ang * 2 + cf * 0.7) + 0.12 * Math.sin(ang * 3 + 1.2);
+    if (warp < 0.8) warp = 0.8;
+    const u = Math.hypot(f - cf, s - cs) / (radius * warp);
+    if (u >= 1) return 0;
+    return height * Math.pow(1 - u, power);
+  }
+  function ridge(f, s) {
+    let rock = 0;
+    rock = Math.max(rock, knob(f, s, -5.2, 0.6, 8.4, 13.6, 1.28));
+    rock = Math.max(rock, knob(f, s, -2.2, -6.4, 6.6, 9.2, 1.42));
+    rock = Math.max(rock, knob(f, s, -4.6, 6.2, 6.2, 8.1, 1.48));
+    rock = Math.max(rock, knob(f, s, 0.8, -1.6, 5.6, 4.4, 1.62));
+    if (rock <= 0.05) return 0;
+    rock += facetNoise(f, s) * 0.62 + facetNoise(f + 2.4, s - 1.4) * 0.28;
+    return rock > 0 ? rock : 0;
   }
   function lowland(f, s) {
     const d = Math.hypot(f, s);
     const shore = shoreOf(f, s);
-    if (d > shore + 3.4) return null;
-    let y = 0.9 + 0.16 * Math.sin(f * 0.41 + 0.7) * Math.cos(s * 0.33 + 0.4) + 0.08 * Math.sin((f + s) * 0.85);
-    y += Math.max(0, 0.85 * (1 - d / 22));
+    if (d > shore + 9) return null;
+    let grass = 1.06
+      + Math.sin(f * 0.14 + 0.5) * Math.cos(s * 0.11 + 0.25) * 0.14
+      + Math.sin(f * 0.06 - s * 0.05 + 1.2) * 0.08;
+    const rock = ridge(f, s);
+    const tree = 1.85 + facetNoise(f + 1.2, s) * 0.55 + Math.sin(f * 0.62 + s * 0.41) * 0.22;
+    let y = grass;
+    if (rock > 0.2) y = rock < tree ? Math.max(grass, rock * 0.58 + 0.82) : rock;
+    const pads = [LAYOUT.map, LAYOUT.rally, LAYOUT.builder, LAYOUT.quiz, LAYOUT.table, LAYOUT.flag];
+    for (let i = 0; i < pads.length; i++) {
+      const pd = Math.hypot(f - pads[i][0], s - pads[i][1]);
+      if (pd >= 4.4) continue;
+      const u = smoothstep(pd / 4.4);
+      const flat = Math.min(Math.max(y, 0.98), 1.18);
+      y = flat * (1 - u) + y * u;
+    }
+    const band = shore - d;
+    const beach = beachOf(f, s);
+    const waterU = -0.55 / GROW;
+    if (band >= 0 && band < beach) {
+      const u = band / beach;
+      const blend = u * u * (3 - 2 * u);
+      y = (waterU - 0.03) + (y - (waterU - 0.03)) * blend;
+    } else if (band <= 0) {
+      const u = Math.min(1, -band / 0.45);
+      const blend = u * u * (3 - 2 * u);
+      y = (waterU - 0.02) * (1 - blend) + (waterU - 0.08) * blend;
+    }
     if (inMouth(f, s)) y = Math.min(y, 1.26);
     if (inRoomFS(f, s)) y = 1.22;
-    const edge = smoothstep((d - (shore - 6.6)) / 6.6);
-    const beach = 0.58 * (1 - edge) - 0.38 * edge;
-    y = y * (1 - edge) + beach * edge;
-    const ds = Math.abs(s - CHAN.s);
-    if (ds < CHAN.half + 1.15 && f > CHAN.f0 - 0.8 && f < CHAN.f1 + 0.5) {
-      const u = ds > CHAN.half ? smoothstep((ds - CHAN.half) / 1.15) : 0;
-      y = -0.95 * (1 - u) + y * u;
-    }
-    if (d > shore) y = y * (1 - smoothstep((d - shore) / 2.4)) - 1.2 * smoothstep((d - shore) / 2.4);
-    return y;
+    return y * GROW;
   }
   function heightFS(f, s) {
-    const low = lowland(f, s);
-    if (low == null) return null;
-    return Math.max(low, rockTop(f, s));
+    return lowland(f, s);
   }
   function sampleGround(dx, dz) {
     if (!lay) return null;
     const q = toFS(dx, dz);
-    if (q.f > 24.4 && q.f < 36.8 && Math.abs(q.s) < 1.32) return 0.52;
+    if (q.f > 24.2 && q.f < 37.4 && Math.abs(q.s) < 1.45) return 0.52 * GROW;
     return heightFS(q.f, q.s);
   }
   function inCaveFS(q) {
-    return q.f > 4.05 && q.f < 6.05 && Math.abs(q.s - 0.2) < 1.55;
+    return q.f > CAVE.f - 2.6 && q.f < CAVE.f - 0.4 && Math.abs(q.s - CAVE.s) < 1.55;
   }
   function caveLocal(wx, wy, wz) {
     const dx = wx - caveAnchor.x;
@@ -773,48 +920,127 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const q = caveLocal(pos.x, pos.y, pos.z);
     return Math.abs(q.x) < 1.85 && q.z < -0.45 && q.z > -6.2 && q.y > -0.5 && q.y < 3.2;
   }
-  function sinkDome() {
-    let mesh = null;
+  function dropOldShore() {
+    const turtle = (CA.isl.L || []).find((j) => j.id === "turtle");
+    const doomed = [];
+    const K = kit();
     CA.scene.traverse((o) => {
-      if (mesh || !o.isMesh || !o.geometry || o.geometry.type !== "BufferGeometry") return;
-      const pos = o.geometry.attributes && o.geometry.attributes.position;
-      if (pos && pos.count > 20000) mesh = o;
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      if (o.parent && o.parent.name === "v51-root") return;
+      const name = o.name || "";
+      if (/turtle|pirate|parrot|lair|whale|dolphin|light|buoy|boat/i.test(name)) return;
+      const pos = o.geometry.attributes.position;
+      if (pos.count < 8000) return;
+      const xz = (i) => ({ x: pos.getX(i), z: pos.getZ(i) });
+      const close = (i) => {
+        const p = xz(i);
+        return Math.hypot(p.x - host.x, p.z - host.z) < 74;
+      };
+      const seabed = o.material && o.material.color && o.material.color.getHex && o.material.color.getHex() === 0x1565c0 && !o.material.vertexColors;
+      if (seabed) {
+        let sunk = false;
+        for (let i = 0; i < pos.count; i++) {
+          if (!close(i) || pos.getY(i) <= -1.25) continue;
+          pos.setY(i, -1.7);
+          sunk = true;
+        }
+        if (sunk) {
+          pos.needsUpdate = true;
+          o.geometry.computeVertexNormals();
+        }
+        return;
+      }
+      const index = o.geometry.index;
+      if (!index) {
+        const next = [];
+        const color = o.geometry.attributes.color;
+        const colors = [];
+        let dropped = 0;
+        for (let i = 0; i + 2 < pos.count; i += 3) {
+          const pa = xz(i);
+          const pb = xz(i + 1);
+          const pc = xz(i + 2);
+          const mx = (pa.x + pb.x + pc.x) / 3;
+          const mz = (pa.z + pb.z + pc.z) / 3;
+          const near = close(i) || close(i + 1) || close(i + 2);
+          const land = pos.getY(i) > -0.48 || pos.getY(i + 1) > -0.48 || pos.getY(i + 2) > -0.48;
+          const allInTurtle = turtle && [i, i + 1, i + 2].every((k) => Math.hypot(pos.getX(k) - turtle.cx, pos.getZ(k) - turtle.cz) < turtle.R + 2);
+          if (near && land && !allInTurtle) {
+            dropped++;
+            continue;
+          }
+          for (let k = 0; k < 3; k++) {
+            next.push(pos.getX(i + k), pos.getY(i + k), pos.getZ(i + k));
+            if (color) colors.push(color.getX(i + k), color.getY(i + k), color.getZ(i + k));
+          }
+        }
+        if (!dropped) return;
+        o.geometry.setAttribute("position", new K.Attr(new Float32Array(next), 3));
+        if (color) o.geometry.setAttribute("color", new K.Attr(new Float32Array(colors), 3));
+        o.geometry.deleteAttribute("normal");
+        o.geometry.computeVertexNormals();
+        if (!next.length) doomed.push(o);
+        return;
+      }
+      const keep = [];
+      let dropped = 0;
+      for (let t = 0; t < index.count; t += 3) {
+        const a = index.getX(t);
+        const b = index.getX(t + 1);
+        const c = index.getX(t + 2);
+        const pa = xz(a);
+        const pb = xz(b);
+        const pc = xz(c);
+        const mx = (pa.x + pb.x + pc.x) / 3;
+        const mz = (pa.z + pb.z + pc.z) / 3;
+        const near = close(a) || close(b) || close(c);
+        const land = pos.getY(a) > -0.48 || pos.getY(b) > -0.48 || pos.getY(c) > -0.48;
+        const allInTurtle = turtle && [a, b, c].every((k) => Math.hypot(pos.getX(k) - turtle.cx, pos.getZ(k) - turtle.cz) < turtle.R + 2);
+        if (near && land && !allInTurtle) {
+          dropped++;
+          continue;
+        }
+        keep.push(a, b, c);
+      }
+      if (!dropped) return;
+      o.geometry.setIndex(new K.Attr(new Uint32Array(keep), 1));
+      o.geometry.computeVertexNormals();
+      if (!keep.length) doomed.push(o);
     });
-    if (!mesh) return;
-    const pos = mesh.geometry.attributes.position;
-    const col = mesh.geometry.attributes.color;
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i);
-      const z = pos.getZ(i);
-      if (Math.hypot(x - host.x, z - host.z) > 26) continue;
-      if (pos.getY(i) < -0.45) continue;
-      pos.setY(i, -2.4);
-      if (col) col.setXYZ(i, 0.04, 0.16, 0.28);
-    }
-    pos.needsUpdate = true;
-    if (col) col.needsUpdate = true;
-    mesh.geometry.computeVertexNormals();
+    doomed.forEach((o) => {
+      o.visible = false;
+      if (o.parent) o.parent.remove(o);
+    });
+  }
+  function mixHex(K, a, b, t) {
+    const col = new K.Color(a);
+    col.lerp(new K.Color(b), t < 0 ? 0 : t > 1 ? 1 : t);
+    return col;
+  }
+  function toneAt(f, s) {
+    return 0.5
+      + 0.5 * Math.sin(f * 0.085 + 0.7) * Math.cos(s * 0.07 + 0.4)
+      + 0.16 * Math.sin(f * 0.04 - s * 0.035 + 1.3);
   }
   function faceColor(y, f, s) {
     const K = kit();
-    const salt = Math.floor(hsh(f * 3.1 + s * 5.7 + y) * 4);
-    let hex = 0x3c9a45;
-    if (y < 0.06) hex = [0xc4a06e, 0xb08b58, 0xd0b07a][salt % 3];
-    else if (y < 0.58) hex = [0xf0d5a4, 0xe4c48c, 0xf6e2b8, 0xd7b57a][salt % 4];
-    else if (y < 2.05) hex = [0x3c9a45, 0x2f7d38, 0x4caf50, 0x347d3c][salt % 4];
-    else {
-      const planes = rockPlanes(f, s);
-      let id = 0;
-      for (let i = 1; i < planes.length; i++) if (planes[i] > planes[id]) id = i;
-      const families = [
-        [0x9c958e, 0x8e877f, 0xa39c94],
-        [0x7d766e, 0x6e675f, 0x8a837a],
-        [0x6a635c, 0x7a736c, 0x5e5852],
-        [0x8a847c, 0x7c766e, 0x968f86]
-      ];
-      hex = families[id][salt % 3];
+    const h = y / GROW;
+    const t = toneAt(f, s);
+    const sand = mixHex(K, 0xf6e0b8, 0xd7b57a, t);
+    const wet = mixHex(K, 0xc9a56e, 0xa88852, t);
+    const grass = mixHex(K, 0x5cb85c, 0x2f7d38, t);
+    const rockC = mixHex(K, 0xa39c94, 0x6e675f, t);
+    const rock = ridge(f, s);
+    const tree = 2.15 + Math.sin(f * 0.16 + s * 0.12) * 0.35;
+    if (h < -0.18) return mixHex(K, 0x1768a4, 0x14588e, t);
+    if (rock > tree && h > 1.75) return rockC;
+    if (h < 0.08) return wet;
+    if (h < 0.72) {
+      const u = Math.max(0, Math.min(1, (h - 0.08) / 0.64));
+      sand.lerp(grass, u * u * u);
+      return sand;
     }
-    return new K.Color(hex);
+    return grass;
   }
   function gridMesh(K, N, half, sample, skip) {
     const positions = [];
@@ -840,7 +1066,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
         const b = a + 1;
         const c = a + N + 1;
         const d = c + 1;
-        index.push(a, b, d, a, d, c);
+        index.push(a, d, b, a, c, d);
       }
     }
     const geo = new K.Geo();
@@ -851,10 +1077,43 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return geo;
   }
   function buildTerrain(K) {
-    const geo = gridMesh(K, 72, 33, (f, s) => lowland(f, s), (f, s) => {
-      const y = lowland(f, s);
-      return y == null || y < -0.65;
-    });
+    const A = 720;
+    const R = 28;
+    const skirt = 0.45;
+    const positions = [];
+    const colors = [];
+    const index = [];
+    for (let ia = 0; ia <= A; ia++) {
+      const ang = (ia / A) * Math.PI * 2;
+      const cf = Math.cos(ang);
+      const cs = Math.sin(ang);
+      const shore = shoreOf(cf, cs);
+      for (let ir = 0; ir <= R; ir++) {
+        const rad = (ir / R) * (shore + skirt);
+        const f = cf * rad;
+        const s = cs * rad;
+        const y = lowland(f, s);
+        const w = worldFS(f, s);
+        const col = faceColor(y == null ? -2 : y, f, s);
+        positions.push(host.x + w.x, y == null ? -2 : y, host.z + w.z);
+        colors.push(col.r, col.g, col.b);
+      }
+    }
+    const stride = R + 1;
+    for (let ia = 0; ia < A; ia++) {
+      for (let ir = 0; ir < R; ir++) {
+        const a = ia * stride + ir;
+        const b = a + 1;
+        const c = a + stride;
+        const d = c + 1;
+        index.push(a, c, b, b, c, d);
+      }
+    }
+    const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
+    geo.setAttribute("color", new K.Attr(new Float32Array(colors), 3));
+    geo.setIndex(index);
+    geo.computeVertexNormals();
     const mesh = new K.Mesh(geo, new K.Lambert({ vertexColors: true }));
     mesh.receiveShadow = true;
     mesh.name = "v51-terrain";
@@ -945,6 +1204,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const dz = q.wz - p.wz;
       const len = Math.hypot(dx, dz) || 1;
       if (len < 0.08 || len > 4) continue;
+      if (p.y > 2.5 || q.y > 2.5) continue;
+      if (p.y < 0.2 || q.y < 0.2) continue;
+      if (Math.abs(p.y - q.y) > 0.7) continue;
       const px = -dz / len * half;
       const pz = dx / len * half;
       const y0 = p.y + 0.07;
@@ -977,45 +1239,105 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     }));
     return mesh;
   }
+  function mergedMesh(K, list) {
+    const positions = [];
+    list.forEach((m) => {
+      m.updateWorldMatrix(true, false);
+      const e = m.matrixWorld.elements;
+      const p = m.geometry.attributes.position;
+      const index = m.geometry.index;
+      const count = index ? index.count : p.count;
+      for (let i = 0; i < count; i++) {
+        const vi = index ? index.getX(i) : i;
+        const x = p.getX(vi);
+        const y = p.getY(vi);
+        const z = p.getZ(vi);
+        positions.push(
+          e[0] * x + e[4] * y + e[8] * z + e[12],
+          e[1] * x + e[5] * y + e[9] * z + e[13],
+          e[2] * x + e[6] * y + e[10] * z + e[14]
+        );
+      }
+    });
+    const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
+    geo.computeVertexNormals();
+    const mesh = new K.Mesh(geo, list[0].material);
+    mesh.castShadow = !!list[0].castShadow;
+    mesh.receiveShadow = !!list[0].receiveShadow;
+    return mesh;
+  }
+  function bakeNamed(K, root, name) {
+    const meshes = [];
+    root.traverse((o) => { if (o.isMesh && o.name === name && o.geometry) meshes.push(o); });
+    const groups = {};
+    meshes.forEach((m) => {
+      if (!m.material || m.geometry.attributes.color || m.material.map) return;
+      const hex = m.material.color ? m.material.color.getHexString() : "0";
+      const key = hex + (m.material.transparent ? "t" : "");
+      (groups[key] = groups[key] || []).push(m);
+    });
+    Object.keys(groups).forEach((key) => {
+      const list = groups[key];
+      if (list.length < 2) return;
+      const mesh = mergedMesh(K, list);
+      mesh.name = name;
+      root.add(mesh);
+      list.forEach((m) => { if (m.parent) m.parent.remove(m); });
+    });
+  }
+  function bakeIsland(K, root) {
+    ["v51-bush", "v51-flower", "v51-stem", "v51-rock", "v51-foam", "v51-dock", "v51-path", "v51-bulb"].forEach((name) => bakeNamed(K, root, name));
+  }
   function dress() {
     const K = kit();
     if (!K || !CA.scene || !CA.isl || CA.scene.getObjectByName("v51-root")) return;
     const peak = findPeak();
-    const homeX = -peak.x;
-    const homeZ = -peak.z;
+    const turtle = (CA.isl.L || []).find((j) => j.id === "turtle");
+    let shiftX = 0;
+    let shiftZ = 0;
+    if (turtle) {
+      const awayX = peak.x - turtle.cx;
+      const awayZ = peak.z - turtle.cz;
+      const away = Math.hypot(awayX, awayZ) || 1;
+      shiftX = awayX / away * 12;
+      shiftZ = awayZ / away * 12;
+    }
+    const center = { x: peak.x + shiftX, z: peak.z + shiftZ };
+    const homeX = -center.x;
+    const homeZ = -center.z;
     const span = Math.hypot(homeX, homeZ) || 1;
     lay = {
       fx: homeX / span, fz: homeZ / span, rx: -homeZ / span, rz: homeX / span,
       yaw: Math.atan2(homeX, homeZ),
       at(forward, side) { return worldFS(forward, side); }
     };
-    host = { x: peak.x, z: peak.z, y: peak.y, land: { x: peak.x, z: peak.z }, dock: { x: peak.x, z: peak.z } };
-    const landOff = lay.at(22.2, 1.15);
+    host = { x: center.x, z: center.z, y: peak.y, land: { x: center.x, z: center.z }, dock: { x: center.x, z: center.z } };
+    const landOff = lay.at(21.6, 1.2);
     const dockOff = lay.at(40, 0);
-    host.land = { x: peak.x + landOff.x, z: peak.z + landOff.z };
-    host.dock = { x: peak.x + dockOff.x, z: peak.z + dockOff.z };
+    host.land = { x: center.x + landOff.x, z: center.z + landOff.z };
+    host.dock = { x: center.x + dockOff.x, z: center.z + dockOff.z };
     isle = {
       id: "liberty-mount",
-      cx: peak.x,
-      cz: peak.z,
-      R: 32,
+      cx: center.x,
+      cz: center.z,
+      R: 41,
       yaw: lay.yaw,
       ground(x, z) {
-        const y = sampleGround(x - peak.x, z - peak.z);
+        const y = sampleGround(x - center.x, z - center.z);
         return y == null ? 0.2 : y;
       },
       landSpot: host.land,
       boatSpot: host.dock
     };
-    mountainBlock = { x: peak.x, z: peak.z, r: 3.5 };
-    sinkDome();
+    mountainBlock = { x: center.x, z: center.z, r: 4.5 };
+    dropOldShore();
     const root = new K.Group();
     root.name = "v51-root";
     CA.scene.add(root);
     root.add(buildTerrain(K));
-    root.add(buildRock(K));
     const lamb = (hex, extra) => new K.Lambert(Object.assign({ color: hex }, extra || {}));
-    const here = { map: [16.8, -5.4], tunnel: [6.55, 0.2], rally: [13.2, -14.2], builder: [12.2, 11.4], quiz: [18.2, 7.4] };
+    const here = { map: LAYOUT.map, tunnel: LAYOUT.tunnel, rally: LAYOUT.rally, builder: LAYOUT.builder, quiz: LAYOUT.quiz };
     stations = [
       { id: "map", name: "Map Puzzle Dock", f: here.map[0], s: here.map[1] },
       { id: "tunnel", name: "History Time-Tunnel", f: here.tunnel[0], s: here.tunnel[1], era: ERAS[0] },
@@ -1046,11 +1368,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     isleLabel.name = "v51-label";
     root.add(isleLabel);
     ribbon(K, root, [
-      [[24.6, 0], [20.2, 0.2], [here.map[0], here.map[1]], [here.rally[0], here.rally[1]]],
-      [[20.2, 0.2], [here.quiz[0], here.quiz[1]], [here.builder[0], here.builder[1]]],
-      [[20.2, 0.2], [12.4, 0.3], [9.2, 0.25]]
-    ], 0.66, 0xc4a06a);
-    ribbon(K, root, [[[9.2, 0.25], [here.tunnel[0], here.tunnel[1]]]], 0.78, 0x9a9188);
+      [[26.4, 0.6], [23.2, -2.4], [20.6, -5.6], [18.2, -8.4], [here.map[0], here.map[1]]],
+      [[20.6, -5.6], [17.2, -9.6], [14.8, -13.8], [here.rally[0] + 2.4, here.rally[1] + 4.2]],
+      [[23.2, -2.4], [21.6, 1.2], [here.quiz[0], here.quiz[1]]],
+      [[21.6, 1.2], [17.4, 5.2], [here.builder[0], here.builder[1]]],
+      [[20.6, -5.6], [15.4, -2.8], [12.2, -0.6], [here.tunnel[0] + 1.6, here.tunnel[1]]]
+    ], 0.78, 0xc4a06a);
     dressDock(K, root, lamb);
     dressFlag(K, root, lamb);
     dressFoliage(K, root, lamb);
@@ -1062,6 +1385,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     dressStage(K, root, lamb);
     dressMonuments(K, root, lamb);
     dressRegionFlags(K, root, lamb);
+    dressClearings(K, root);
+    bakeIsland(K, root);
     hookShore();
   }
   function dressDock(K, root, lamb) {
@@ -1073,7 +1398,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const plank = new K.Mesh(new K.Box(1.08, 0.08, 2.35), i % 2 ? woodA : woodB);
       plank.userData.nofade = 1;
       const p = spot(f, 0);
-      plank.position.set(p.wx, 0.52, p.wz);
+      plank.position.set(p.wx, 0.52 * GROW, p.wz);
+      plank.name = "v51-dock";
       plank.rotation.y = lay.yaw;
       root.add(plank);
       if (i % 3 === 0) {
@@ -1082,6 +1408,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
           const post = new K.Mesh(new K.Cyl(0.09, 0.11, 1.7, 6), pile);
           post.position.set(host.x + w.x, -0.35, host.z + w.z);
           post.castShadow = true;
+          post.name = "v51-dock";
           root.add(post);
         });
       }
@@ -1114,7 +1441,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return mesh;
   }
   function dressFlag(K, root, lamb) {
-    const p = spot(26.2, 2.55);
+    const p = spot(LAYOUT.flag[0], LAYOUT.flag[1]);
     const poleH = 5.5;
     const pole = new K.Mesh(new K.Cyl(0.065, 0.09, poleH, 8), lamb(0xf7f4ee));
     pole.position.set(p.wx, p.y + poleH / 2, p.wz);
@@ -1133,7 +1460,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     root.add(rig);
     const board = new K.Mesh(new K.Box(1.7, 0.72, 0.08), lamb(0x8d5a2b));
     const post = new K.Mesh(new K.Cyl(0.06, 0.07, 1.5, 6), lamb(0x6d4c41));
-    const signAt = spot(23.4, 2.7);
+    const signAt = spot(LAYOUT.isleSign[0], LAYOUT.isleSign[1]);
     post.position.set(signAt.wx, signAt.y + 0.75, signAt.wz);
     board.position.set(signAt.wx, signAt.y + 1.55, signAt.wz);
     board.rotation.y = lay.yaw;
@@ -1145,9 +1472,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function palmAt(K, root, f, s, lean, height, seed) {
     const y = heightFS(f, s);
-    if (y == null || y < 0.35 || y > 2.5) return;
+    if (y == null || y < 0.35 * GROW || y > 2.5 * GROW) return;
     const p = spot(f, s);
     const trunk = new K.Lambert({ color: seed % 2 ? 0x8d5a2b : 0x6d4c2f });
+    const trunks = [];
+    const frondsA = [];
+    const frondsB = [];
     const parts = 5;
     const seg = height / parts;
     for (let i = 0; i < parts; i++) {
@@ -1156,8 +1486,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const oz = Math.cos(lean) * i * 0.16;
       piece.position.set(p.wx + ox, p.y + (i + 0.5) * seg, p.wz + oz);
       piece.castShadow = false;
-      piece.name = "v51-palm";
-      root.add(piece);
+      trunks.push(piece);
     }
     const topX = p.wx + Math.sin(lean) * (parts - 1) * 0.22;
     const topZ = p.wz + Math.cos(lean) * (parts - 1) * 0.16;
@@ -1170,17 +1499,29 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       frond.rotation.y = -a;
       frond.rotation.z = 0.55 + (i % 3) * 0.08;
       frond.castShadow = false;
-      frond.name = "v51-palm";
-      root.add(frond);
+      (i % 2 ? frondsA : frondsB).push(frond);
     }
     const nut = new K.Mesh(new K.Sphere(0.14, 6, 4), new K.Lambert({ color: 0x5d4037 }));
     nut.position.set(topX, topY - 0.12, topZ);
-    root.add(nut);
+    trunks.push(nut);
+    const hold = new K.Group();
+    root.add(hold);
+    trunks.concat(frondsA, frondsB).forEach((m) => hold.add(m));
+    hold.updateWorldMatrix(true, true);
+    [trunks, frondsA, frondsB].forEach((list) => {
+      if (!list.length) return;
+      const mesh = mergedMesh(K, list);
+      mesh.name = "v51-palm";
+      mesh.castShadow = false;
+      root.add(mesh);
+    });
+    root.remove(hold);
   }
   function dressFoliage(K, root, lamb) {
     [[21.2, -4.2, 0.4, 5.1, 1], [19.6, 5.6, -0.6, 4.5, 2], [15.4, -11.2, 0.8, 5.6, 3], [14.6, 8.8, 0.2, 4.3, 4],
       [11.4, -16.2, -0.3, 5.0, 5], [10.2, 13.2, 0.5, 4.7, 6], [23.2, -9.4, 0.15, 3.9, 7], [8.6, -6.4, -0.4, 5.4, 8],
-      [16.8, 12.6, 0.35, 4.4, 9]].forEach((row) => palmAt(K, root, row[0], row[1], row[2], row[3], row[4]));
+      [16.8, 12.6, 0.35, 4.4, 9], [20.4, -15.2, 0.3, 4.6, 11], [8.2, 14.6, -0.4, 4.8, 12],
+      [14.8, 16.4, 0.2, 4.2, 13], [4.8, -8.6, 0.5, 5.2, 14]].forEach((row) => palmAt(K, root, row[0], row[1], row[2], row[3], row[4]));
     const bushes = [[18.4, -3.2], [16.2, 3.4], [12.8, -8.6], [11.2, 6.4], [20.4, 9.2], [9.4, -12.4], [21.6, -8.2], [14.2, 14.2], [8.2, 8.4], [19.2, -12.6]];
     bushes.forEach((b, i) => {
       const greens = [0x2f7d32, 0x388e3c, 0x1b5e20];
@@ -1197,6 +1538,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     flowers.forEach((fl) => {
       for (let k = 0; k < 3; k++) {
         const stem = new K.Mesh(new K.Cone(0.03, 0.22, 4), lamb(0x2e7d32));
+        stem.name = "v51-stem";
         place(root, stem, fl[0] + k * 0.18, fl[1] + (k - 1) * 0.12, 0.1);
         const bloom = new K.Mesh(new K.Sphere(0.1, 6, 5), lamb(fl[2]));
         bloom.name = "v51-flower";
@@ -1211,7 +1553,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const f = Math.cos(a) * rad;
       const s = Math.sin(a) * rad;
       const y = heightFS(f, s);
-      if (y == null || y < -0.15 || y > 1.8) continue;
+      if (y == null || y < -0.15 * GROW || y > 1.8 * GROW) continue;
       const rock = new K.Mesh(new K.Sphere(0.38 + (i % 3) * 0.14, 5, 4), lamb(i % 2 ? 0x8e877c : 0xb7aa96));
       rock.scale.set(1.25, 0.55, 0.95);
       rock.castShadow = true;
@@ -1220,7 +1562,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     }
     [[2.2, -6.4, 0.7], [-3.4, 4.8, 0.85], [1.4, 6.2, 0.55], [-2.2, -3.6, 0.6], [6.8, -3.4, 0.5]].forEach((r, i) => {
       const y = heightFS(r[0], r[1]);
-      if (y == null || y < 1.4) return;
+      if (y == null || y < 1.4 * GROW) return;
       const rock = new K.Mesh(new K.Sphere(r[2], 5, 4), lamb(i % 2 ? 0x7a746c : 0x918a82));
       rock.scale.set(1.35, 0.85, 1.05);
       rock.rotation.y = i;
@@ -1229,13 +1571,154 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       place(root, rock, r[0], r[1], r[2] * 0.35);
     });
   }
+  function paintProps(K, root, name, parts) {
+    const positions = [];
+    const colors = [];
+    parts.forEach((part) => {
+      const mesh = new K.Mesh(part.geo, new K.Lambert({ color: 0xffffff }));
+      mesh.position.set(part.x, part.y, part.z);
+      if (part.rot) mesh.rotation.y = part.rot;
+      if (part.rx) mesh.rotation.x = part.rx;
+      mesh.updateWorldMatrix(true, false);
+      const e = mesh.matrixWorld.elements;
+      const p = mesh.geometry.attributes.position;
+      const index = mesh.geometry.index;
+      const count = index ? index.count : p.count;
+      const col = new K.Color(part.color);
+      for (let i = 0; i < count; i++) {
+        const vi = index ? index.getX(i) : i;
+        const x = p.getX(vi);
+        const y = p.getY(vi);
+        const z = p.getZ(vi);
+        positions.push(
+          e[0] * x + e[4] * y + e[8] * z + e[12],
+          e[1] * x + e[5] * y + e[9] * z + e[13],
+          e[2] * x + e[6] * y + e[10] * z + e[14]
+        );
+        colors.push(col.r, col.g, col.b);
+      }
+    });
+    if (!positions.length) return;
+    const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
+    geo.setAttribute("color", new K.Attr(new Float32Array(colors), 3));
+    geo.computeVertexNormals();
+    const mesh = new K.Mesh(geo, new K.Lambert({ vertexColors: true }));
+    mesh.name = name;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    root.add(mesh);
+  }
+  function propAt(f, s, dy) {
+    const p = spot(f, s);
+    return { x: p.wx, y: p.y + dy, z: p.wz, rot: lay.yaw };
+  }
+  function dressClearings(K, root) {
+    const rally = [];
+    const start = LAYOUT.rally;
+    const toward = LAYOUT.map;
+    const span = Math.hypot(toward[0] - start[0], toward[1] - start[1]) || 1;
+    const fx = (toward[0] - start[0]) / span;
+    const fs = (toward[1] - start[1]) / span;
+    const px = -fs;
+    const ps = fx;
+    const from = worldFS(start[0], start[1]);
+    const to = worldFS(toward[0], toward[1]);
+    const heading = Math.atan2(to.x - from.x, to.z - from.z);
+    const along = (dist, side, dy) => {
+      const p = spot(start[0] + fx * dist + px * side, start[1] + fs * dist + ps * side);
+      return { x: p.wx, y: p.y + dy, z: p.wz, rot: heading };
+    };
+    for (let i = 0; i < 7; i++) {
+      const dist = 1.6 + i * 1.45;
+      const seg = along(dist, 0, 0.14);
+      if (seg.y < 0.45) continue;
+      rally.push(Object.assign({ geo: new K.Box(6.6, 0.22, 3.3), color: 0x3a3a40 }, seg));
+      rally.push(Object.assign({ geo: new K.Box(0.18, 0.04, 2.5), color: 0xf5f5f5 }, along(dist, -2.95, 0.28)));
+      rally.push(Object.assign({ geo: new K.Box(0.18, 0.04, 2.5), color: 0xf5f5f5 }, along(dist, 2.95, 0.28)));
+      if (i % 2 === 0) rally.push(Object.assign({ geo: new K.Box(0.2, 0.04, 0.9), color: 0xf6d451 }, along(dist, 0, 0.28)));
+    }
+    [[0.6, -3.6], [2.4, 3.4]].forEach((off, n) => {
+      rally.push(Object.assign({ geo: new K.Cyl(0.1, 0.11, 2.4, 6), color: 0x6d4c2f }, along(off[0], off[1], 1.2)));
+      rally.push(Object.assign({ geo: new K.Box(1.35, 0.78, 0.1), color: n ? 0x1565c0 : 0xc62828 }, along(off[0], off[1], 2.25)));
+    });
+    const car = along(5.2, 1.7, 0);
+    rally.push(Object.assign({ geo: new K.Box(2.15, 1.05, 4.7), color: 0xe53935 }, { x: car.x, y: car.y + 0.95, z: car.z, rot: heading }));
+    rally.push(Object.assign({ geo: new K.Box(1.9, 0.78, 2.15), color: 0xb3e5fc }, { x: car.x, y: car.y + 1.72, z: car.z, rot: heading }));
+    [[-0.95, -1.35], [0.95, -1.35], [-0.95, 1.45], [0.95, 1.45]].forEach((w) => {
+      const wheel = along(5.2 + w[1], 1.7 + w[0], 0.48);
+      rally.push(Object.assign({ geo: new K.Cyl(0.48, 0.48, 0.32, 10), color: 0x263238, rx: Math.PI / 2 }, wheel));
+    });
+    paintProps(K, root, "v51-rally-set", rally);
+
+    const map = [];
+    const mf = LAYOUT.map[0] - 1.4;
+    const ms = LAYOUT.map[1] + 1.6;
+    [[-1.3, -0.9], [1.3, -0.9], [-1.3, 0.9], [1.3, 0.9]].forEach((p) => {
+      map.push(Object.assign({ geo: new K.Cyl(0.07, 0.08, 1.7, 6), color: 0x6d4c2f }, propAt(mf + p[0], ms + p[1], 0.85)));
+    });
+    map.push(Object.assign({ geo: new K.Box(3.1, 0.08, 2.2), color: 0xe6c36a }, propAt(mf, ms, 1.72)));
+    map.push(Object.assign({ geo: new K.Box(1.3, 0.1, 0.42), color: 0x8d5a2b }, propAt(mf + 2.2, ms, 0.48)));
+    [[-0.5, -0.16], [0.5, -0.16], [-0.5, 0.16], [0.5, 0.16]].forEach((leg) => {
+      map.push(Object.assign({ geo: new K.Box(0.08, 0.42, 0.08), color: 0x6d4c2f }, propAt(mf + 2.2 + leg[0], ms + leg[1], 0.22)));
+    });
+    paintProps(K, root, "v51-map-set", map);
+
+    const lights = [];
+    const bulbs = [];
+    const qf = LAYOUT.quiz[0];
+    const qs = LAYOUT.quiz[1];
+    [[-2.3, 0], [2.3, 0]].forEach((p) => {
+      lights.push(Object.assign({ geo: new K.Cyl(0.05, 0.06, 2.3, 6), color: 0x455a64 }, propAt(qf + p[0] * 0.15, qs + p[1] + (p[0] < 0 ? -2.1 : 2.1), 1.15)));
+    });
+    for (let i = 0; i < 7; i++) {
+      const t = i / 6;
+      const s = qs - 2.1 + t * 4.2;
+      const sag = Math.sin(t * Math.PI) * 0.35;
+      lights.push(Object.assign({ geo: new K.Box(0.04, 0.04, 0.72), color: 0x263238 }, propAt(qf, s, 2.15 - sag)));
+      const bulb = propAt(qf, s, 2.0 - sag);
+      const lamp = new K.Mesh(new K.Sphere(0.1, 8, 6), new K.Lambert({ color: 0xfff3c4, emissive: 0xffe082, emissiveIntensity: 0.9 }));
+      lamp.position.set(bulb.x, bulb.y, bulb.z);
+      lamp.name = "v51-bulb";
+      root.add(lamp);
+      bulbs.push(lamp);
+    }
+    paintProps(K, root, "v51-quiz-set", lights);
+    void bulbs;
+
+    const yard = [];
+    const bf = LAYOUT.builder[0];
+    const bs = LAYOUT.builder[1];
+    [[0, 0, 0.32], [0.7, 0.15, 0.28], [0.3, 0.45, 0.7]].forEach((c) => {
+      yard.push(Object.assign({ geo: new K.Box(0.55, 0.42, 0.48), color: c[2] > 0.5 ? 0x8d6e63 : 0xa1887f }, propAt(bf + 1.8 + c[0], bs - 1.5 + c[1], c[2])));
+    });
+    yard.push(Object.assign({ geo: new K.Cyl(0.08, 0.1, 2.4, 6), color: 0xf9a825 }, propAt(bf + 2.6, bs + 1.2, 1.2)));
+    yard.push(Object.assign({ geo: new K.Box(1.6, 0.1, 0.12), color: 0xf9a825 }, propAt(bf + 1.9, bs + 1.2, 2.35)));
+    yard.push(Object.assign({ geo: new K.Box(0.04, 0.7, 0.04), color: 0x455a64 }, propAt(bf + 1.2, bs + 1.2, 1.9)));
+    yard.push(Object.assign({ geo: new K.Box(0.22, 0.16, 0.16), color: 0x546e7a }, propAt(bf + 1.2, bs + 1.2, 1.5)));
+    paintProps(K, root, "v51-builder-set", yard);
+
+    const mouth = [];
+    [[1.6, -1.5, 0.45], [2.1, 1.3, 0.32], [3.2, -0.8, 0.55], [3.6, 1.6, 0.28]].forEach((r) => {
+      mouth.push(Object.assign({ geo: new K.Sphere(r[2], 5, 4), color: 0x7a736c }, propAt(CAVE.f + r[0], CAVE.s + r[1], r[2] * 0.45)));
+    });
+    [[2.4, -1.8], [2.8, 1.7]].forEach((p) => {
+      mouth.push(Object.assign({ geo: new K.Cyl(0.05, 0.06, 1.2, 6), color: 0x4e342e }, propAt(CAVE.f + p[0], CAVE.s + p[1], 0.6)));
+      const at = propAt(CAVE.f + p[0], CAVE.s + p[1], 1.25);
+      const lamp = new K.Mesh(new K.Sphere(0.12, 8, 6), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 1 }));
+      lamp.position.set(at.x, at.y, at.z);
+      lamp.name = "v51-bulb";
+      root.add(lamp);
+    });
+    paintProps(K, root, "v51-tunnel-set", mouth);
+  }
   function dressFoam(K, root) {
     const waterY = typeof CA.waterY === "number" ? CA.waterY : -0.55;
     const mat = new K.Basic({ color: 0xf7fbff, transparent: true, opacity: 0.55, depthWrite: false });
-    for (let i = 0; i < 42; i++) {
-      const a = (i / 42) * Math.PI * 2;
-      let lo = 16;
-      let hi = 34;
+    for (let i = 0; i < 64; i++) {
+      const a = (i / 64) * Math.PI * 2;
+      let lo = 12;
+      let hi = 44;
       for (let k = 0; k < 8; k++) {
         const mid = (lo + hi) / 2;
         const y = heightFS(Math.cos(a) * mid, Math.sin(a) * mid);
@@ -1260,8 +1743,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     }
   }
   function dressMapTable(K, root, lamb) {
-    const p = spot(17.2, -9.4);
+    const p = spot(LAYOUT.table[0], LAYOUT.table[1]);
     const table = new K.Group();
+    table.name = "v51-map-table";
     table.position.set(p.wx, p.y, p.wz);
     table.rotation.y = lay.yaw;
     const top = new K.Mesh(new K.Box(6.5, 0.14, 4.35), lamb(0x8d5a2b));
@@ -1288,7 +1772,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     mapAnchor = { x: p.wx, y: p.y + 1.1, z: p.wz };
   }
   function dressTunnel(K, root, lamb) {
-    const p = spot(6.55, 0.2);
+    const p = spot(CAVE.f, CAVE.s);
     const cave = new K.Group();
     cave.position.set(p.wx, p.y, p.wz);
     cave.rotation.y = lay.yaw;
@@ -1374,11 +1858,11 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     rooms = names.map((era) => ({ era: era, x: p.wx, z: p.wz, group: walls, blocks: [] }));
   }
   function dressRally(K, root, lamb) {
-    const p = spot(13.2, -14.2);
+    const p = spot(LAYOUT.rally[0], LAYOUT.rally[1]);
     const postL = new K.Mesh(new K.Cyl(0.07, 0.08, 1.8, 6), lamb(0x6d4c41));
     const postR = postL.clone();
     postL.position.set(p.wx, p.y + 0.9, p.wz);
-    const w = worldFS(13.2, -13.3);
+    const w = worldFS(LAYOUT.rally[0], LAYOUT.rally[1] + 0.9);
     postR.position.set(host.x + w.x, p.y + 0.9, host.z + w.z);
     const board = new K.Mesh(new K.Box(1.6, 0.9, 0.08), new K.Lambert({ map: routeTex(K), color: 0xffffff }));
     board.position.set((postL.position.x + postR.position.x) / 2, p.y + 1.45, (postL.position.z + postR.position.z) / 2);
@@ -1407,18 +1891,18 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     builderPlot.shown = id;
   }
   function dressBench(K, root, lamb) {
-    const p = spot(12.2, 11.4);
+    const p = spot(LAYOUT.builder[0], LAYOUT.builder[1]);
     const top = new K.Mesh(new K.Box(1.5, 0.1, 0.7), lamb(0xa86b32));
     top.position.set(p.wx, p.y + 0.85, p.wz);
     top.rotation.y = lay.yaw;
     root.add(top);
     [[-0.55, -0.24], [0.55, -0.24], [-0.55, 0.24], [0.55, 0.24]].forEach((leg) => {
       const post = new K.Mesh(new K.Box(0.1, 0.8, 0.1), lamb(0x6d4c2f));
-      const w = worldFS(12.2 + leg[0] * 0.15, 11.4 + leg[1]);
+      const w = worldFS(LAYOUT.builder[0] + leg[0] * 0.15, LAYOUT.builder[1] + leg[1]);
       post.position.set(host.x + w.x, p.y + 0.4, host.z + w.z);
       root.add(post);
     });
-    const plotAt = spot(13.9, 9.8);
+    const plotAt = spot(LAYOUT.plot[0], LAYOUT.plot[1]);
     const group = new K.Group();
     group.position.set(plotAt.wx, plotAt.y, plotAt.wz);
     group.rotation.y = lay.yaw + 0.4;
@@ -1436,7 +1920,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (owned.length) mountPlot(owned[owned.length - 1].id);
   }
   function dressStage(K, root, lamb) {
-    const p = spot(18.2, 7.4);
+    const p = spot(LAYOUT.quiz[0], LAYOUT.quiz[1]);
     const deck = new K.Mesh(new K.Cyl(2.15, 2.15, 0.22, 16), lamb(0x6d4c41));
     deck.position.set(p.wx, p.y + 0.12, p.wz);
     deck.receiveShadow = true;
@@ -1445,7 +1929,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     podium.position.set(p.wx + lay.fx * 0.35, p.y + 0.7, p.wz + lay.fz * 0.35);
     root.add(podium);
     [-1.55, 1.55].forEach((side) => {
-      const at = spot(18.2, 7.4 + side);
+      const at = spot(LAYOUT.quiz[0], LAYOUT.quiz[1] + side);
       const post = new K.Mesh(new K.Cyl(0.06, 0.06, 2.15, 6), lamb(0x455a64));
       post.position.set(at.wx, at.y + 1.05, at.wz);
       const bulb = new K.Mesh(new K.Sphere(0.14, 8, 6), new K.Lambert({ color: 0xfff3c4, emissive: 0xffe082, emissiveIntensity: 0.9 }));
@@ -1468,7 +1952,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function dressRegionFlags(K, root, lamb) {
     REGIONS.forEach((region, i) => {
-      const at = spot(15.2, -4.2 - i * 0.7);
+      const at = spot(16.4, -5.6 - i * 1.15);
       const pole = new K.Mesh(new K.Cyl(0.045, 0.05, 1.8, 6), lamb(0xf4efe4));
       pole.position.set(at.wx, at.y + 0.9, at.wz);
       const cloth = new K.Mesh(new K.Plane(0.85, 0.52), lamb([0x6a1b9a, 0xc0392b, 0xe6a817, 0x2e7d32, 0x1e88e5][i]));
@@ -1492,7 +1976,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
           if (Math.abs(s - CHAN.s) < CHAN.half + 0.35 && f > CHAN.f0 - 0.4 && f < CHAN.f1) continue;
           const w = worldFS(f, s);
           const y = sampleGround(w.x, w.z);
-          if (y == null || y < 0.12 || y > 5.5) continue;
+          if (y == null || y < 0.12 || y > 5.5 * GROW) continue;
           CA.walkCircles.push({ x: host.x + w.x, z: host.z + w.z, r: 2.45 });
         }
       }
@@ -1853,12 +2337,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       gate: () => bridgeMesh(K, lamb)
     };
     const spots = {
-      liberty: [19.4, -6.2, 0],
-      gate: [23.2, CHAN.s, 0],
-      arch: [15.6, -13.6, 0],
-      bell: [10.4, 8.6, 0],
-      alamo: [15.2, 10.2, 0],
-      rushmore: [4.6, -2.4, -1.2]
+      liberty: [25.2, -5.4, 0],
+      gate: [23.4, CHAN.s, 0],
+      arch: [4.2, -24.2, 0],
+      bell: [22.4, 19.6, 0],
+      alamo: [-1.6, 23.4, 0],
+      rushmore: [4.8, -3.2, -1.2]
     };
     BANK.landmarks.forEach((lm) => {
       const mesh = makers[lm.id]();
@@ -2233,12 +2717,21 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     cam.position.set(w.x, w.y, w.z);
     cam.lookAt(cap.position.x, cap.position.y + 1.02, cap.position.z);
   }
+  function rallyCover(hide) {
+    const root = CA.scene.getObjectByName("v51-root");
+    if (!root || root.userData.rallyCover === hide) return;
+    root.userData.rallyCover = hide;
+    root.traverse((o) => {
+      if (o.name === "v51-palm" || o.name === "v51-map-table") o.visible = !hide;
+    });
+  }
   function aimCamera(cam) {
     if (!cam || !host || !lay) return;
     if (cam.clearViewOffset) cam.clearViewOffset();
+    rallyCover(!!(session && session.id === "rally"));
     if (window.__libertyAerial) {
-      cam.position.set(host.x + lay.fx * 22, 42, host.z + lay.fz * 22);
-      cam.lookAt(host.x, 2.2, host.z);
+      cam.position.set(host.x + lay.fx * 78, 58, host.z + lay.fz * 78);
+      cam.lookAt(host.x, 6, host.z);
       return;
     }
     if (session && session.id === "map" && mapAnchor) {
@@ -2272,13 +2765,24 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       if (cam.setViewOffset) cam.setViewOffset(W, H, Math.round(W * 0.08), 0, W, H);
       return;
     }
-    if (walking && on && !inCaveFS(q) && Math.hypot(q.f - 6.55, q.s - 0.2) < 3.4) {
-      const w = worldFS(13.2, 0.4);
-      const gy = lowland(13.2, 0.4);
-      cam.position.set(host.x + w.x, (gy == null ? 1 : gy) + 3.4, host.z + w.z);
-      const mouth = worldFS(6.45, 0.2);
-      const my = heightFS(6.45, 0.2);
+    if (walking && on && !inCaveFS(q) && Math.hypot(q.f - CAVE.f, q.s - CAVE.s) < 3.4) {
+      const standF = CAVE.f + 4.6;
+      const standS = CAVE.s + 1.4;
+      const w = worldFS(standF, standS);
+      const gy = heightFS(standF, standS);
+      cam.position.set(host.x + w.x, (gy == null ? 2 : gy) + 3.2, host.z + w.z);
+      const mouth = worldFS(CAVE.f - 0.1, CAVE.s);
+      const my = heightFS(CAVE.f - 0.1, CAVE.s);
       cam.lookAt(host.x + mouth.x, (my == null ? 1.2 : my) + 1.7, host.z + mouth.z);
+      return;
+    }
+    if (walking && on && session && session.id === "rally") {
+      const d = Math.hypot(q.f, q.s) || 1;
+      const cf = q.f + (q.f / d) * 18;
+      const cs = q.s + (q.s / d) * 18;
+      const w = worldFS(cf, cs);
+      cam.position.set(host.x + w.x, cap.position.y + 14, host.z + w.z);
+      cam.lookAt(cap.position.x, cap.position.y + 0.5, cap.position.z);
       return;
     }
     if (walking && on) {
@@ -2562,7 +3066,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     build: startBuild,
     spin: spinWheel,
     near: captainNear,
-    session: () => session
+    session: () => session,
+    contentProblems
   };
   window.CaptainLiberty = CA.liberty;
 })();

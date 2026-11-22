@@ -6,10 +6,10 @@
     "audience": "ISEE Lower Level student, age 11-12; written at a 5th-6th grade reading level",
     "rules": [
       "Nothing before 1500, except the opening question q00 about Columbus's 1492 voyage.",
-      "Focus mainly on North America and the lands that became the United States, not Central/South America or Europe.",
-      "Facts first, with an American exceptionalism focus: the founding ideals, the Declaration, the Constitution and Bill of Rights, self-government, opportunity and innovation, immigrants, and ending slavery and extending civil rights as America living up to its ideals.",
+      "Focus mainly on North America and the lands that became the United States.",
+      "Facts first, at a 5th-6th grade reading level: geography, landmarks, national symbols, inventors, explorers, national parks, and basic civics (branches of government, how a bill becomes law, the Constitution and the Bill of Rights).",
       "Every fact must be accurate.",
-      "Hard history is included and told honestly and age-appropriately: slavery, the treatment of Native peoples, Jim Crow."
+      "Social-justice topics stay rare. The 13th Amendment question is the one kept item of that kind."
     ],
     "sources": [
       "National Archives, America's Founding Documents: https://www.archives.gov/founding-docs",
@@ -25,59 +25,59 @@
   "eras": [
     {
       "id": "e1",
-      "name": "Explorers and First Peoples",
+      "name": "Explorers and Early Maps",
       "startYear": 1500,
       "endYear": 1606,
-      "summary": "Millions of Native people already lived across North America when Spanish, French and English explorers arrived. The newcomers brought horses and new goods, but also diseases like smallpox that killed huge numbers of Native people."
+      "summary": "Spanish, French and English explorers mapped coasts and rivers of the land that became the United States. Their trips reached Florida, the Mississippi River and the Atlantic shore."
     },
     {
       "id": "e2",
       "name": "Thirteen Colonies Take Root",
       "startYear": 1607,
       "endYear": 1753,
-      "summary": "English colonists built settlements along the Atlantic coast and began to govern themselves with elected assemblies. At the same time, enslaved Africans were forced to work in the colonies, and Native nations lost land in wars and treaties."
+      "summary": "English settlers built towns along the Atlantic coast and began to elect their own lawmakers. By 1733 there were thirteen colonies, from New Hampshire south to Georgia."
     },
     {
       "id": "e3",
       "name": "Revolution and a New Nation",
       "startYear": 1754,
       "endYear": 1789,
-      "summary": "Colonists protested British taxes, declared independence in 1776 and won the Revolutionary War. They then wrote the Constitution, creating a government run by the people."
+      "summary": "Colonists protested British taxes, declared independence in 1776 and won the Revolutionary War. They then wrote the Constitution, with three branches, and added the Bill of Rights."
     },
     {
       "id": "e4",
       "name": "A Growing Nation",
       "startYear": 1790,
       "endYear": 1849,
-      "summary": "The United States added the Bill of Rights, doubled in size and pushed west. Growth brought canals and new freedoms for many, but it also spread slavery and forced Native nations off their homelands."
+      "summary": "The United States added the Bill of Rights, bought Louisiana from France and linked the East to the Great Lakes by canal. Explorers, roads and the telegraph tied the growing country together."
     },
     {
       "id": "e5",
       "name": "Civil War and Reconstruction",
       "startYear": 1850,
       "endYear": 1877,
-      "summary": "Arguments over slavery split the nation, and the Civil War began in 1861. The Union won, slavery was ended by the 13th Amendment, and new amendments promised citizenship and voting rights to formerly enslaved people."
+      "summary": "The Civil War began at Fort Sumter in 1861 and ended in 1865 with the country still united. Battles such as Gettysburg were fought in named towns students can find on a map."
     },
     {
       "id": "e6",
-      "name": "Inventions, Immigrants and Reform",
+      "name": "Inventors and National Parks",
       "startYear": 1878,
       "endYear": 1928,
-      "summary": "Millions of immigrants arrived, and inventors and factories changed daily life. Reformers fought for women's right to vote, while Black Americans faced Jim Crow laws and Native peoples lost more land."
+      "summary": "Inventors such as Edison and the Wright brothers changed daily life, and Congress created the National Park Service to care for places like Yellowstone. Newcomers also arrived at Ellis Island in New York Harbor."
     },
     {
       "id": "e7",
       "name": "Hard Times and World War II",
       "startYear": 1929,
       "endYear": 1945,
-      "summary": "The Great Depression left millions without jobs until the New Deal and the war effort brought work back. Americans then helped win World War II, though Japanese Americans were unfairly forced into camps at home."
+      "summary": "The Great Depression left millions without jobs until new programs and the war effort brought work back. Americans then helped win World War II, including the D-Day landing in France."
     },
     {
       "id": "e8",
-      "name": "Civil Rights, Space and Modern America",
+      "name": "Space Age and Modern America",
       "startYear": 1946,
       "endYear": 2026,
-      "summary": "Black Americans and their allies used courts, marches and votes to end legal segregation. Americans also walked on the Moon, built new technology and kept working to live up to the nation's founding ideals."
+      "summary": "Alaska and Hawaii became states, the flag gained a 50th star, and Americans built interstate highways. In 1969 astronauts landed on the Moon."
     }
   ],
   "events": [
@@ -923,17 +923,17 @@
       "id": "q04",
       "type": "mc",
       "era": "e1",
-      "year": 1540,
-      "fact": "Diseases brought by Europeans killed huge numbers of Native people in the 1500s and after.",
-      "question": "What was the biggest cause of death for Native peoples after Europeans arrived?",
+      "year": 1541,
+      "fact": "Hernando de Soto's expedition reached the Mississippi River in 1541.",
+      "question": "Which river did Hernando de Soto reach in 1541?",
       "choices": [
-        "Battles with explorers",
-        "Earthquakes",
-        "Diseases like smallpox",
-        "Lack of horses"
+        "The Mississippi River",
+        "The Hudson River",
+        "The Colorado River",
+        "The Columbia River"
       ],
-      "answerIndex": 2,
-      "explanation": "Native peoples had never been exposed to smallpox and measles, so these diseases killed huge numbers of them, more than wars did."
+      "answerIndex": 0,
+      "explanation": "De Soto crossed the Southeast and reached the Mississippi River in 1541. The Hudson, Colorado and Columbia are other long American rivers."
     },
     {
       "id": "q05",
@@ -987,33 +987,33 @@
       "id": "q08",
       "type": "mc",
       "era": "e2",
-      "year": 1680,
-      "fact": "Popé led the Pueblo Revolt in 1680.",
-      "question": "What happened in the Pueblo Revolt of 1680?",
+      "year": 1626,
+      "fact": "The Dutch founded New Amsterdam on Manhattan Island in 1626. The English later renamed it New York.",
+      "question": "What is the Dutch town of New Amsterdam called today?",
       "choices": [
-        "The French captured Florida",
-        "The Pilgrims fought the Wampanoag",
-        "The Pueblo people drove the Spanish out of New Mexico",
-        "The Pueblo people sold their land to England"
+        "New York",
+        "Boston",
+        "Philadelphia",
+        "New Orleans"
       ],
-      "answerIndex": 2,
-      "explanation": "The Pueblo people pushed the Spanish out of New Mexico and governed themselves for 12 years."
+      "answerIndex": 0,
+      "explanation": "The English renamed New Amsterdam to New York in 1664. Boston, Philadelphia and New Orleans were different cities."
     },
     {
       "id": "q09",
       "type": "mc",
       "era": "e2",
-      "year": 1739,
-      "fact": "The Stono Rebellion took place in South Carolina in 1739.",
-      "question": "The Stono Rebellion of 1739 was an uprising by whom?",
+      "year": 1733,
+      "fact": "Georgia, settled at Savannah in 1733, was the last of the thirteen English colonies.",
+      "question": "Georgia was the last of how many English colonies along the Atlantic?",
       "choices": [
-        "Colonists against British taxes",
-        "Enslaved people seeking freedom",
-        "French soldiers",
-        "Pilgrims against the king"
+        "13",
+        "7",
+        "21",
+        "50"
       ],
-      "answerIndex": 1,
-      "explanation": "Enslaved people in South Carolina rose up and marched toward Spanish Florida, where they hoped to be free. It shows that enslaved people resisted slavery."
+      "answerIndex": 0,
+      "explanation": "There were thirteen English colonies, from New Hampshire to Georgia. Each one became one of the first states. The country has 50 states today."
     },
     {
       "id": "q10",
@@ -1179,81 +1179,81 @@
       "id": "q20",
       "type": "mc",
       "era": "e4",
-      "year": 1838,
-      "fact": "About 4,000 Cherokee people died as a result of their forced removal in 1838-1839.",
-      "question": "What was the Trail of Tears?",
+      "year": 1825,
+      "fact": "The Erie Canal opened in 1825 and linked the Hudson River to Lake Erie.",
+      "question": "Which two bodies of water did the Erie Canal connect?",
       "choices": [
-        "A trail for gold miners",
-        "A trail used by Lewis and Clark",
-        "The forced removal of the Cherokee from their homeland to Indian Territory",
-        "An escape route on the Underground Railroad"
+        "The Hudson River and Lake Erie",
+        "The Mississippi River and the Gulf of Mexico",
+        "The Colorado River and the Pacific Ocean",
+        "The Missouri River and Hudson Bay"
       ],
-      "answerIndex": 2,
-      "explanation": "After the Indian Removal Act of 1830, the US Army forced the Cherokee west to present-day Oklahoma, and thousands died along the way."
+      "answerIndex": 0,
+      "explanation": "The canal crossed New York from Albany on the Hudson River to Buffalo on Lake Erie. Boats could then travel between the Atlantic coast and the Great Lakes."
     },
     {
       "id": "q21",
       "type": "mc",
       "era": "e4",
-      "year": 1848,
-      "fact": "The Seneca Falls Convention for women's rights met in 1848.",
-      "question": "What was the Seneca Falls Convention about?",
+      "year": 1844,
+      "fact": "On May 24, 1844, Samuel Morse sent a telegraph message from Washington, D.C., to Baltimore.",
+      "question": "What did Samuel Morse demonstrate in 1844?",
       "choices": [
-        "Building canals",
-        "Women's rights",
-        "The Gold Rush",
-        "Ending the War of 1812"
+        "The telegraph",
+        "The airplane",
+        "The electric light",
+        "The telephone"
       ],
-      "answerIndex": 1,
-      "explanation": "Its Declaration of Sentiments said 'all men and women are created equal' and asked for women's right to vote."
+      "answerIndex": 0,
+      "explanation": "Morse's telegraph sent signals over a wire from the U.S. Capitol to Baltimore. The telephone, the electric light and the airplane came later."
     },
     {
       "id": "q22",
       "type": "mc",
       "era": "e5",
-      "year": 1850,
-      "fact": "Harriet Tubman led about 70 people to freedom on the Underground Railroad.",
-      "question": "What was the Underground Railroad?",
+      "year": 1861,
+      "fact": "The Civil War began on April 12, 1861, when guns fired on Fort Sumter.",
+      "question": "Fort Sumter, where the Civil War began, is in which state?",
       "choices": [
-        "A secret network of people helping enslaved people escape to freedom",
-        "A subway under New York",
-        "The first railroad across the country",
-        "A Confederate supply line"
+        "South Carolina",
+        "Massachusetts",
+        "Texas",
+        "California"
       ],
       "answerIndex": 0,
-      "explanation": "It was not a real railroad. It was a network of routes and safe houses, and 'conductors' like Harriet Tubman guided people north."
+      "explanation": "Fort Sumter stands in Charleston Harbor, South Carolina."
     },
     {
       "id": "q23",
       "type": "mc",
       "era": "e5",
       "year": 1861,
-      "fact": "The Civil War began at Fort Sumter on April 12, 1861.",
-      "question": "What was the main cause of the Civil War?",
+      "fact": "Abraham Lincoln was president of the United States during the Civil War.",
+      "question": "Who was president during the Civil War?",
       "choices": [
-        "Taxes on tea",
-        "Who would own Alaska",
-        "A war with Mexico",
-        "Slavery and whether it would spread"
+        "Abraham Lincoln",
+        "George Washington",
+        "Thomas Jefferson",
+        "Theodore Roosevelt"
       ],
-      "answerIndex": 3,
-      "explanation": "Southern states left the Union mainly to protect slavery, and the North would not let the nation be split."
+      "answerIndex": 0,
+      "explanation": "Lincoln took office in March 1861. The war began the next month. Washington, Jefferson and Theodore Roosevelt were presidents in other years."
     },
     {
       "id": "q24",
       "type": "mc",
       "era": "e5",
       "year": 1863,
-      "fact": "Lincoln issued the Emancipation Proclamation on January 1, 1863.",
-      "question": "What did the Emancipation Proclamation do?",
+      "fact": "The Battle of Gettysburg was fought in Pennsylvania in July 1863.",
+      "question": "In which state was the Battle of Gettysburg fought?",
       "choices": [
-        "Ended the Civil War",
-        "Gave women the right to vote",
-        "Declared enslaved people in Confederate areas free",
-        "Made Lincoln president"
+        "Pennsylvania",
+        "Texas",
+        "Virginia",
+        "Georgia"
       ],
-      "answerIndex": 2,
-      "explanation": "It freed enslaved people in areas fighting against the Union. Slavery everywhere ended with the 13th Amendment in 1865."
+      "answerIndex": 0,
+      "explanation": "Gettysburg is a town in southern Pennsylvania. The battle was fought there on July 1 to 3, 1863. Other states saw other battles, not this one."
     },
     {
       "id": "q25",
@@ -1269,23 +1269,23 @@
         "19th Amendment"
       ],
       "answerIndex": 1,
-      "explanation": "The 13th Amendment ended slavery. The 15th protected Black men's right to vote, and the 19th gave women the vote."
+      "explanation": "The 13th Amendment is part of the Constitution. Ratified in December 1865, it ended slavery in the United States."
     },
     {
       "id": "q26",
       "type": "mc",
       "era": "e5",
       "year": 1869,
-      "fact": "The transcontinental railroad was completed at Promontory Summit, Utah, in 1869.",
-      "question": "Which immigrant groups did much of the work building the transcontinental railroad?",
+      "fact": "Crews finished the transcontinental railroad in 1869, joining the eastern tracks to California.",
+      "question": "In which state did those tracks meet in 1869?",
       "choices": [
-        "Chinese and Irish workers",
-        "German and Italian workers",
-        "Spanish and French workers",
-        "Swedish and Polish workers"
+        "Utah",
+        "New York",
+        "Florida",
+        "Hawaii"
       ],
       "answerIndex": 0,
-      "explanation": "Chinese workers built much of the Central Pacific line through the mountains, and many Irish workers built the Union Pacific."
+      "explanation": "The tracks met at Promontory Summit, Utah, on May 10, 1869. A golden spike marked the spot."
     },
     {
       "id": "q27",
@@ -1323,17 +1323,17 @@
       "id": "q29",
       "type": "mc",
       "era": "e6",
-      "year": 1896,
-      "fact": "Plessy v. Ferguson in 1896 allowed 'separate but equal' segregation.",
-      "question": "What were Jim Crow laws?",
+      "year": 1879,
+      "fact": "Thomas Edison demonstrated a practical electric light at Menlo Park, New Jersey, in 1879.",
+      "question": "What did Thomas Edison demonstrate in 1879?",
       "choices": [
-        "Laws that protected voting rights",
-        "Laws in many states, mostly in the South, that forced Black and white people apart",
-        "Laws that ended slavery",
-        "Laws about building railroads"
+        "A practical electric light",
+        "The first airplane",
+        "The telegraph",
+        "A moon rocket"
       ],
-      "answerIndex": 1,
-      "explanation": "Jim Crow laws segregated schools, trains and more, and kept many Black citizens from voting. Brown v. Board (1954) and laws in 1964 and 1965 ended legal Jim Crow."
+      "answerIndex": 0,
+      "explanation": "Edison's 1879 lamp was a step toward electric lights in homes and streets. Samuel Morse had shown the telegraph earlier, and the Wright brothers flew in 1903."
     },
     {
       "id": "q30",
@@ -1355,17 +1355,17 @@
       "id": "q31",
       "type": "mc",
       "era": "e6",
-      "year": 1920,
-      "fact": "The 19th Amendment was ratified in 1920.",
-      "question": "What did the 19th Amendment do?",
+      "year": 1916,
+      "fact": "Congress created the National Park Service on August 25, 1916, to care for parks such as Yellowstone.",
+      "question": "What did Congress create in 1916 to care for national parks?",
       "choices": [
-        "Ended slavery",
-        "Made Native Americans citizens",
-        "Created the income tax",
-        "Gave women the right to vote"
+        "The National Park Service",
+        "The U.S. Air Force",
+        "The Erie Canal",
+        "The Supreme Court"
       ],
-      "answerIndex": 3,
-      "explanation": "After more than 70 years of struggle since Seneca Falls, women won the vote in 1920."
+      "answerIndex": 0,
+      "explanation": "The National Park Service looks after parks and monuments. Yellowstone had already become the first national park in 1872. The Air Force, the Erie Canal and the Supreme Court are different and older or later."
     },
     {
       "id": "q32",
@@ -1419,81 +1419,81 @@
       "id": "q35",
       "type": "mc",
       "era": "e7",
-      "year": 1942,
-      "fact": "About 120,000 people of Japanese ancestry were forced into camps starting in 1942.",
-      "question": "Why is the forced removal of Japanese Americans in World War II seen as wrong today?",
+      "year": 1944,
+      "fact": "On June 6, 1944, Allied troops, including Americans, landed on the beaches of Normandy in France.",
+      "question": "What happened on D-Day, June 6, 1944?",
       "choices": [
-        "They were paid too much",
-        "They chose to move",
-        "They were sent to fight in Europe",
-        "They were jailed without trials, mostly US citizens, only because of their ancestry"
+        "Allied troops landed in Normandy, France",
+        "The Constitution was signed",
+        "Gold was found in California",
+        "Alaska became a state"
       ],
-      "answerIndex": 3,
-      "explanation": "Most had done nothing wrong and were US citizens. In 1988 Congress apologized and paid survivors."
+      "answerIndex": 0,
+      "explanation": "American, British, Canadian and other Allied soldiers crossed the English Channel and landed in Normandy."
     },
     {
       "id": "q36",
       "type": "mc",
       "era": "e8",
-      "year": 1954,
-      "fact": "The Supreme Court decided Brown v. Board of Education in 1954.",
-      "question": "What did the Brown v. Board of Education decision say?",
+      "year": 1959,
+      "fact": "Alaska became the 49th state on January 3, 1959.",
+      "question": "Which state joined the United States on January 3, 1959?",
       "choices": [
-        "Schools could stay segregated",
-        "Women could vote",
-        "Segregated public schools were unconstitutional",
-        "Only some states needed public schools"
+        "Alaska",
+        "Hawaii",
+        "Texas",
+        "Arizona"
       ],
-      "answerIndex": 2,
-      "explanation": "The Court said separate schools for Black and white children were not equal, overturning Plessy v. Ferguson."
+      "answerIndex": 0,
+      "explanation": "Alaska was the 49th state. Hawaii became the 50th later that same year, on August 21, not on January 3."
     },
     {
       "id": "q37",
       "type": "mc",
       "era": "e8",
-      "year": 1955,
-      "fact": "Rosa Parks was arrested in Montgomery, Alabama, on December 1, 1955.",
-      "question": "What did Rosa Parks refuse to do?",
+      "year": 1959,
+      "fact": "Hawaii became the 50th state on August 21, 1959.",
+      "question": "Which state was the 50th to join the United States?",
       "choices": [
-        "Pay her taxes",
-        "Give up her bus seat to a white passenger",
-        "Go to school",
-        "Sign a petition"
+        "Hawaii",
+        "Alaska",
+        "Arizona",
+        "New Mexico"
       ],
-      "answerIndex": 1,
-      "explanation": "Her arrest sparked the 381-day Montgomery bus boycott, which ended bus segregation in the city."
+      "answerIndex": 0,
+      "explanation": "Hawaii joined on August 21, 1959. Alaska had joined in January as the 49th state."
     },
     {
       "id": "q38",
       "type": "mc",
       "era": "e8",
-      "year": 1963,
-      "fact": "Martin Luther King Jr. gave his 'I Have a Dream' speech on August 28, 1963.",
-      "question": "Where did Martin Luther King Jr. give his 'I Have a Dream' speech?",
+      "year": 1960,
+      "fact": "The United States flag with 50 stars became official on July 4, 1960.",
+      "question": "What do the 50 stars on the United States flag stand for?",
       "choices": [
-        "At the Lincoln Memorial in Washington, D.C.",
-        "Atlanta, Georgia",
-        "Montgomery, Alabama",
-        "Independence Hall in Philadelphia"
+        "The 50 states",
+        "The 50 largest cities",
+        "The first 50 presidents",
+        "The 50 national parks"
       ],
       "answerIndex": 0,
-      "explanation": "He spoke at the Lincoln Memorial during the March on Washington, calling on America to live up to the promise that all men are created equal."
+      "explanation": "Each star stands for one state. The 13 stripes stand for the original thirteen colonies. The 50-star flag was adopted after Hawaii became a state."
     },
     {
       "id": "q39",
       "type": "mc",
-      "era": "e8",
-      "year": 1965,
-      "fact": "The Voting Rights Act was passed in 1965.",
-      "question": "What did the Voting Rights Act of 1965 do?",
+      "era": "e3",
+      "year": 1789,
+      "fact": "A bill must pass both the House of Representatives and the Senate. The president then signs it, or Congress can vote to override a veto.",
+      "question": "Which two parts of Congress must pass a bill?",
       "choices": [
-        "Gave women the vote",
-        "Created the Electoral College",
-        "Lowered the voting age to 18",
-        "Protected Black Americans' right to vote by banning unfair tests"
+        "The House and the Senate",
+        "The Supreme Court and the Cabinet",
+        "The Senate and the state governors",
+        "The House and the national parks"
       ],
-      "answerIndex": 3,
-      "explanation": "It banned literacy tests and other tricks used to keep Black citizens from voting. The voting age was lowered to 18 later, in 1971."
+      "answerIndex": 0,
+      "explanation": "Congress has two chambers, the House and the Senate. A bill must pass both. The president then signs it, or Congress may override a veto."
     },
     {
       "id": "q40",
@@ -1625,8 +1625,8 @@
           "year": 1791
         },
         {
-          "title": "Seneca Falls Convention",
-          "year": 1848
+          "title": "Erie Canal opens",
+          "year": 1825
         }
       ],
       "correctOrder": [
@@ -1634,7 +1634,7 @@
         0,
         2
       ],
-      "explanation": "The Bill of Rights (1791) came first, then the Louisiana Purchase (1803), then Seneca Falls (1848)."
+      "explanation": "The Bill of Rights was ratified in 1791, the Louisiana Purchase was in 1803, and the Erie Canal opened in 1825."
     },
     {
       "id": "q46",
@@ -1642,24 +1642,24 @@
       "era": "e5",
       "events": [
         {
-          "title": "Emancipation Proclamation",
-          "year": 1863
-        },
-        {
-          "title": "13th Amendment ratified",
+          "title": "Lee surrenders at Appomattox",
           "year": 1865
         },
         {
-          "title": "Dred Scott decision",
-          "year": 1857
+          "title": "Attack on Fort Sumter",
+          "year": 1861
+        },
+        {
+          "title": "Battle of Gettysburg",
+          "year": 1863
         }
       ],
       "correctOrder": [
+        1,
         2,
-        0,
-        1
+        0
       ],
-      "explanation": "The unjust Dred Scott ruling (1857) came before the Emancipation Proclamation (1863), and slavery finally ended with the 13th Amendment (1865)."
+      "explanation": "The war began at Fort Sumter in 1861, Gettysburg was fought in 1863, and Lee surrendered at Appomattox Court House, Virginia, in 1865."
     },
     {
       "id": "q47",
@@ -1671,8 +1671,8 @@
           "year": 1886
         },
         {
-          "title": "19th Amendment ratified",
-          "year": 1920
+          "title": "National Park Service created",
+          "year": 1916
         },
         {
           "title": "Wright brothers' first flight",
@@ -1684,7 +1684,7 @@
         2,
         1
       ],
-      "explanation": "The statue was dedicated in 1886, the first flight came in 1903 and women won the vote in 1920."
+      "explanation": "The statue was dedicated in 1886, the Wright brothers flew in 1903, and Congress created the National Park Service in 1916."
     },
     {
       "id": "q48",
@@ -1692,24 +1692,24 @@
       "era": "e8",
       "events": [
         {
-          "title": "March on Washington",
-          "year": 1963
-        },
-        {
           "title": "Apollo 11 Moon landing",
           "year": 1969
         },
         {
-          "title": "Brown v. Board of Education",
-          "year": 1954
+          "title": "Alaska becomes a state",
+          "year": 1959
+        },
+        {
+          "title": "The 50-star flag is adopted",
+          "year": 1960
         }
       ],
       "correctOrder": [
+        1,
         2,
-        0,
-        1
+        0
       ],
-      "explanation": "Brown v. Board was in 1954, the March on Washington in 1963 and the Moon landing in 1969."
+      "explanation": "Alaska became a state in 1959, the 50-star flag was adopted in 1960, and Apollo 11 landed on the Moon in 1969."
     }
   ],
   "landmarks": [
@@ -1721,7 +1721,7 @@
     {
       "name": "Mount Rushmore",
       "location": "Black Hills, South Dakota",
-      "story": "Sculptor Gutzon Borglum and about 400 workers carved the faces of Washington, Jefferson, Theodore Roosevelt and Lincoln into the mountain between 1927 and 1941. Each face is about 60 feet tall. The Black Hills are sacred to the Lakota, and the US took them in the 1870s despite an 1868 treaty, which the Supreme Court later ruled was wrong."
+      "story": "Sculptor Gutzon Borglum and about 400 workers carved the faces of Washington, Jefferson, Theodore Roosevelt and Lincoln into a mountain in the Black Hills of South Dakota between 1927 and 1941. Each face is about 60 feet tall."
     },
     {
       "name": "Golden Gate Bridge",
@@ -1731,12 +1731,12 @@
     {
       "name": "The Alamo",
       "location": "San Antonio, Texas",
-      "story": "The Alamo was an old Spanish mission where Texan defenders, including Davy Crockett and Jim Bowie, held out against the Mexican army for 13 days in 1836 before nearly all were killed. Weeks later Texans shouted 'Remember the Alamo!' as they won independence at San Jacinto. One cause of the conflict was that many American settlers held enslaved people, and Mexico had moved to end slavery."
+      "story": "The Alamo was an old Spanish mission in San Antonio. In 1836, Texan defenders, including Davy Crockett and Jim Bowie, held it for 13 days before the fort fell. Weeks later, Texans won independence at the Battle of San Jacinto. The chapel still stands."
     },
     {
       "name": "Liberty Bell",
       "location": "Philadelphia, Pennsylvania",
-      "story": "The Liberty Bell hung in the Pennsylvania State House, now called Independence Hall, and it is inscribed 'Proclaim LIBERTY throughout all the Land unto all the Inhabitants thereof.' In the 1830s, people working to end slavery named it the Liberty Bell and made it their symbol. A famous crack stopped it from ringing by the 1840s."
+      "story": "The Liberty Bell hung in the Pennsylvania State House, now called Independence Hall, and it is inscribed 'Proclaim LIBERTY throughout all the Land unto all the Inhabitants thereof.' A crack grew in the 1840s and the bell stopped ringing."
     },
     {
       "name": "Gateway Arch",
@@ -1747,7 +1747,7 @@
   "states": [
     {
       "state": "Alabama",
-      "fact": "The Montgomery bus boycott of 1955-1956 helped end segregation on the city's buses."
+      "fact": "Montgomery has been Alabama's capital since 1846, and the U.S. Space & Rocket Center is in Huntsville."
     },
     {
       "state": "Alaska",
@@ -1759,7 +1759,7 @@
     },
     {
       "state": "Arkansas",
-      "fact": "In 1957 nine Black students, the Little Rock Nine, needed soldiers to protect them as they integrated Central High School."
+      "fact": "Little Rock, the state capital, takes its name from a rock bluff on the Arkansas River."
     },
     {
       "state": "California",
@@ -1807,7 +1807,7 @@
     },
     {
       "state": "Kansas",
-      "fact": "The Brown v. Board of Education case that ended school segregation in 1954 began in Topeka."
+      "fact": "The geographic center of the contiguous United States is near Lebanon, Kansas, and the capital is Topeka."
     },
     {
       "state": "Kentucky",
@@ -1835,11 +1835,11 @@
     },
     {
       "state": "Minnesota",
-      "fact": "Minnesota was the first state to offer volunteer soldiers to President Lincoln when the Civil War began in 1861."
+      "fact": "The Mississippi River begins at Lake Itasca in northern Minnesota, and St. Paul is the capital."
     },
     {
       "state": "Mississippi",
-      "fact": "During Freedom Summer in 1964, volunteers came to Mississippi to help Black citizens register to vote."
+      "fact": "Jackson is the capital of Mississippi, and the Mississippi River forms the state's western border."
     },
     {
       "state": "Missouri",
@@ -1847,7 +1847,7 @@
     },
     {
       "state": "Montana",
-      "fact": "At the Battle of the Little Bighorn in 1876, Lakota, Cheyenne and Arapaho warriors defeated George Custer's soldiers."
+      "fact": "Glacier National Park is in the Rocky Mountains of Montana, and Helena is the state capital."
     },
     {
       "state": "Nebraska",
@@ -1887,7 +1887,7 @@
     },
     {
       "state": "Oklahoma",
-      "fact": "The Trail of Tears ended in Indian Territory, which is now Oklahoma, after the Cherokee were forced west in 1838-1839."
+      "fact": "Oklahoma City is the capital, and Oklahoma became a state on November 16, 1907."
     },
     {
       "state": "Oregon",
@@ -1911,7 +1911,7 @@
     },
     {
       "state": "Tennessee",
-      "fact": "In 1920 Tennessee became the 36th state to ratify the 19th Amendment, the final vote needed to give women the right to vote."
+      "fact": "Nashville is the capital of Tennessee, and the Tennessee River crosses the state."
     },
     {
       "state": "Texas",
@@ -1923,7 +1923,7 @@
     },
     {
       "state": "Vermont",
-      "fact": "Vermont's 1777 constitution was the first in America to ban slavery for adults."
+      "fact": "Montpelier is the smallest state capital by population, and Vermont is nicknamed the Green Mountain State."
     },
     {
       "state": "Virginia",
@@ -1943,7 +1943,7 @@
     },
     {
       "state": "Wyoming",
-      "fact": "In 1869 Wyoming Territory became the first place in the United States to give women the right to vote."
+      "fact": "Yellowstone, the world's first national park, was created in 1872, and most of it lies in Wyoming."
     }
   ]
 }

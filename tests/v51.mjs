@@ -87,7 +87,9 @@ const booted = await page.evaluate(() => window.CaptainLiberty.ready.then(() => 
 }));
 check("pack loaded into the game", booted.ready && booted.eras === 8 && booted.history === 49, JSON.stringify({ eras: booted.eras, history: booted.history }));
 check("q00 is the Columbus question", booted.q00 && booted.q00.year === 1492 && /Columbus/.test(booted.q00.fact), booted.q00 && booted.q00.fact);
-check("state facts come from the pack", /Montgomery bus boycott/.test(booted.alabama), booted.alabama);
+check("state facts come from the pack", /capital since 1846/.test(booted.alabama), booted.alabama);
+const content = await page.evaluate(() => window.CaptainLiberty.contentProblems());
+check("choice questions do not repeat the subject or hide the answer", content.length === 0, content.slice(0, 6).join("; "));
 check("a 5.0 save keeps its 77 coins", booted.score === 77, String(booted.score));
 check("version marker is 5.1", booted.version === "Captain Adventure 5.1: Liberty Isle", booted.version);
 check("Turtle Cove is restored", !!(booted.isle && booted.isle.name === "Turtle Cove" && booted.isle.R === 19), JSON.stringify(booted.isle));

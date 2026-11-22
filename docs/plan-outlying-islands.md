@@ -1,6 +1,6 @@
 # Plan: walkable outlying islands
 
-This is a plan only. Nothing in this file is built. Liberty Isle now lives on the old Turtle Cove landmass (island id `turtle`, radius 19), which already had a dock and a walkable disk. The small extra Liberty island beside the lighthouse has been removed.
+This is a plan only. Nothing in this file is built. Liberty Isle now uses the existing green mountain in the open sea beside Turtle Cove. Turtle Cove itself is restored: it keeps its dock, its walk disk, and the turtle story. It is already landable, so it is not one of the inaccessible shores below. A later pass could add a nest-counting activity there without moving Liberty again.
 
 The pieces below are the places a captain can sail up to but cannot yet explore on foot, plus Parrot Palms, which has a dock and a single secret but no ring of stations.
 

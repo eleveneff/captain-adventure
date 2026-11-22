@@ -45,6 +45,8 @@
   let nearest = null;
   let lay = null;
   let mountainBlock = null;
+  let host = null;
+  let mapMesh = null;
   const ui = { layer: null, prompt: null };
 
   function worldPos(x, z) {
@@ -625,10 +627,57 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (monuments[id]) monuments[id].visible = true;
   }
 
+  function findPeak() {
+    const anchor = { x: 175, z: 231 };
+    let best = null;
+    CA.scene.traverse((o) => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      const pos = o.geometry.attributes.position;
+      if (pos.count < 2000) return;
+      const col = o.geometry.attributes.color;
+      for (let i = 0; i < pos.count; i++) {
+        const y = pos.getY(i);
+        if (y < 7) continue;
+        const x = pos.getX(i);
+        const z = pos.getZ(i);
+        if (Math.hypot(x - anchor.x, z - anchor.z) > 36) continue;
+        if (!best || y > best.y) best = { x, y, z, r: col ? col.getX(i) : 0, g: col ? col.getY(i) : 1 };
+      }
+    });
+    return best || { x: anchor.x, y: 10, z: anchor.z };
+  }
   function dress() {
     const K = kit();
-    isle = (CA.isl && CA.isl.L || []).find((n) => n.id === "turtle");
-    if (!K || !isle || !CA.scene || CA.scene.getObjectByName("v51-root")) return;
+    if (!K || !CA.scene || !CA.isl || CA.scene.getObjectByName("v51-root")) return;
+    const peak = findPeak();
+    const homeX = -peak.x;
+    const homeZ = -peak.z;
+    const span = Math.hypot(homeX, homeZ) || 1;
+    lay = {
+      fx: homeX / span, fz: homeZ / span, rx: -homeZ / span, rz: homeX / span,
+      yaw: Math.atan2(homeX, homeZ),
+      at(forward, side) {
+        return { x: (homeX / span) * forward + (-homeZ / span) * side, z: (homeZ / span) * forward + (homeX / span) * side };
+      }
+    };
+    const land = lay.at(28, 0);
+    const dock = lay.at(42, 0);
+    host = {
+      x: peak.x, z: peak.z, y: peak.y,
+      land: { x: peak.x + land.x, z: peak.z + land.z },
+      dock: { x: peak.x + dock.x, z: peak.z + dock.z }
+    };
+    isle = {
+      id: "liberty-mount",
+      cx: peak.x,
+      cz: peak.z,
+      R: 36,
+      yaw: lay.yaw,
+      ground: () => 0.55,
+      landSpot: host.land,
+      boatSpot: host.dock
+    };
+    mountainBlock = { x: peak.x, z: peak.z, r: 9 };
     const root = new K.Group();
     root.name = "v51-root";
     CA.scene.add(root);
@@ -639,30 +688,19 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       root.add(mesh);
       return mesh;
     }
-    const map = new K.Mesh(new K.Plane(12, 8), new K.Lambert({ map: mapTexture(K), color: 0xffffff }));
-    map.rotation.x = -Math.PI / 2;
-    add(map, 0, 1, 0.08);
-    map.name = "v51-map";
-    const shadow = new K.Mesh(new K.Circle(5.2, 20), new K.Basic({ color: 0x14301c, transparent: true, opacity: 0.28, depthWrite: false }));
-    shadow.rotation.x = -Math.PI / 2;
-    add(shadow, 0, 1, 0.03);
-    const dx = isle.boatSpot.x - isle.cx;
-    const dz = isle.boatSpot.z - isle.cz;
-    const span = Math.hypot(dx, dz) || 1;
-    lay = {
-      fx: dx / span, fz: dz / span, rx: -dz / span, rz: dx / span,
-      yaw: Math.atan2(dx, dz),
-      at(forward, side) {
-        return { x: (dx / span) * forward + (-dz / span) * side, z: (dz / span) * forward + (dx / span) * side };
-      }
-    };
+    const map = new K.Mesh(new K.Plane(9.2, 5.6), new K.Lambert({ map: mapTexture(K), color: 0xffffff, side: 2 }));
+    map.rotation.x = -0.85;
+    map.rotation.y = lay.yaw + Math.PI;
     const here = {
-      map: lay.at(9, 6),
-      tunnel: lay.at(7.2, 4),
-      rally: lay.at(-2, 11),
-      builder: lay.at(2, -11),
-      quiz: lay.at(11, -7)
+      map: lay.at(22, 16),
+      tunnel: lay.at(20, 0),
+      rally: lay.at(18, -18),
+      builder: lay.at(8, 22),
+      quiz: lay.at(26, -8)
     };
+    add(map, here.map.x, here.map.z, 2.4);
+    map.name = "v51-map";
+    mapMesh = map;
     stations = [
       { id: "map", name: "Map Puzzle Dock", x: here.map.x, z: here.map.z },
       { id: "tunnel", name: "History Time-Tunnel", x: here.tunnel.x, z: here.tunnel.z, era: ERAS[0] },
@@ -691,6 +729,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     isleLabel.name = "v51-label";
     root.add(isleLabel);
     dressDockFlag(K, root, add, lamb);
+    hookShore();
     REGIONS.forEach((region, i) => {
       const a = -1.2 + i * 0.45;
       const pole = new K.Mesh(new K.Cyl(0.06, 0.06, 2.2, 6), lamb(0xf4efe4));
@@ -713,43 +752,69 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     dressStage(K, root, add, lamb);
   }
   function dressMountain(K, root, add, lamb) {
-    const rock = lamb(0x7d8b78);
-    const snow = lamb(0xf4f7fb);
-    const cone = new K.Mesh(new K.Cone(4.4, 8.4, 16), rock);
-    add(cone, 0, 0, 3.8);
-    const cap = new K.Mesh(new K.Cone(1.15, 1.4, 10), snow);
-    cap.position.set(cone.position.x, cone.position.y + 4.4, cone.position.z);
-    root.add(cap);
-    mountainBlock = { x: isle.cx, z: isle.cz, r: 3.3, meshes: [cone, cap] };
-    const mouth = lay.at(7.2, 4);
-    const p = worldPos(mouth.x, mouth.z);
-    const rockMat = lamb(0x5f6b62);
-    const left = new K.Mesh(new K.Box(0.45, 2.6, 0.55), rockMat);
-    const right = new K.Mesh(new K.Box(0.45, 2.6, 0.55), rockMat);
-    const lintel = new K.Mesh(new K.Box(2.8, 0.45, 0.6), rockMat);
-    left.position.set(-1.15, 1.3, 0);
-    right.position.set(1.15, 1.3, 0);
-    lintel.position.set(0, 2.7, 0);
-    const gate = new K.Group();
-    gate.add(left); gate.add(right); gate.add(lintel);
-    gate.position.set(p.x, p.y, p.z);
-    gate.rotation.y = lay.yaw;
-    root.add(gate);
-    const lamp = new K.Mesh(new K.Sphere(0.16, 8, 6), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 0.9 }));
-    lamp.position.set(p.x, p.y + 2.7, p.z);
-    root.add(lamp);
-    const overlook = lay.at(-1.5, 3.2);
-    const pad = new K.Mesh(new K.Cyl(1.5, 1.5, 0.18, 8), lamb(0xb0a090));
-    add(pad, overlook.x, overlook.z, 2.6);
-    const rail = new K.Mesh(new K.Torus(1.35, 0.05, 6, 16), lamb(0x6d4c41));
-    rail.rotation.x = Math.PI / 2;
-    rail.position.set(pad.position.x, pad.position.y + 0.35, pad.position.z);
-    root.add(rail);
+    const grass = lamb(0x3e9a45);
+    const sand = lamb(0xe6c98a);
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2;
+      const ring = new K.Mesh(new K.Cyl(3.2, 3.2, 0.16, 14), i % 2 ? grass : lamb(0x46a84c));
+      add(ring, Math.cos(a) * 20, Math.sin(a) * 20, 0.02);
+      const beach = new K.Mesh(new K.Cyl(2.8, 3.1, 0.12, 12), sand);
+      add(beach, Math.cos(a) * 26, Math.sin(a) * 26, -0.02);
+    }
+    const channel = lay.at(28, 12);
+    const water = new K.Mesh(new K.Box(16, 0.18, 5.2), lamb(0x1e88e5));
+    add(water, channel.x, channel.z, -0.15);
+    water.rotation.y = lay.yaw;
+  }
+  function hookShore() {
+    if (!host) return;
+    if (CA.walkCircles) {
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      CA.walkCircles.push({ x: host.x + Math.cos(a) * 22, z: host.z + Math.sin(a) * 22, r: 9 });
+      CA.walkCircles.push({ x: host.x + Math.cos(a) * 30, z: host.z + Math.sin(a) * 30, r: 7 });
+    }
+    CA.walkCircles.push({ x: host.land.x, z: host.land.z, r: 8 });
+    }
+    if (CA.obstacles) CA.obstacles.push({ x: host.x, z: host.z, r: 8.5 });
+    window.__libertyGround = (x, z) => {
+      if (!host) return null;
+      const d = Math.hypot(x - host.x, z - host.z);
+      if (d > 38) return null;
+      return 0.55;
+    };
+    const proxy = { id: "liberty-mount" };
+    const origCan = CA.isl.canLand.bind(CA.isl);
+    const origLand = CA.isl.land.bind(CA.isl);
+    const origGoal = CA.isl.nextGoal.bind(CA.isl);
+    CA.isl.canLand = (pos) => {
+      const hit = origCan(pos);
+      if (hit) return hit;
+      if (pos && Math.hypot(pos.x - host.dock.x, pos.z - host.dock.z) < 12) return proxy;
+      return null;
+    };
+    CA.isl.land = (j) => {
+      if (j && j.id === "liberty-mount") {
+        if (CA.exitVehicle && CA.mode !== "walk") CA.exitVehicle();
+        CA.captain.position.set(host.land.x, 0.6, host.land.z);
+        CA.captain.rotation.y = Math.atan2(host.x - host.land.x, host.z - host.land.z);
+        if (CA.snapCamera) CA.snapCamera();
+        return;
+      }
+      return origLand(j);
+    };
+    CA.isl.nextGoal = (pos) => {
+      const goal = origGoal(pos);
+      if (!pos) return goal;
+      const d = Math.hypot(pos.x - host.dock.x, pos.z - host.dock.z);
+      if (!goal || d < goal.d) return { d, brg: Math.atan2(host.dock.x - pos.x, host.dock.z - pos.z), text: "\u{1F9ED} Next island: \u{1F5FD} <b>Liberty Isle</b> \u00B7 " + Math.round(d) + " m" };
+      return goal;
+    };
   }
   function dressPaths(K, root, lamb) {
     const dirt = lamb(0xc4a574);
     const stops = stations.map((st) => ({ x: st.x, z: st.z }));
-    stops.push(lay.at(13, -3), lay.at(0, 0), lay.at(-1.5, 3.2));
+    stops.push(lay.at(28, 0), lay.at(22, 0));
     for (let i = 0; i < stops.length - 1; i++) {
       const a = worldPos(stops[i].x, stops[i].z);
       const b = worldPos(stops[i + 1].x, stops[i + 1].z);
@@ -760,7 +825,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       mesh.rotation.y = Math.atan2(b.x - a.x, b.z - a.z);
       root.add(mesh);
     }
-    const zig = [lay.at(4, 4), lay.at(1.5, 5.2), lay.at(-1.5, 3.2)];
+    const zig = [lay.at(20, 4), lay.at(16, 2), lay.at(12, 0)];
     zig.forEach((spot, i) => {
       if (!i) return;
       const a = worldPos(zig[i - 1].x, zig[i - 1].z);
@@ -924,40 +989,34 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return tex;
   }
   function dressDockFlag(K, root, add, lamb) {
-    const dx = isle.boatSpot.x - isle.cx;
-    const dz = isle.boatSpot.z - isle.cz;
-    const len = Math.hypot(dx, dz) || 1;
-    const ux = dx / len;
-    const uz = dz / len;
-    const pole = new K.Mesh(new K.Cyl(0.07, 0.09, 5.4, 6), lamb(0xf7f4ee));
-    add(pole, ux * 13, uz * 13, 2.7);
+    const spot = lay.at(30, 9);
+    const pole = new K.Mesh(new K.Cyl(0.08, 0.1, 4.6, 8), lamb(0xf7f4ee));
+    add(pole, spot.x, spot.z, 2.3);
     const ball = new K.Mesh(new K.Sphere(0.16, 8, 6), lamb(0xffc83d));
-    ball.position.set(pole.position.x, pole.position.y + 2.8, pole.position.z);
+    ball.position.set(pole.position.x, pole.position.y + 2.4, pole.position.z);
     root.add(ball);
-    const yaw = Math.atan2(ux, uz);
     const flagMat = new K.Lambert({ map: usFlagTex(K), color: 0xffffff, side: 2 });
-    const cloth = new K.Mesh(new K.Plane(2.6, 1.45), flagMat);
-    cloth.rotation.order = "YXZ";
-    cloth.rotation.y = yaw;
-    cloth.rotation.x = -0.55;
-    cloth.position.set(pole.position.x + Math.cos(yaw) * 1.35, pole.position.y + 1.35, pole.position.z - Math.sin(yaw) * 1.35);
+    const cloth = new K.Mesh(new K.Plane(2.4, 1.35), flagMat);
+    cloth.rotation.y = Math.atan2(lay.rx, lay.rz);
+    cloth.position.set(pole.position.x + lay.rx * 1.25, pole.position.y + 1.5, pole.position.z + lay.rz * 1.25);
     cloth.name = "v51-us-flag";
     root.add(cloth);
     const board = new K.Mesh(new K.Box(1.6, 0.7, 0.08), lamb(0x8d5a2b));
     const post = new K.Mesh(new K.Cyl(0.06, 0.06, 1.4, 5), lamb(0x6d4c41));
-    add(post, ux * 11.2, uz * 11.2, 0.7);
+    const signAt = lay.at(27, 9);
+    add(post, signAt.x, signAt.z, 0.7);
     board.position.set(post.position.x, post.position.y + 0.85, post.position.z);
-    board.rotation.y = yaw;
+    board.rotation.y = lay.yaw;
     root.add(board);
     const plate = new K.Mesh(new K.Plane(1.4, 0.5), new K.Lambert({ map: labelTex(K, "Liberty Isle"), color: 0xffffff }));
-    plate.position.set(board.position.x + ux * 0.06, board.position.y, board.position.z + uz * 0.06);
-    plate.rotation.y = yaw;
+    plate.position.set(board.position.x + lay.fx * 0.06, board.position.y, board.position.z + lay.fz * 0.06);
+    plate.rotation.y = lay.yaw;
     root.add(plate);
   }
   function dressFoliage(K, root, add, lamb) {
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
-      const rad = 13;
+      const rad = 26;
       const trunk = new K.Mesh(new K.Cyl(0.18, 0.24, 1.6, 6), lamb(0x8d5a2b));
       add(trunk, Math.cos(a) * rad, Math.sin(a) * rad, 0.8);
       const crown = new K.Mesh(new K.Cone(0.7, 1.3, 7), lamb(i % 2 ? 0x2e7d32 : 0x388e3c));
@@ -972,51 +1031,62 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     }
   }
   function dressTunnel(K, root, add, lamb) {
-    const colors = [0x8d6e63, 0x6d4c41, 0x795548, 0x5d4037, 0x4e342e, 0x8d6e63, 0x6d4c41, 0x795548];
-    const props = ["📜", "⚓", "⚖", "🚂", "🕊", "⚙", "✈", "🚀"];
+    const mouth = lay.at(12, 0);
+    const p = worldPos(mouth.x, mouth.z);
+    const rock = lamb(0x6d6058);
+    const dark = new K.Lambert({ color: 0x14110e });
+    const cave = new K.Group();
+    cave.position.set(p.x, p.y, p.z);
+    cave.rotation.y = lay.yaw;
+    cave.name = "v51-cave";
+    const interior = new K.Mesh(new K.Box(2.4, 2.2, 1.4), dark);
+    interior.position.set(0, 1.15, -0.7);
+    interior.name = "v51-cave-dark";
+    interior.material.transparent = true;
+    cave.add(interior);
+    const floor = new K.Mesh(new K.Box(3.4, 0.12, 5), lamb(0x4e463f));
+    floor.position.set(0, 0.06, -1.2);
+    cave.add(floor);
+    for (let i = 0; i <= 8; i++) {
+      const t = i / 8;
+      const a = Math.PI * (1 - t);
+      const stone = new K.Mesh(new K.Sphere(0.42, 8, 6), rock);
+      stone.scale.set(1.15, 0.85, 0.9);
+      stone.position.set(Math.cos(a) * 1.7, 0.45 + Math.sin(a) * 1.55, 0.15);
+      cave.add(stone);
+    }
+    [-1.15, 1.15].forEach((x) => {
+      const lamp = new K.Mesh(new K.Sphere(0.16, 8, 6), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 0.95 }));
+      lamp.position.set(x, 2.15, 0.35);
+      cave.add(lamp);
+    });
+    const sign = new K.Mesh(new K.Plane(2.2, 0.42), new K.Lambert({ map: labelTex(K, "History Time-Tunnel"), color: 0xffffff }));
+    sign.position.set(0, 2.7, 0.4);
+    cave.add(sign);
+    root.add(cave);
+    const path = lay.at(18, 0);
+    const from = worldPos(mouth.x, mouth.z);
+    const to = worldPos(path.x, path.z);
+    const len = Math.hypot(to.x - from.x, to.z - from.z);
+    const dirt = new K.Mesh(new K.Box(1.4, 0.06, len), lamb(0xc4a574));
+    dirt.position.set((from.x + to.x) / 2, from.y + 0.08, (from.z + to.z) / 2);
+    dirt.rotation.y = Math.atan2(to.x - from.x, to.z - from.z);
+    root.add(dirt);
     rooms = ERAS.map((era, i) => {
-      const spot = lay.at(7.2, 4 + (i - 3.5) * 1.35);
-      const x = spot.x;
-      const z = spot.z;
-      const p = worldPos(x, z);
       const group = new K.Group();
-      group.position.set(p.x, p.y, p.z);
+      group.position.set(0, 0, -0.8 - i * 0.35);
       group.name = "v51-room";
-      const walls = [];
-      const blocks = [];
-      [[-1.3, 0, 1.6, 1.5, 0.15], [1.3, 0, 1.6, 1.5, 0.15], [0, -1.2, 0.15, 1.5, 2.4]].forEach(([lx, lz, sx, sy, sz], n) => {
-        const wall = new K.Mesh(new K.Box(sx, sy, sz), lamb(colors[i % colors.length]));
-        wall.position.set(lx, 0.75, lz);
-        wall.name = "v51-wall";
-        group.add(wall);
-        walls.push(wall);
-        if (n < 3) blocks.push({ x: p.x + lx, z: p.z + lz, r: 0.55 });
-      });
-      const floor = new K.Mesh(new K.Cyl(1.15, 1.15, 0.08, 8), lamb(0x6d5c4d));
-      floor.position.y = 0.04;
-      group.add(floor);
-      const jambL = new K.Mesh(new K.Box(0.28, 1.8, 0.35), lamb(colors[i % colors.length]));
-      const jambR = new K.Mesh(new K.Box(0.28, 1.8, 0.35), lamb(colors[i % colors.length]));
-      const lintel = new K.Mesh(new K.Box(1.8, 0.28, 0.4), lamb(colors[i % colors.length]));
-      jambL.position.set(-0.7, 0.9, 0);
-      jambR.position.set(0.7, 0.9, 0);
-      lintel.position.set(0, 1.85, 0);
-      group.add(jambL); group.add(jambR); group.add(lintel);
-      const lantern = new K.Mesh(new K.Sphere(0.12, 8, 6), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 0.85 }));
-      lantern.position.set(0.7, 1.7, 0);
-      group.add(lantern);
-      const sign = new K.Mesh(new K.Plane(1.3, 0.36), new K.Lambert({ map: labelTex(K, era.split(" ")[0] + " " + props[i]), color: 0xffffff }));
-      sign.position.set(0, 1.55, 0.2);
-      sign.rotation.y = lay.yaw;
-      group.add(sign);
-      root.add(group);
-      const station = { id: "tunnel", name: "History Time-Tunnel", era, x, z, wx: p.x, wz: p.z, room: true };
-      stations.push(station);
-      return { era, x: p.x, z: p.z, walls, blocks, group };
+      const alcove = new K.Mesh(new K.Box(2.4, 1.8, 0.2), lamb(0x5c534c));
+      alcove.position.y = 1.1;
+      alcove.material.transparent = true;
+      alcove.material.opacity = 0.2;
+      group.add(alcove);
+      cave.add(group);
+      return { era, x: p.x, z: p.z, walls: [alcove], blocks: [], group };
     });
   }
   function dressStage(K, root, add, lamb) {
-    const spot = lay.at(11, -7);
+    const spot = lay.at(26, -8);
     const deck = new K.Mesh(new K.Cyl(2.2, 2.2, 0.28, 16), lamb(0x5d4037));
     add(deck, spot.x, spot.z, 0.14);
     const podium = new K.Mesh(new K.Box(0.7, 0.9, 0.45), lamb(0x14336b));
@@ -1024,7 +1094,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     root.add(podium);
     [-1.6, 1.6].forEach((side) => {
       const post = new K.Mesh(new K.Cyl(0.06, 0.06, 2.2, 6), lamb(0x455a64));
-      const at = lay.at(11, -7 + side);
+      const at = lay.at(26, -8 + side);
       add(post, at.x, at.z, 1.1);
       const bulb = new K.Mesh(new K.Sphere(0.16, 8, 6), new K.Lambert({ color: 0xfff3c4, emissive: 0xffe082, emissiveIntensity: 0.9 }));
       bulb.position.set(post.position.x, post.position.y + 1.2, post.position.z);
@@ -1048,17 +1118,19 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       gate: () => bridgeMesh(K, lamb)
     };
     const spots = {
-      liberty: Object.assign(lay.at(13.5, -3), { y: 0 }),
-      gate: Object.assign(lay.at(8, 9), { y: 0 }),
-      arch: Object.assign(lay.at(-1, -7), { y: 1.4 }),
-      bell: Object.assign(lay.at(10, 5), { y: 0 }),
-      alamo: Object.assign(lay.at(-5, 9), { y: 0 }),
-      rushmore: Object.assign(lay.at(-3.2, -1.2), { y: 2.4 })
+      liberty: Object.assign(lay.at(32, -6), { y: 0 }),
+      gate: Object.assign(lay.at(28, 12), { y: 0 }),
+      arch: Object.assign(lay.at(20, -16), { y: 0 }),
+      bell: Object.assign(lay.at(16, 18), { y: 0 }),
+      alamo: Object.assign(lay.at(24, 6), { y: 0 }),
+      rushmore: Object.assign(lay.at(6, -6), { y: 2.2 })
     };
     BANK.landmarks.forEach((lm) => {
       const mesh = makers[lm.id]();
       const spot = spots[lm.id] || lay.at(0, 0);
       add(mesh, spot.x, spot.z, spot.y || 0);
+      if (lm.id === "gate") mesh.rotation.y = lay.yaw + Math.PI / 2;
+      if (lm.id === "arch") mesh.rotation.y = lay.yaw;
       mesh.scale.setScalar(1);
       mesh.name = "v51-monument";
       mesh.visible = !!bag().landmarks[lm.id];
@@ -1124,10 +1196,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function archMesh(K, lamb) {
     const g = new K.Group();
-    const steel = lamb(0xd5dde4);
+    const steel = new K.Lambert({ color: 0xe7eef3, emissive: 0xb7c4ce, emissiveIntensity: 0.45 });
     const span = 7.2;
     const height = 8.2;
-    const n = 18;
+    const n = 42;
     const a = span / 2.6;
     const edge = a * Math.cosh((span / 2) / a);
     for (let i = 0; i < n; i++) {
@@ -1139,7 +1211,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const y1 = (edge - a * Math.cosh(x1 / a)) / (edge - a) * height;
       const mid = (y0 + y1) / 2 / height;
       const thick = 0.72 - mid * 0.4;
-      const seg = new K.Mesh(new K.Cyl(thick * 0.55, thick * 0.72, Math.hypot(x1 - x0, y1 - y0) + 0.08, 3), steel);
+      const seg = new K.Mesh(new K.Cyl(thick * 0.48, thick * 0.58, Math.hypot(x1 - x0, y1 - y0) * 1.28, 7), steel);
       seg.position.set((x0 + x1) / 2, (y0 + y1) / 2, 0);
       seg.rotation.z = Math.atan2(x1 - x0, y1 - y0);
       g.add(seg);
@@ -1279,6 +1351,44 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (hit.era) session.eraRoom = hit.era;
   }
 
+  function fadeBetween(cam) {
+    if (!cam || !CA.captain || !CA.scene) return;
+    const root = CA.scene.getObjectByName("v51-root");
+    if (!root) return;
+    const ax = cam.position.x;
+    const az = cam.position.z;
+    const bx = CA.captain.position.x;
+    const bz = CA.captain.position.z;
+    const abx = bx - ax;
+    const abz = bz - az;
+    const ab2 = abx * abx + abz * abz || 1;
+    root.traverse((o) => {
+      if (!o.isMesh || !o.material || o.name === "v51-map") return;
+      o.updateWorldMatrix(true, false);
+      const e = o.matrixWorld.elements;
+      const px = e[12];
+      const pz = e[14];
+      const u = Math.max(0, Math.min(1, ((px - ax) * abx + (pz - az) * abz) / ab2));
+      const dx = px - (ax + abx * u);
+      const dz = pz - (az + abz * u);
+      const block = u > 0.2 && u < 0.9 && dx * dx + dz * dz < 3.2;
+      if (!o.userData.v51seen) {
+        o.userData.v51base = o.material.opacity == null ? 1 : o.material.opacity;
+        o.userData.v51trans = !!o.material.transparent;
+        o.userData.v51seen = 1;
+      }
+      if (block) {
+        o.material.transparent = true;
+        o.material.opacity = 0.14;
+        o.material.depthWrite = false;
+      } else if (o.userData.v51block) {
+        o.material.opacity = o.userData.v51base;
+        o.material.transparent = o.userData.v51trans;
+        o.material.depthWrite = !o.userData.v51trans;
+      }
+      o.userData.v51block = block ? 1 : 0;
+    });
+  }
   function frame() {
     if (!isle) return;
     nearest = captainNear();
@@ -1294,26 +1404,41 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       st.ring.scale.set(s, s, s);
     });
     if (monuments.wheel) monuments.wheel.rotation.y += session && session.mode === "wheel" ? 0.03 : 0.008;
-    if (mountainBlock && mountainBlock.meshes && cam) {
-      const close = Math.hypot(cam.position.x - mountainBlock.x, cam.position.z - mountainBlock.z) < 14;
-      mountainBlock.meshes.forEach((mesh) => {
-        if (!mesh.material) return;
-        mesh.material.transparent = true;
-        mesh.material.opacity = close ? 0.2 : 1;
-        mesh.material.depthWrite = !close;
-      });
-    }
     const cam = CA.camera;
     rooms.forEach((room) => {
-      const nearCam = cam && Math.hypot(cam.position.x - room.x, cam.position.z - room.z) < 8;
-      const hide = nearCam && (!session || session.id !== "tunnel");
+      const inside = cam && Math.hypot(cam.position.x - room.x, cam.position.z - room.z) < 7;
       if (room.group) room.group.traverse((o) => {
         if (!o.material) return;
         o.material.transparent = true;
-        o.material.opacity = hide ? 0.12 : 1;
-        o.material.depthWrite = !hide;
+        o.material.opacity = inside ? 0.08 : 0.16;
+        o.material.depthWrite = false;
       });
     });
+    fadeBetween(cam);
+    if (window.__libertyAerial && host && cam) {
+      cam.position.set(host.x + 40, 36, host.z + 52);
+      cam.lookAt(host.x, 3, host.z);
+      return;
+    }
+    const dark = CA.scene.getObjectByName("v51-cave-dark");
+    if (dark && cam && dark.material) {
+      dark.updateWorldMatrix(true, false);
+      const e = dark.matrixWorld.elements;
+      const near = Math.hypot(cam.position.x - e[12], cam.position.z - e[14]) < 10;
+      dark.material.opacity = near ? 0.2 : 0.92;
+    }
+    if (cam && CA.captain && host) {
+      const cap = CA.captain.position;
+      const dc = Math.hypot(cam.position.x - host.x, cam.position.z - host.z);
+      const dp = Math.hypot(cap.x - host.x, cap.z - host.z);
+      if (dp < 40 && dp > 8 && dc < dp - 2) {
+        const dx = cap.x - host.x;
+        const dz = cap.z - host.z;
+        const len = Math.hypot(dx, dz) || 1;
+        cam.position.set(cap.x + (dx / len) * 7, cap.y + 4.5, cap.z + (dz / len) * 7);
+        cam.lookAt(cap.x, cap.y + 1.2, cap.z);
+      }
+    }
     if (CA.captain && (!CA.mode || CA.mode === "walk")) {
       const p = CA.captain.position;
       const onIsle = Math.hypot(p.x - isle.cx, p.z - isle.cz) < isle.R + 8;
@@ -1414,6 +1539,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     get pack() { return PACK; },
     ready: readyP,
     island: () => isle,
+    host: () => host,
     stations: () => stations.map((s) => ({ id: s.id, name: s.name, era: s.era || "", x: s.wx, z: s.wz })),
     bag,
     progressLine,

@@ -48,6 +48,9 @@
   let host = null;
   let mapMesh = null;
   let mapAnchor = null;
+  let caveAnchor = null;
+  let caveWalls = null;
+  let builderPlot = null;
   const CHAN = { s: 17.4, half: 1.65, f0: 16, f1: 34 };
   const ui = { layer: null, prompt: null };
 
@@ -342,6 +345,21 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return { ok: true, session: { id, title, qs, i: 0, misses: 0, order: [], retry: false, phase: "ask", stars: 0 } };
   }
 
+  function factWords(s) {
+    return String(s || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w.length > 3);
+  }
+  function sameFact(a, b) {
+    const A = factWords(a);
+    const B = new Set(factWords(b));
+    if (!A.length || !B.size) return false;
+    const hit = A.filter((w) => B.has(w)).length;
+    return hit >= 4 || hit / Math.min(A.length, B.size) > 0.5;
+  }
+  function stateExtra(s) {
+    const head = "Capital: " + s.capital + ". Nickname: " + s.nickname + ".";
+    const fresh = [s.landmark, s.flag].filter((line) => line && !sameFact(s.fact, line));
+    return fresh.length ? head + " " + fresh[0] : head;
+  }
   function mapQuestions() {
     const v = bag();
     const fresh = BANK.states.filter((s) => v.placed.indexOf(s.name) < 0);
@@ -359,7 +377,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       choices: REGIONS.slice(),
       answer: REGIONS.indexOf(s.region),
       explanation: s.name + " is in the " + s.region + ". Capital: " + s.capital + ". Nickname: " + s.nickname + ". " + s.landmark,
-      card: { title: s.name, fact: s.fact, extra: "Capital: " + s.capital + ". Nickname: " + s.nickname + ". " + s.landmark }
+      card: { title: s.name, fact: s.fact, extra: stateExtra(s) }
     }));
   }
 
@@ -598,7 +616,11 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     bag().landmarks[lm.id] = 1;
     persist();
     buildMonument(lm.id);
-    showCard(`<h2>${esc(lm.name)}</h2><div class="liberty-fact" id="liberty-fact"><b>Why it matters</b><p>${esc(lm.story)}</p></div><p>Paid ${lm.price}. Refund ${refund}. Coins: ${score}.</p><button id="liberty-exit">Close</button>`);
+    mountPlot(lm.id);
+    const titled = /^the /i.test(lm.name) ? lm.name : "the " + lm.name;
+    let pay = "You built " + titled + "! -" + lm.price + " coins";
+    if (refund) pay += ". You got 1 coin back for a perfect first try.";
+    showCard(`<h2>${esc(lm.name)}</h2><div class="liberty-fact" id="liberty-fact"><b>Why it matters</b><p>${esc(lm.story)}</p></div><p>${esc(pay)}</p><button id="liberty-exit">Close</button>`);
     return { ok: true, built: lm.id, price: lm.price, refund, score };
   }
 
@@ -680,7 +702,14 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   function inMouth(f, s) {
     return f > 4.05 && f < 8.55 && Math.abs(s - 0.2) < 1.62;
   }
+  function inRoomFS(f, s) {
+    const side = Math.abs(s - 0.2);
+    if (f <= 0.15 || f >= 6.7 || side >= 2.15) return false;
+    if (f > 5.6 && side >= 1.7) return false;
+    return true;
+  }
   function rockTop(f, s) {
+    if (inRoomFS(f, s)) return 1.22;
     const planes = rockPlanes(f, s);
     let rock = planes[0];
     for (let i = 1; i < planes.length; i++) if (planes[i] > rock) rock = planes[i];
@@ -695,6 +724,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     let y = 0.9 + 0.16 * Math.sin(f * 0.41 + 0.7) * Math.cos(s * 0.33 + 0.4) + 0.08 * Math.sin((f + s) * 0.85);
     y += Math.max(0, 0.85 * (1 - d / 22));
     if (inMouth(f, s)) y = Math.min(y, 1.26);
+    if (inRoomFS(f, s)) y = 1.22;
     const edge = smoothstep((d - (shore - 6.6)) / 6.6);
     const beach = 0.58 * (1 - edge) - 0.38 * edge;
     y = y * (1 - edge) + beach * edge;
@@ -719,6 +749,29 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function inCaveFS(q) {
     return q.f > 4.05 && q.f < 6.05 && Math.abs(q.s - 0.2) < 1.55;
+  }
+  function caveLocal(wx, wy, wz) {
+    const dx = wx - caveAnchor.x;
+    const dz = wz - caveAnchor.z;
+    const yaw = caveAnchor.yaw;
+    return {
+      x: dx * Math.cos(yaw) - dz * Math.sin(yaw),
+      y: wy - caveAnchor.y,
+      z: dx * Math.sin(yaw) + dz * Math.cos(yaw)
+    };
+  }
+  function caveWorld(lx, ly, lz) {
+    const yaw = caveAnchor.yaw;
+    return {
+      x: caveAnchor.x + lx * Math.cos(yaw) + lz * Math.sin(yaw),
+      y: caveAnchor.y + ly,
+      z: caveAnchor.z - lx * Math.sin(yaw) + lz * Math.cos(yaw)
+    };
+  }
+  function captainInRoom(pos) {
+    if (!caveAnchor || !pos) return false;
+    const q = caveLocal(pos.x, pos.y, pos.z);
+    return Math.abs(q.x) < 1.85 && q.z < -0.45 && q.z > -6.2 && q.y > -0.5 && q.y < 3.2;
   }
   function sinkDome() {
     let mesh = null;
@@ -821,7 +874,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
         const s1 = -half + ((iz + 1) / N) * half * 2;
         const pts = [[f0, s0], [f1, s0], [f1, s1], [f0, s1]];
         const rocks = pts.map((p) => rockTop(p[0], p[1]));
-        if (inMouth((f0 + f1) / 2, (s0 + s1) / 2)) continue;
+        const midF = (f0 + f1) / 2;
+        const midS = (s0 + s1) / 2;
+        if (inMouth(midF, midS) || inRoomFS(midF, midS)) continue;
         if (Math.max.apply(null, rocks) < 1.65) continue;
         const corners = pts.map((p, i) => {
           const low = lowland(p[0], p[1]);
@@ -1100,7 +1155,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const ox = Math.sin(lean) * i * 0.22;
       const oz = Math.cos(lean) * i * 0.16;
       piece.position.set(p.wx + ox, p.y + (i + 0.5) * seg, p.wz + oz);
-      piece.castShadow = true;
+      piece.castShadow = false;
       piece.name = "v51-palm";
       root.add(piece);
     }
@@ -1114,7 +1169,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       frond.position.set(topX + Math.cos(a) * 0.85, topY - 0.05, topZ + Math.sin(a) * 0.85);
       frond.rotation.y = -a;
       frond.rotation.z = 0.55 + (i % 3) * 0.08;
-      frond.castShadow = true;
+      frond.castShadow = false;
       frond.name = "v51-palm";
       root.add(frond);
     }
@@ -1261,46 +1316,55 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     roof.position.set(0, 2.85, -1.15);
     roof.castShadow = true;
     cave.add(roof);
-    const back = new K.Mesh(new K.Box(3.3, 2.5, 0.35), lamb(0x3a342f));
-    back.position.set(0, 1.35, -2.5);
-    back.userData.nofade = 1;
-    cave.add(back);
-    const interior = new K.Mesh(new K.Box(3.05, 2.35, 2.4), new K.Lambert({ color: 0x14110e, side: 2 }));
-    interior.position.set(0, 1.2, -1.15);
-    interior.name = "v51-cave-dark";
-    interior.userData.nofade = 1;
-    cave.add(interior);
-    const floor = new K.Mesh(new K.Box(3.2, 0.08, 3.4), lamb(0x6a635c));
-    floor.position.set(0, 0.04, -1.1);
+    const curtain = new K.Mesh(new K.Box(2.7, 2.2, 0.12), new K.Lambert({ color: 0x14110e, transparent: true, opacity: 0.92, side: 2 }));
+    curtain.position.set(0, 1.15, 0.02);
+    curtain.name = "v51-cave-dark";
+    curtain.userData.nofade = 1;
+    cave.add(curtain);
+    const floor = new K.Mesh(new K.Box(3.2, 0.08, 6.8), lamb(0x6a635c));
+    floor.position.set(0, 0.04, -3.1);
     floor.userData.nofade = 1;
     cave.add(floor);
-    [-1.35, 1.35].forEach((x) => {
-      const post = new K.Mesh(new K.Cyl(0.06, 0.07, 1.15, 6), lamb(0x4e342e));
-      post.position.set(x, 1.55, 0.35);
-      const lamp = new K.Mesh(new K.Sphere(0.16, 8, 6), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 1 }));
-      lamp.position.set(x, 2.15, 0.35);
-      cave.add(post); cave.add(lamp);
+    const roofIn = new K.Mesh(new K.Box(3.5, 0.28, 6.4), lamb(0x5e5852));
+    roofIn.position.set(0, 3.55, -3.1);
+    roofIn.userData.nofade = 1;
+    cave.add(roofIn);
+    [-1.2, -3.4].forEach((z) => {
+      [-1.35, 1.35].forEach((x) => {
+        const post = new K.Mesh(new K.Cyl(0.05, 0.06, 1.15, 6), lamb(0x4e342e));
+        post.position.set(x, 1.35, z);
+        const lamp = new K.Mesh(new K.Sphere(0.14, 8, 6), new K.Lambert({ color: 0xffe082, emissive: 0xffb300, emissiveIntensity: 1 }));
+        lamp.position.set(x, 1.95, z);
+        lamp.name = "v51-lantern";
+        cave.add(post); cave.add(lamp);
+      });
     });
     const sign = new K.Mesh(new K.Plane(2.4, 0.46), new K.Lambert({ map: labelTex(K, "History Time-Tunnel"), color: 0xffffff }));
     sign.position.set(0, 3.45, 0.45);
     cave.add(sign);
     const walls = new K.Group();
     walls.name = "v51-room";
-    [[-1.55, 1.15, -1.2, 0.28, 2.2, 2.2], [1.55, 1.15, -1.2, 0.28, 2.2, 2.2]].forEach((b) => {
-      const wall = new K.Mesh(new K.Box(b[3], b[4], b[5]), lamb(0x5c534c));
-      wall.position.set(b[0], b[1], b[2]);
-      wall.name = "v51-room";
+    function roomWall(w, h, d, x, y, z, name) {
+      const wall = new K.Mesh(new K.Box(w, h, d), lamb(0x6a635c));
+      wall.position.set(x, y, z);
+      wall.name = name;
       wall.userData.nofade = 1;
       walls.add(wall);
-    });
+      return wall;
+    }
+    const left = roomWall(0.26, 3.2, 6.4, -1.7, 1.6, -3.1, "v51-wall-left");
+    const right = roomWall(0.26, 3.2, 6.4, 1.7, 1.6, -3.1, "v51-wall-right");
+    const back = roomWall(3.7, 3.2, 0.26, 0, 1.6, -6.3, "v51-wall-back");
     cave.add(walls);
     root.add(cave);
+    caveAnchor = { x: p.wx, y: p.y, z: p.wz, yaw: lay.yaw };
+    caveWalls = { left: left, right: right, back: back };
     const names = ERAS.length ? ERAS : ["A new world"];
     names.forEach((era, i) => {
       const side = i % 2 ? 1 : -1;
       const row = Math.floor(i / 2);
       const plaque = new K.Mesh(new K.Plane(1.15, 0.36), new K.Lambert({ map: plaqueTex(K, era), color: 0xffffff }));
-      plaque.position.set(side * 1.28, 1.55 - (row % 2) * 0.48, -0.55 - row * 0.42);
+      plaque.position.set(side * 1.42, 1.55 - (row % 2) * 0.5, -1.1 - (row % 4) * 0.95);
       plaque.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
       plaque.name = "v51-plaque";
       cave.add(plaque);
@@ -1319,18 +1383,55 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     board.rotation.y = lay.yaw;
     root.add(postL); root.add(postR); root.add(board);
   }
+  function makeMonument(K, id) {
+    const lamb = (hex, extra) => new K.Lambert(Object.assign({ color: hex }, extra || {}));
+    const makers = { bell: bellMesh, alamo: alamoMesh, arch: archMesh, liberty: statueMesh, rushmore: rushmoreMesh, gate: bridgeMesh };
+    return makers[id] ? makers[id](K, lamb) : null;
+  }
+  function mountPlot(id) {
+    if (!builderPlot || !id) return;
+    const K = kit();
+    if (!K) return;
+    if (builderPlot.model) builderPlot.group.remove(builderPlot.model);
+    const mesh = makeMonument(K, id);
+    if (!mesh) return;
+    const wide = id === "gate" || id === "arch" || id === "alamo";
+    mesh.scale.setScalar(wide ? 0.2 : 0.3);
+    mesh.position.y = 1.08;
+    mesh.rotation.y = wide ? 0.4 : 0;
+    mesh.name = "v51-plot-model";
+    builderPlot.group.add(mesh);
+    builderPlot.model = mesh;
+    builderPlot.shown = id;
+  }
   function dressBench(K, root, lamb) {
     const p = spot(12.2, 11.4);
-    const top = new K.Mesh(new K.Box(1.8, 0.1, 0.8), lamb(0xa86b32));
+    const top = new K.Mesh(new K.Box(1.5, 0.1, 0.7), lamb(0xa86b32));
     top.position.set(p.wx, p.y + 0.85, p.wz);
     top.rotation.y = lay.yaw;
     root.add(top);
-    [[-0.7, -0.28], [0.7, -0.28], [-0.7, 0.28], [0.7, 0.28]].forEach((leg) => {
+    [[-0.55, -0.24], [0.55, -0.24], [-0.55, 0.24], [0.55, 0.24]].forEach((leg) => {
       const post = new K.Mesh(new K.Box(0.1, 0.8, 0.1), lamb(0x6d4c2f));
-      const w = worldFS(12.2 + leg[0] * 0.2, 11.4 + leg[1]);
+      const w = worldFS(12.2 + leg[0] * 0.15, 11.4 + leg[1]);
       post.position.set(host.x + w.x, p.y + 0.4, host.z + w.z);
       root.add(post);
     });
+    const plotAt = spot(13.9, 9.8);
+    const group = new K.Group();
+    group.position.set(plotAt.wx, plotAt.y, plotAt.wz);
+    group.rotation.y = lay.yaw + 0.4;
+    group.name = "v51-plot";
+    const foot = new K.Mesh(new K.Cyl(1.05, 1.15, 0.2, 8), lamb(0xb7b1a6));
+    foot.position.y = 0.1;
+    const shaft = new K.Mesh(new K.Cyl(0.72, 0.82, 0.72, 8), lamb(0x8d847c));
+    shaft.position.y = 0.55;
+    const cap = new K.Mesh(new K.Cyl(0.9, 0.9, 0.14, 8), lamb(0xe7e0d6));
+    cap.position.y = 0.98;
+    group.add(foot); group.add(shaft); group.add(cap);
+    root.add(group);
+    builderPlot = { group: group, x: plotAt.wx, y: plotAt.y, z: plotAt.wz, model: null, shown: "" };
+    const owned = BANK.landmarks.filter((lm) => bag().landmarks[lm.id]);
+    if (owned.length) mountPlot(owned[owned.length - 1].id);
   }
   function dressStage(K, root, lamb) {
     const p = spot(18.2, 7.4);
@@ -2090,8 +2191,26 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     });
     return g;
   }
+  function frameCave(cam, cap) {
+    const c = caveLocal(cap.position.x, cap.position.y, cap.position.z);
+    const room = { x0: -1.15, x1: 1.15, z0: -5.55, z1: -0.7, y0: 1.35, y1: 2.25 };
+    let z = c.z - 3.7;
+    if (z < room.z0 || z > room.z1) z = c.z + 3.7;
+    z = Math.max(room.z0, Math.min(room.z1, z));
+    if (Math.abs(z - c.z) < 2.9) z = Math.abs(room.z0 - c.z) >= Math.abs(room.z1 - c.z) ? room.z0 : room.z1;
+    const x = c.x >= 0 ? -0.7 : 0.7;
+    const y = c.y + 1.45;
+    const w = caveWorld(
+      Math.max(room.x0, Math.min(room.x1, x)),
+      Math.max(room.y0, Math.min(room.y1, y)),
+      Math.max(room.z0, Math.min(room.z1, z))
+    );
+    cam.position.set(w.x, w.y, w.z);
+    cam.lookAt(cap.position.x, cap.position.y + 1.05, cap.position.z);
+  }
   function aimCamera(cam) {
     if (!cam || !host || !lay) return;
+    if (cam.clearViewOffset) cam.clearViewOffset();
     if (window.__libertyAerial) {
       cam.position.set(host.x + lay.fx * 22, 42, host.z + lay.fz * 22);
       cam.lookAt(host.x, 2.2, host.z);
@@ -2099,9 +2218,20 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     }
     if (session && session.id === "map" && mapAnchor) {
       const p = mapAnchor;
-      cam.position.set(p.x + lay.fx * 3.4 + lay.rx * -6.2, p.y + 11.2, p.z + lay.fz * 3.4 + lay.rz * -6.2);
-      cam.lookAt(p.x + lay.rx * 1.5, p.y, p.z + lay.rz * 1.5);
-      if (cam.position.y < p.y + 5) cam.position.y = p.y + 5;
+      cam.position.set(p.x + lay.fx * 2.8, p.y + 9.5, p.z + lay.fz * 2.8);
+      cam.lookAt(p.x, p.y, p.z);
+      const W = window.innerWidth || 1280;
+      const H = window.innerHeight || 800;
+      if (cam.setViewOffset) cam.setViewOffset(W, H, Math.round(W * 0.2), Math.round(H * -0.04), W, H);
+      return;
+    }
+    if (session && session.id === "builder" && session.phase === "done" && builderPlot && CA.captain) {
+      const cap = CA.captain.position;
+      const mx = (cap.x + builderPlot.x) / 2;
+      const mz = (cap.z + builderPlot.z) / 2;
+      const my = cap.y + 1.4;
+      cam.position.set(mx + lay.fx * 7.6, my + 2.6, mz + lay.fz * 7.6);
+      cam.lookAt(mx - lay.rx * 2.8, my, mz - lay.rz * 2.8);
       return;
     }
     if (cam.position.y > 40) return;
@@ -2110,6 +2240,13 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const walking = !CA.mode || CA.mode === "walk";
     const q = toFS(cap.position.x - host.x, cap.position.z - host.z);
     const on = Math.hypot(q.f, q.s) < 38;
+    if (walking && on && captainInRoom(cap.position)) {
+      frameCave(cam, cap);
+      const W = window.innerWidth || 1280;
+      const H = window.innerHeight || 800;
+      if (cam.setViewOffset) cam.setViewOffset(W, H, Math.round(W * 0.12), 0, W, H);
+      return;
+    }
     if (walking && on && !inCaveFS(q) && Math.hypot(q.f - 6.55, q.s - 0.2) < 3.4) {
       const w = worldFS(13.2, 0.4);
       const gy = lowland(13.2, 0.4);
@@ -2117,13 +2254,6 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const mouth = worldFS(6.45, 0.2);
       const my = heightFS(6.45, 0.2);
       cam.lookAt(host.x + mouth.x, (my == null ? 1.2 : my) + 1.7, host.z + mouth.z);
-      return;
-    }
-    if (walking && on && inCaveFS(q)) {
-      const w = worldFS(4.35, 0.2);
-      const gy = heightFS(4.35, 0.2);
-      cam.position.set(host.x + w.x, (gy == null ? 1.3 : gy) + 1.45, host.z + w.z);
-      cam.lookAt(cap.position.x, cap.position.y + 1.2, cap.position.z);
       return;
     }
     if (walking && on) {
@@ -2251,7 +2381,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (CA.captain && (!CA.mode || CA.mode === "walk")) {
       const p = CA.captain.position;
       const onIsle = Math.hypot(p.x - isle.cx, p.z - isle.cz) < isle.R + 8;
-      if (onIsle && mountainBlock) {
+      const stand = toFS(p.x - host.x, p.z - host.z);
+      if (onIsle && mountainBlock && !inRoomFS(stand.f, stand.s)) {
         const dxm = p.x - mountainBlock.x;
         const dzm = p.z - mountainBlock.z;
         const dist = Math.hypot(dxm, dzm) || 0.001;
@@ -2325,21 +2456,28 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const cam = CA.camera;
     if (!cam || !host) return;
     aimCamera(cam);
-    const insideCave = inCaveFS(toFS(cam.position.x - host.x, cam.position.z - host.z));
-    rooms.forEach((room) => {
-      if (!room.group) return;
-      room.group.traverse((o) => {
-        if (!o.material) return;
-        o.material.transparent = !!insideCave;
-        o.material.opacity = insideCave ? 0.08 : 1;
-        o.material.depthWrite = !insideCave;
-      });
-    });
+    const inside = caveAnchor && captainInRoom(CA.captain && CA.captain.position);
+    if (caveWalls && caveAnchor) {
+      const q = caveLocal(cam.position.x, cam.position.y, cam.position.z);
+      const fadeWall = (wall, near) => {
+        if (!wall || !wall.material) return;
+        wall.material.transparent = !!near;
+        wall.material.opacity = near ? 0.14 : 1;
+        wall.material.depthWrite = !near;
+      };
+      const leftDist = Math.abs(q.x + 1.7);
+      const rightDist = Math.abs(q.x - 1.7);
+      fadeWall(caveWalls.left, inside && leftDist < 0.55 && leftDist <= rightDist);
+      fadeWall(caveWalls.right, inside && rightDist < 0.55 && rightDist < leftDist);
+      fadeWall(caveWalls.back, inside && q.z < -5.35);
+    }
     const dark = CA.scene.getObjectByName("v51-cave-dark");
     if (dark && dark.material) {
+      const q = caveAnchor ? caveLocal(cam.position.x, cam.position.y, cam.position.z) : { z: 1 };
+      const through = inside && q.z < -0.2;
       dark.material.transparent = true;
-      dark.material.opacity = insideCave ? 0.1 : 0.94;
-      dark.material.depthWrite = !insideCave;
+      dark.material.opacity = through ? 0.05 : 0.92;
+      dark.material.depthWrite = !through;
     }
     fadeBetween(cam);
     const root = CA.scene.getObjectByName("v51-root");

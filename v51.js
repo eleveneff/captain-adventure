@@ -1339,8 +1339,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
         cave.add(post); cave.add(lamp);
       });
     });
-    const sign = new K.Mesh(new K.Plane(2.4, 0.46), new K.Lambert({ map: labelTex(K, "History Time-Tunnel"), color: 0xffffff }));
-    sign.position.set(0, 3.45, 0.45);
+    const sign = new K.Mesh(new K.Plane(1.55, 0.72), new K.Lambert({ map: stackTex(K, ["History", "Time-Tunnel"]), color: 0xffffff, side: 2 }));
+    sign.position.set(0.9, 1.08, -1.25);
+    sign.rotation.y = Math.PI;
+    sign.name = "v51-cave-sign";
     cave.add(sign);
     const walls = new K.Group();
     walls.name = "v51-room";
@@ -1704,6 +1706,29 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function mapTexture(K) { return paintMap(K); }
   function refreshMap() { if (mapArt && kit()) paintMap(kit()); }
+  function stackTex(K, lines) {
+    const c = document.createElement("canvas");
+    c.width = 512; c.height = 280;
+    const g = c.getContext("2d");
+    g.fillStyle = "#14336b";
+    g.fillRect(0, 0, 512, 280);
+    g.strokeStyle = "#ffc83d";
+    g.lineWidth = 12;
+    g.strokeRect(8, 8, 496, 264);
+    g.fillStyle = "#fff";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    let size = 68;
+    g.font = "bold " + size + "px sans-serif";
+    while (lines.some((line) => g.measureText(line).width > 360) && size > 28) {
+      size -= 2;
+      g.font = "bold " + size + "px sans-serif";
+    }
+    lines.forEach((line, i) => g.fillText(line, 256, 100 + i * 88));
+    const tex = new K.CanvasTex(c);
+    tex.needsUpdate = true;
+    return tex;
+  }
   function labelTex(K, text) {
     const c = document.createElement("canvas");
     c.width = 512; c.height = 128;
@@ -2193,20 +2218,20 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function frameCave(cam, cap) {
     const c = caveLocal(cap.position.x, cap.position.y, cap.position.z);
-    const room = { x0: -1.15, x1: 1.15, z0: -5.55, z1: -0.7, y0: 1.35, y1: 2.25 };
-    let z = c.z - 3.7;
-    if (z < room.z0 || z > room.z1) z = c.z + 3.7;
+    const room = { x0: -1.15, x1: 1.15, z0: -5.55, z1: -0.7, y0: 0.85, y1: 1.7 };
+    let z = c.z - 3.6;
+    if (z < room.z0 || z > room.z1) z = c.z + 3.6;
     z = Math.max(room.z0, Math.min(room.z1, z));
     if (Math.abs(z - c.z) < 2.9) z = Math.abs(room.z0 - c.z) >= Math.abs(room.z1 - c.z) ? room.z0 : room.z1;
-    const x = c.x >= 0 ? -0.7 : 0.7;
-    const y = c.y + 1.45;
+    const x = c.x >= 0 ? 1.05 : -1.05;
+    const y = c.y + 0.95;
     const w = caveWorld(
       Math.max(room.x0, Math.min(room.x1, x)),
       Math.max(room.y0, Math.min(room.y1, y)),
       Math.max(room.z0, Math.min(room.z1, z))
     );
     cam.position.set(w.x, w.y, w.z);
-    cam.lookAt(cap.position.x, cap.position.y + 1.05, cap.position.z);
+    cam.lookAt(cap.position.x, cap.position.y + 1.02, cap.position.z);
   }
   function aimCamera(cam) {
     if (!cam || !host || !lay) return;
@@ -2244,7 +2269,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       frameCave(cam, cap);
       const W = window.innerWidth || 1280;
       const H = window.innerHeight || 800;
-      if (cam.setViewOffset) cam.setViewOffset(W, H, Math.round(W * 0.12), 0, W, H);
+      if (cam.setViewOffset) cam.setViewOffset(W, H, Math.round(W * 0.08), 0, W, H);
       return;
     }
     if (walking && on && !inCaveFS(q) && Math.hypot(q.f - 6.55, q.s - 0.2) < 3.4) {
@@ -2455,6 +2480,13 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   function prepView() {
     const cam = CA.camera;
     if (!cam || !host) return;
+    const root = CA.scene.getObjectByName("v51-root");
+    if (root) root.traverse((o) => {
+      if (o.name !== "v51-label") return;
+      const show = !session;
+      o.visible = show;
+      o.userData.v50labelVis = show;
+    });
     aimCamera(cam);
     const inside = caveAnchor && captainInRoom(CA.captain && CA.captain.position);
     if (caveWalls && caveAnchor) {
@@ -2480,8 +2512,6 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       dark.material.depthWrite = !through;
     }
     fadeBetween(cam);
-    const root = CA.scene.getObjectByName("v51-root");
-    if (root) root.traverse((o) => { if (o.name === "v51-label") o.visible = !session; });
   }
   function hookRender() {
     const renderer = CA.renderer;

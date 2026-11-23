@@ -1168,14 +1168,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
         const f = cf * rad;
         const s = cs * rad;
         const y = lowland(f, s);
-        let ff = f;
-        if (y > 7.5 && Math.abs(s) < 14 && f > 5) {
-          const onFaces = Math.abs(s) < 6.5 && y > 11 && y < 29;
-          const amp = onFaces ? 0.04 : 0.85;
-          ff += Math.sin(y * 0.85 + s * 0.12) * amp;
-          if (!onFaces && hsh(Math.floor(s * 1.1) * 4 + Math.floor(y * 0.28) * 11) > 0.8) ff += 0.4;
-        }
-        const w = worldFS(ff, s);
+        const w = worldFS(f, s);
         const col = faceColor(y == null ? -2 : y, f, s);
         positions.push(host.x + w.x, y == null ? -2 : y, host.z + w.z);
         colors.push(col.r, col.g, col.b);
@@ -1184,6 +1177,17 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const stride = R + 1;
     for (let ia = 0; ia < A; ia++) {
       for (let ir = 0; ir < R; ir++) {
+        let hide = false;
+        for (let ka = 0; ka < 2 && !hide; ka++) {
+          for (let kr = 0; kr < 2 && !hide; kr++) {
+            const ang = ((ia + ka) / A) * Math.PI * 2;
+            const cf = Math.cos(ang);
+            const cs = Math.sin(ang);
+            const rad = fracs[ir + kr] * shoreOf(cf, cs);
+            if (massifCovered(cf * rad, cs * rad)) hide = true;
+          }
+        }
+        if (hide) continue;
         const a = ia * stride + ir;
         const b = a + 1;
         const c = a + stride;
@@ -1199,6 +1203,126 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const mesh = new K.Mesh(geo, new K.Lambert({ vertexColors: true }));
     mesh.receiveShadow = true;
     mesh.name = "v51-terrain";
+    mesh.userData.nofade = 1;
+    return mesh;
+  }
+  function massifCovered(f, s) {
+    if (inMouth(f, s) || inRoomFS(f, s)) return false;
+    const y = lowland(f, s);
+    if (y == null) return false;
+    const h = y / GROW;
+    if (h < 5 || f < -10 || f > 5.5 || Math.abs(s) > 15) return false;
+    return true;
+  }
+  function graniteTint(f, s, h) {
+    const tint = rushmoreTint;
+    const n = hsh(Math.floor(f * 2.3) * 19.1 + Math.floor(s * 2.3) * 7.7 + Math.floor(h * 1.7) * 4.4);
+    const crack = hsh(Math.floor(f * 5.1) * 3.2 + Math.floor(h * 4.4) * 8.6 + Math.floor(s * 4.8) * 1.5);
+    let scale = 0.74 + n * 0.38;
+    if (crack > 0.9) scale *= 0.58;
+    if (Math.abs(Math.sin(h * 1.55 + s * 0.05)) > 0.97) scale *= 0.78;
+    return [tint.r * scale, tint.g * scale, tint.b * scale];
+  }
+  function crestHeight(f, s) {
+    const face = cliffLine(s);
+    const dome = massifDome(Math.min(f, face), s);
+    const y = lowland(f, s);
+    const ground = y == null ? dome : y / GROW;
+    const round = smoothstep((dome - 8) / 8);
+    let h = ground * (1 - round) + dome * round;
+    if (dome > 6 && dome < 15) {
+      const blobs = [[-4.2, 8.4, 1.15], [-5.1, -7.4, 1], [-2.2, 12.2, 0.75]];
+      for (let i = 0; i < blobs.length; i++) {
+        const b = blobs[i];
+        const d = Math.hypot(f - b[0], s - b[1]) / b[2];
+        if (d < 1) h += (1 - d) * (1 - d) * 0.55;
+      }
+    }
+    return h;
+  }
+  function buildMassifShell(K) {
+    const positions = [];
+    const colors = [];
+    const index = [];
+    const put = (f, s, h) => {
+      const w = worldFS(f, s);
+      positions.push(host.x + w.x, h * GROW + 0.06, host.z + w.z);
+      const c = graniteTint(f, s, h);
+      colors.push(c[0], c[1], c[2]);
+    };
+    const f0 = -10;
+    const f1 = 1.48;
+    const s0 = -15.2;
+    const s1 = 15.2;
+    const nf = 44;
+    const ns = 80;
+    for (let j = 0; j <= ns; j++) {
+      const s = s0 + (s1 - s0) * (j / ns);
+      for (let i = 0; i <= nf; i++) {
+        const f = f0 + (f1 - f0) * (i / nf);
+        put(f, s, crestHeight(f, s));
+      }
+    }
+    const cols = nf + 1;
+    for (let j = 0; j < ns; j++) {
+      for (let i = 0; i < nf; i++) {
+        const a = j * cols + i;
+        const b = a + 1;
+        const c = a + cols;
+        const d = c + 1;
+        index.push(a, c, b, b, c, d);
+      }
+    }
+    const cs0 = -12.6;
+    const cs1 = 12.6;
+    const ncs = 64;
+    const nt = 40;
+    const base = positions.length / 3;
+    const ccols = nt + 1;
+    for (let j = 0; j <= ncs; j++) {
+      const s = cs0 + (cs1 - cs0) * (j / ncs);
+      const face = cliffLine(s);
+      const lipF = 1.48;
+      const lip = crestHeight(lipF, s);
+      for (let i = 0; i <= nt; i++) {
+        const t = i / nt;
+        const fToe = face + 1.25;
+        let f = lipF + (fToe - lipF) * t;
+        const toe = lowland(fToe, s);
+        const toeH = toe == null ? 2.2 : toe / GROW;
+        let h = lip * (1 - smoothstep(t)) + toeH * smoothstep(t);
+        const portrait = Math.abs(s) < 5.8 && h > 13 && h < 31;
+        if (!portrait) {
+          const bands = [0.18, 0.4, 0.62, 0.8];
+          for (let b = 0; b < bands.length; b++) {
+            const d = t - bands[b];
+            if (d > -0.015 && d < 0.055) {
+              const u = d < 0 ? 1 : 1 - d / 0.055;
+              f += u * 0.34 * (0.7 + 0.3 * Math.sin(s * 0.48 + b * 1.7));
+            }
+          }
+          const cell = hsh(Math.floor(s * 0.85) * 6.1 + Math.floor(t * 9) * 4.4);
+          if (cell > 0.84 && t > 0.12 && t < 0.92) f += (cell - 0.84) * 1.1;
+        }
+        put(f, s, h);
+      }
+    }
+    for (let j = 0; j < ncs; j++) {
+      for (let i = 0; i < nt; i++) {
+        const a = base + j * ccols + i;
+        const b = a + 1;
+        const c = a + ccols;
+        const d = c + 1;
+        index.push(a, c, b, b, c, d);
+      }
+    }
+    const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
+    geo.setAttribute("color", new K.Attr(new Float32Array(colors), 3));
+    geo.setIndex(index);
+    geo.computeVertexNormals();
+    const mesh = new K.Mesh(geo, new K.Lambert({ vertexColors: true }));
+    mesh.name = "v51-massif";
     mesh.userData.nofade = 1;
     return mesh;
   }
@@ -1373,6 +1497,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     CA.scene.add(root);
     if (rushmorePhoto) gradeRushmore(rushmorePhoto);
     root.add(buildTerrain(K));
+    root.add(buildMassifShell(K));
     const lamb = (hex, extra) => new K.Lambert(Object.assign({ color: hex }, extra || {}));
     const here = { map: LAYOUT.map, tunnel: LAYOUT.tunnel, builder: LAYOUT.builder, quiz: LAYOUT.quiz };
     stations = [

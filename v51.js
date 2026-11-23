@@ -1246,12 +1246,18 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const positions = [];
     const colors = [];
     const index = [];
+    const hs = [];
     const put = (f, s, h) => {
       const w = worldFS(f, s);
-      const lift = h > 6 ? 0.05 : 0;
-      positions.push(host.x + w.x, h * GROW + lift, host.z + w.z);
-      const c = graniteTint(f, s, h);
-      colors.push(c[0], c[1], c[2]);
+      const y = lowland(f, s);
+      const ground = y == null ? h : y / GROW;
+      const placed = h < 2.6 ? ground : h;
+      const lift = placed < 3.2 ? 0.08 : 0.05;
+      positions.push(host.x + w.x, placed * GROW + lift, host.z + w.z);
+      const rock = graniteTint(f, s, placed);
+      const u = placed < 4.4 ? smoothstep((4.4 - placed) / 2.4) : 0;
+      colors.push(rock[0] * (1 - u) + 0.33 * u, rock[1] * (1 - u) + 0.58 * u, rock[2] * (1 - u) + 0.26 * u);
+      hs.push(placed);
     };
     const f0 = -11;
     const f1 = 1.48;
@@ -1263,10 +1269,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const s = s0 + (s1 - s0) * (j / ns);
       for (let i = 0; i <= nf; i++) {
         const f = f0 + (f1 - f0) * (i / nf);
-        const edge = j === 0 || j === ns || i === 0;
-        const y = lowland(f, s);
-        const ground = y == null ? 1.1 : y / GROW;
-        put(f, s, edge ? ground : crestHeight(f, s));
+        put(f, s, crestHeight(f, s));
       }
     }
     const cols = nf + 1;
@@ -1276,6 +1279,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
         const b = a + 1;
         const c = a + cols;
         const d = c + 1;
+        if (Math.max(hs[a], hs[b], hs[c], hs[d]) < 2.4) continue;
         index.push(a, c, b, b, c, d);
       }
     }

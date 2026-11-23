@@ -95,6 +95,76 @@ check("version marker is 5.1", booted.version === "Captain Adventure 5.1: Libert
 check("Turtle Cove is restored", !!(booted.isle && booted.isle.name === "Turtle Cove" && booted.isle.R === 19), JSON.stringify(booted.isle));
 check("Liberty Isle uses the green mountain", !!(booted.host && booted.host.dock && Math.hypot(booted.host.x - 175, booted.host.z - 231) < 40), JSON.stringify(booted.host));
 
+const lawn = await page.evaluate(() => {
+  const C = window.CaptainAdventure;
+  const mesh = C.scene.getObjectByName("v51-terrain");
+  if (!mesh || !mesh.geometry.attributes.color) return { missing: true };
+  const pos = mesh.geometry.attributes.position;
+  const col = mesh.geometry.attributes.color;
+  const host = C.liberty.host();
+  const dx = host.dock.x - host.x;
+  const dz = host.dock.z - host.z;
+  const len = Math.hypot(dx, dz) || 1;
+  const fx = dx / len;
+  const fz = dz / len;
+  const spots = C.liberty.stations().filter((s) => s.id !== "rally" && s.id !== "tunnel").map((s) => ({ id: s.id, x: s.x, z: s.z }));
+  spots.push({ id: "plaza", x: host.x + fx * 22, z: host.z + fz * 22 });
+  return spots.map((spot) => {
+    let sr = 0;
+    let sg = 0;
+    let sb = 0;
+    let n = 0;
+    for (let i = 0; i < pos.count; i += 2) {
+      const ddx = pos.getX(i) - spot.x;
+      const ddz = pos.getZ(i) - spot.z;
+      if (ddx * ddx + ddz * ddz > 16) continue;
+      sr += col.getX(i);
+      sg += col.getY(i);
+      sb += col.getZ(i);
+      n++;
+    }
+    const sample = n ? { r: sr / n, g: sg / n, b: sb / n, n: n } : null;
+    const green = !!(sample && sample.g > sample.r * 1.35 && sample.g > sample.b * 1.1 && sample.g > 0.12 && sample.r < 0.55);
+    return { id: spot.id, green: green, sample: sample };
+  });
+});
+check("station pads and the plaza stay green", Array.isArray(lawn) && lawn.length >= 4 && lawn.every((s) => s.green), JSON.stringify(lawn));
+
+const spanLay = await page.evaluate(() => {
+  const C = window.CaptainAdventure;
+  let span = null;
+  C.scene.traverse((o) => { if (o.userData && o.userData.span) span = o.userData.span; });
+  const turtle = C.isl.L.find((n) => n.id === "turtle");
+  const rally = C.liberty.stations().find((s) => s.id === "rally");
+  const water = -0.55;
+  if (!span || !turtle || !rally) return { missing: true };
+  const inlandA = { x: span.ax - span.ux * 1.8, z: span.az - span.uz * 1.8 };
+  const inlandB = { x: span.bx + span.ux * 1.8, z: span.bz + span.uz * 1.8 };
+  const yA = C.groundAt(inlandA.x, inlandA.z);
+  const yB = C.groundAt(inlandB.x, inlandB.z);
+  const pts = [];
+  for (let t = 1.2; t < span.len - 1; t += 1.6) pts.push({ x: span.ax + span.ux * t, z: span.az + span.uz * t });
+  const last = pts[pts.length - 1];
+  const dx = rally.x - last.x;
+  const dz = rally.z - last.z;
+  const hops = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 1.6));
+  for (let i = 1; i <= hops; i++) pts.push({ x: last.x + dx * (i / hops), z: last.z + dz * (i / hops) });
+  const blocked = pts.filter((p) => !C.walkable(p.x, p.z)).length;
+  return {
+    terrainA: span.terrainA, terrainB: span.terrainB, deckA: span.deckA, deckB: span.deckB,
+    yA: yA, yB: yB,
+    gapA: Math.abs(span.deckA - span.terrainA), gapB: Math.abs(span.deckB - span.terrainB),
+    landA: span.terrainA >= water + 0.15 && yA >= water + 0.15,
+    landB: span.terrainB >= water + 0.15 && yB >= water + 0.15,
+    rallyD: Math.hypot(rally.x - turtle.cx, rally.z - turtle.cz),
+    turtleR: turtle.R,
+    blocked: blocked,
+    steps: pts.length
+  };
+});
+check("bridge ends sit on land", !!(spanLay && spanLay.landA && spanLay.landB && spanLay.gapA < 0.6 && spanLay.gapB < 0.6), JSON.stringify(spanLay));
+check("rally pad is on Turtle Cove and reachable across the bridge", !!(spanLay && spanLay.rallyD < spanLay.turtleR - 2 && spanLay.blocked === 0), JSON.stringify(spanLay));
+
 const trip = await page.evaluate(() => {
   const C = window.CaptainAdventure;
   const host = C.liberty.host();
@@ -131,6 +201,7 @@ async function playSet() {
       return { phase: s.phase, i: s.i, type: s.qs[s.i] && s.qs[s.i].type, answer: s.qs[s.i] && s.qs[s.i].answer, order: s.qs[s.i] && s.qs[s.i].correctOrder, picked: s.order && s.order.length, n: s.qs.length };
     });
     if (view.done || view.phase == null) break;
+    const mark = view.phase + ":" + view.i + ":" + (view.picked || 0);
     if (view.phase === "ask") {
       if (view.type === "order") {
         const next = view.order[view.picked || 0];
@@ -144,7 +215,14 @@ async function playSet() {
       await page.click("#liberty-card button[data-i=\"0\"]");
     } else break;
     steps.push(view.phase);
-    await new Promise((r) => setTimeout(r, 40));
+    // A fixed pause reads the next question before the click has landed when
+    // the machine is busy with the other suites. Wait until this step moves.
+    await page.waitForFunction((seen) => {
+      const s = window.CaptainLiberty.session();
+      if (!s) return true;
+      const now = s.phase + ":" + s.i + ":" + ((s.order && s.order.length) || 0);
+      return now !== seen;
+    }, { timeout: 4000 }, mark).catch(() => {});
   }
   return steps;
 }

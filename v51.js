@@ -54,6 +54,7 @@
   let bridgeWalk = null;
   let rallyPad = null;
   let rushmorePhoto = null;
+  let rushmoreTint = { r: 179 / 255, g: 174 / 255, b: 179 / 255 };
   const GROW = 1.275;
   const SHORE = 1.112;
   const CHAN = { s: 17.4, half: 1.65, f0: 16, f1: 34 };
@@ -801,19 +802,24 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const u = smoothstep(Math.min(1, spill));
       h = h * (1 - u) + 1.12 * u;
     }
+    if (ahead > 0.04 && ahead < 1.7 && h > 8) {
+      const step = 2.3;
+      const wob = Math.sin(s * 0.85) * 0.28;
+      const x = (h + wob) / step;
+      const i = Math.floor(x);
+      const frac = x - i;
+      const riser = frac < 0.58 ? 0 : (frac - 0.58) / 0.42;
+      h = i * step + riser * step * 0.24 - wob;
+    }
     return ruggedRock(f, s, h);
   }
   function ruggedRock(f, s, h) {
-    if (h < 6.5 || inMouth(f, s)) return h;
-    const cf = Math.round(f * 2.1) / 2.1;
-    const cs = Math.round(s * 2.6) / 2.6;
-    const cell = Math.sin(cf * 3.7 + cs * 2.9) * Math.cos(cs * 4.8 - cf * 1.4);
-    const ledge = Math.sin(cs * 2.2 + 0.4) > 0.2 ? 0.62 : -0.22;
-    const crack = Math.abs(Math.sin(s * 8.4 + f * 2.7)) < 0.045 ? -0.85 : 0;
-    const amp = h > 16 ? 0.55 : 0.95;
-    let add = (cell * 0.85 + ledge + crack) * amp;
-    if (h > 22) add *= 0.3;
-    return h + add;
+    if (h < 7 || inMouth(f, s)) return h;
+    const band = Math.round(h * 0.42);
+    const chunk = Math.round(s * 1.25);
+    const block = Math.sin(band * 2.5 + chunk * 1.8);
+    const jut = block > 0.15 ? 0.5 : block < -0.4 ? -0.22 : 0;
+    return h + (h > 21 ? jut * 0.28 : jut);
   }
   function rockPlanes(f, s) {
     return [massifH(f, s)];
@@ -1089,10 +1095,15 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const onTalus = Math.abs(s) < 3.3 && ahead > 0.65 && ahead < 3.2 && h > 1.7 && h < 6.5;
     const onForest = h > 1.35 && h < 7.2 && !onTalus && !onCliff && Math.hypot(f, s) > 3.2 && Math.hypot(f, s) < 14;
     if (onSummit || onCliff) {
-      col = granite.clone();
-      const grit = 0.5 + 0.5 * Math.sin(f * 2.6 + s * 1.7) * Math.cos(s * 3.1 - f * 0.8);
-      col.lerp(mixHex(K, 0xc4bba8, 0x7d776f, t), 0.08 + grit * 0.42);
-      if (Math.abs(Math.sin(f * 6.4 + s * 4.8)) < 0.07) col.lerp(mixHex(K, 0x5c564f, 0x3c3834, 0.5), 0.55);
+      const tint = rushmoreTint;
+      const n1 = hsh(Math.floor(f * 1.7) * 19.2 + Math.floor(s * 2.05) * 7.4);
+      const n2 = hsh(Math.floor(f * 4.6 + 2) * 5.1 + Math.floor(s * 5.3) * 13.7);
+      let scale = 0.7 + n1 * 0.5;
+      const band = Math.sin(h * 1.35 + s * 0.15);
+      if (band > 0.55) scale *= 1.14;
+      if (band < -0.55) scale *= 0.78;
+      col = new K.Color(tint.r * scale, tint.g * scale, tint.b * scale);
+      if (n2 > 0.82) col.multiplyScalar(0.58);
     } else if (onTalus) col = talusC;
     else if (onForest) col.lerp(pines, smoothstep((h - 1.3) / 2.2) * 0.85);
     const band = shoreOf(f, s) - Math.hypot(f, s);
@@ -1138,9 +1149,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   function buildTerrain(K) {
     const A = 720;
     const fracs = [];
-    for (let i = 0; i <= 46; i++) {
-      const t = i / 46;
-      fracs.push(t < 0.62 ? (t / 0.62) * 0.38 : 0.38 + ((t - 0.62) / 0.38) * 0.62);
+    for (let i = 0; i <= 78; i++) {
+      const t = i / 78;
+      fracs.push(t < 0.28 ? (t / 0.28) * 0.34 : t < 0.82 ? 0.34 + ((t - 0.28) / 0.54) * 0.5 : 0.84 + ((t - 0.82) / 0.18) * 0.16);
     }
     const R = fracs.length - 1;
     const skirt = 0;
@@ -1157,7 +1168,14 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
         const f = cf * rad;
         const s = cs * rad;
         const y = lowland(f, s);
-        const w = worldFS(f, s);
+        let ff = f;
+        if (y > 7.5 && Math.abs(s) < 14 && f > 5) {
+          const onFaces = Math.abs(s) < 6.5 && y > 11 && y < 29;
+          const amp = onFaces ? 0.04 : 0.85;
+          ff += Math.sin(y * 0.85 + s * 0.12) * amp;
+          if (!onFaces && hsh(Math.floor(s * 1.1) * 4 + Math.floor(y * 0.28) * 11) > 0.8) ff += 0.4;
+        }
+        const w = worldFS(ff, s);
         const col = faceColor(y == null ? -2 : y, f, s);
         positions.push(host.x + w.x, y == null ? -2 : y, host.z + w.z);
         colors.push(col.r, col.g, col.b);
@@ -1353,6 +1371,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const root = new K.Group();
     root.name = "v51-root";
     CA.scene.add(root);
+    if (rushmorePhoto) gradeRushmore(rushmorePhoto);
     root.add(buildTerrain(K));
     const lamb = (hex, extra) => new K.Lambert(Object.assign({ color: hex }, extra || {}));
     const here = { map: LAYOUT.map, tunnel: LAYOUT.tunnel, builder: LAYOUT.builder, quiz: LAYOUT.quiz };
@@ -3148,6 +3167,67 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const i = (yy, xx) => field[yy * w + xx];
     return i(y0, x0) * (1 - tx) * (1 - ty) + i(y0, x0 + 1) * tx * (1 - ty) + i(y0 + 1, x0) * (1 - tx) * ty + i(y0 + 1, x0 + 1) * tx * ty;
   }
+  const RUSH_POLY = [
+    [18, 78], [32, 6], [165, 0], [214, 24], [262, 6],
+    [328, 30], [356, 72], [408, 64], [456, 38],
+    [498, 10], [586, 6], [598, 48], [592, 148],
+    [528, 162], [390, 188], [70, 176], [14, 142]
+  ];
+  function headMask(w, h) {
+    const pad = 48;
+    const big = document.createElement("canvas");
+    big.width = w + pad * 2;
+    big.height = h + pad * 2;
+    const bg = big.getContext("2d");
+    bg.fillStyle = "#fff";
+    bg.beginPath();
+    RUSH_POLY.forEach((p, i) => {
+      const x = p[0] + pad;
+      const y = p[1] + pad;
+      if (i) bg.lineTo(x, y);
+      else bg.moveTo(x, y);
+    });
+    bg.closePath();
+    bg.fill();
+    const hard = document.createElement("canvas");
+    hard.width = w;
+    hard.height = h;
+    const hg = hard.getContext("2d");
+    hg.drawImage(big, pad, pad, w, h, 0, 0, w, h);
+    const softC = document.createElement("canvas");
+    softC.width = big.width;
+    softC.height = big.height;
+    const sg = softC.getContext("2d");
+    sg.filter = "blur(24px)";
+    sg.drawImage(big, 0, 0);
+    const soft = document.createElement("canvas");
+    soft.width = w;
+    soft.height = h;
+    const og = soft.getContext("2d");
+    og.drawImage(softC, pad, pad, w, h, 0, 0, w, h);
+    return { hard: hg.getImageData(0, 0, w, h).data, soft: og.getImageData(0, 0, w, h).data };
+  }
+  function gradeRushmore(img) {
+    const masks = headMask(img.width, img.height);
+    const c = document.createElement("canvas");
+    c.width = img.width;
+    c.height = img.height;
+    const g = c.getContext("2d");
+    g.drawImage(img, 0, 0);
+    const data = g.getImageData(0, 0, c.width, c.height).data;
+    let sr = 0;
+    let sg = 0;
+    let sb = 0;
+    let n = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (masks.hard[i + 3] < 200) continue;
+      sr += data[i];
+      sg += data[i + 1];
+      sb += data[i + 2];
+      n++;
+    }
+    if (n) rushmoreTint = { r: sr / n / 255, g: sg / n / 255, b: sb / n / 255 };
+  }
   function rushmoreMaps(img) {
     const c = document.createElement("canvas");
     c.width = img.width;
@@ -3156,55 +3236,25 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     g.drawImage(img, 0, 0);
     const raw = g.getImageData(0, 0, c.width, c.height);
     const data = raw.data;
-    const feather = Math.round(Math.min(c.width, c.height) * 0.22);
-    const rockPx = (x, y) => {
-      const p = (y * c.width + x) * 4;
-      const r = data[p];
-      const gg = data[p + 1];
-      const b = data[p + 2];
-      if (b > r + 16 && b > 140) return false;
-      let spread = 0;
-      for (let dy = -2; dy <= 2; dy++) {
-        for (let dx = -2; dx <= 2; dx++) {
-          const xx = Math.max(0, Math.min(c.width - 1, x + dx));
-          const yy = Math.max(0, Math.min(c.height - 1, y + dy));
-          spread += Math.abs(data[(yy * c.width + xx) * 4] - r);
-        }
-      }
-      const flatFill = spread < 90 && r < 205 && Math.abs(r - gg) < 22 && Math.abs(gg - b) < 28 && r > 130;
-      return !flatFill;
-    };
+    const masks = headMask(c.width, c.height);
+    const rockR = rushmoreTint.r * 255;
+    const rockG = rushmoreTint.g * 255;
+    const rockB = rushmoreTint.b * 255;
+    const maskField = new Float32Array(c.width * c.height);
     for (let y = 0; y < c.height; y++) {
       for (let x = 0; x < c.width; x++) {
-        const n = 0.55 + 0.45 * Math.sin(x * 0.31 + y * 0.17) * Math.cos(y * 0.27 - x * 0.11);
-        const edge = Math.min(x, y, c.width - 1 - x, c.height - 1 - y) / (feather * (0.55 + n * 0.7));
-        let t = edge >= 1 ? 1 : edge * edge * (3 - 2 * edge);
-        if (!rockPx(x, y)) t = 0;
         const p = (y * c.width + x) * 4;
-        const warmR = Math.min(255, data[p] * 1.03);
-        const warmG = data[p + 1] * 0.99;
-        const warmB = data[p + 2] * 0.9;
-        data[p] = warmR * t + 196 * (1 - t);
-        data[p + 1] = warmG * t + 188 * (1 - t);
-        data[p + 2] = warmB * t + 176 * (1 - t);
-        data[p + 3] = Math.round(255 * t);
+        const edge = Math.min(x, y, c.width - 1 - x, c.height - 1 - y) / 22;
+        let m = (masks.soft[p + 3] / 255) * (edge >= 1 ? 1 : edge);
+        if (m < 0.05) m = 0;
+        maskField[y * c.width + x] = m;
+        data[p] = data[p] * m + rockR * (1 - m);
+        data[p + 1] = data[p + 1] * m + rockG * (1 - m);
+        data[p + 2] = data[p + 2] * m + rockB * (1 - m);
+        data[p + 3] = Math.round(m * 255);
       }
     }
     g.putImageData(raw, 0, 0);
-    const blurred = g.getImageData(0, 0, c.width, c.height);
-    const srcA = blurred.data;
-    const outA = new Uint8ClampedArray(srcA);
-    for (let y = 1; y < c.height - 1; y++) {
-      for (let x = 1; x < c.width - 1; x++) {
-        let a = 0;
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) a += srcA[((y + dy) * c.width + (x + dx)) * 4 + 3];
-        }
-        outA[(y * c.width + x) * 4 + 3] = a / 9;
-      }
-    }
-    blurred.data.set(outA);
-    g.putImageData(blurred, 0, 0);
     const w = c.width;
     const h = c.height;
     const lum = new Float32Array(w * h);
@@ -3239,7 +3289,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       }
     }
     ng.putImageData(imgData, 0, 0);
-    return { albedo: c, broad: broad, detail: detail, normals: normals, w: w, h: h };
+    return { albedo: c, broad: broad, detail: detail, mask: maskField, normals: normals, w: w, h: h };
   }
   function rushmoreMesh(K) {
     const g = new K.Group();
@@ -3260,11 +3310,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
         const v = iy / rows;
         const x = (u - 0.5) * span;
         const y = (v - 0.5) * tall;
-        const edge = Math.min(u, 1 - u, v, 1 - v) / 0.08;
-        const mask = edge >= 1 ? 1 : edge * edge * (3 - 2 * edge);
+        const mask = sampleField(maps.mask, maps.w, maps.h, u, 1 - v);
         const base = sampleField(maps.broad, maps.w, maps.h, u, 1 - v);
-        let z = 0.62 + (base - 0.5) * 0.28 * mask;
-        if (z < 0.4) z = 0.4;
+        const z = 1.15 + Math.max(0, base - 0.5) * 0.35 * mask;
         positions.push(x, y, z);
         uvs.push(u, 1 - v);
       }
@@ -3288,7 +3336,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     normal.needsUpdate = true;
     albedo.flipY = false;
     normal.flipY = false;
-    const mat = new K.Lambert({ map: albedo, normalMap: normal, transparent: true, depthWrite: true, side: 2 });
+    const mat = new K.Lambert({ map: albedo, normalMap: normal, transparent: true, depthWrite: false, side: 2 });
     mat.polygonOffset = true;
     mat.polygonOffsetFactor = -1;
     mat.polygonOffsetUnits = -1;

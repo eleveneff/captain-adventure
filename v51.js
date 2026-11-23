@@ -1246,39 +1246,62 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const positions = [];
     const colors = [];
     const index = [];
-    const fsamp = [];
-    for (let i = 0; i <= 32; i++) fsamp.push(-11 + 12.5 * (i / 32));
-    for (let i = 1; i <= 28; i++) fsamp.push(1.5 + 2.6 * (i / 28));
-    const s0 = -15.5;
-    const s1 = 15.5;
-    const ns = 72;
-    const cols = fsamp.length;
-    const rise = [];
-    const put = (f, s) => {
-      const face = cliffLine(s);
-      const lip = crestHeight(Math.min(f, face), s);
-      const y = lowland(f, s);
-      const ground = y == null ? lip : y / GROW;
-      let h = lip;
-      if (f > face) h = lip * (1 - smoothstep(Math.min(1, (f - face) / 1.15))) + ground * smoothstep(Math.min(1, (f - face) / 1.15));
+    const hs = [];
+    const put = (f, s, h) => {
       const w = worldFS(f, s);
-      const lift = h - ground < 1.2 ? 0.06 : 0.04;
-      positions.push(host.x + w.x, h * GROW + lift, host.z + w.z);
-      const rock = graniteTint(f, s, h);
-      colors.push(rock[0], rock[1], rock[2]);
-      rise.push(h - ground);
+      positions.push(host.x + w.x, h * GROW + (h > 6 ? 0.05 : 0.06), host.z + w.z);
+      const c = graniteTint(f, s, h);
+      colors.push(c[0], c[1], c[2]);
+      hs.push(h);
     };
+    const f0 = -11;
+    const f1 = 1.48;
+    const s0 = -16.4;
+    const s1 = 16.4;
+    const nf = 44;
+    const ns = 80;
     for (let j = 0; j <= ns; j++) {
       const s = s0 + (s1 - s0) * (j / ns);
-      for (let i = 0; i < cols; i++) put(fsamp[i], s);
+      for (let i = 0; i <= nf; i++) put(f0 + (f1 - f0) * (i / nf), s, crestHeight(f0 + (f1 - f0) * (i / nf), s));
     }
+    const cols = nf + 1;
     for (let j = 0; j < ns; j++) {
-      for (let i = 0; i < cols - 1; i++) {
+      for (let i = 0; i < nf; i++) {
         const a = j * cols + i;
         const b = a + 1;
         const c = a + cols;
         const d = c + 1;
-        if (Math.max(rise[a], rise[b], rise[c], rise[d]) < 0.45) continue;
+        if (Math.max(hs[a], hs[b], hs[c], hs[d]) < 2.3) continue;
+        index.push(a, c, b, b, c, d);
+      }
+    }
+    const cs0 = -16.4;
+    const cs1 = 16.4;
+    const ncs = 80;
+    const nt = 40;
+    const base = positions.length / 3;
+    const ccols = nt + 1;
+    for (let j = 0; j <= ncs; j++) {
+      const s = cs0 + (cs1 - cs0) * (j / ncs);
+      const face = cliffLine(s);
+      const lipF = 1.48;
+      const lip = crestHeight(lipF, s);
+      const toeF = face + 2.05;
+      const toeY = lowland(toeF, s);
+      const toeH = toeY == null ? 1.2 : toeY / GROW;
+      for (let i = 0; i <= nt; i++) {
+        const t = i / nt;
+        const f = lipF + (toeF - lipF) * t;
+        const h = lip * (1 - smoothstep(t)) + toeH * smoothstep(t);
+        put(f, s, h);
+      }
+    }
+    for (let j = 0; j < ncs; j++) {
+      for (let i = 0; i < nt; i++) {
+        const a = base + j * ccols + i;
+        const b = a + 1;
+        const c = a + ccols;
+        const d = c + 1;
         index.push(a, c, b, b, c, d);
       }
     }

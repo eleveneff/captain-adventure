@@ -1687,6 +1687,31 @@
       "explanation": "The statue was dedicated in 1886, the Wright brothers flew in 1903, and Congress created the National Park Service in 1916."
     },
     {
+      "id": "q49",
+      "type": "order",
+      "era": "e7",
+      "events": [
+        {
+          "title": "D-Day landing in Normandy",
+          "year": 1944
+        },
+        {
+          "title": "Stock market crash begins the Depression",
+          "year": 1929
+        },
+        {
+          "title": "Pearl Harbor is attacked",
+          "year": 1941
+        }
+      ],
+      "correctOrder": [
+        1,
+        2,
+        0
+      ],
+      "explanation": "The stock market crashed in 1929, Japan attacked Pearl Harbor in 1941, and Allied troops landed in Normandy on D-Day in 1944."
+    },
+    {
       "id": "q48",
       "type": "order",
       "era": "e8",

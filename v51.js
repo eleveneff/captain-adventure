@@ -53,6 +53,7 @@
   let builderPlot = null;
   let bridgeWalk = null;
   let rallyPad = null;
+  let rushmorePhoto = null;
   const GROW = 1.275;
   const SHORE = 1.112;
   const CHAN = { s: 17.4, half: 1.65, f0: 16, f1: 34 };
@@ -793,7 +794,25 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const ahead = f - face;
     const drop = smoothstep(Math.min(1, ahead / 1.2));
     const talus = lip * 0.16 + 2.6 - ahead * 0.72 + Math.sin(s * 0.7 + 0.4) * 0.25;
-    return lip + (Math.max(1.2, talus) - lip) * drop;
+    const steps = 4;
+    const x = Math.min(0.999, drop) * steps;
+    const i = Math.floor(x);
+    const frac = x - i;
+    const eased = frac * frac * (3 - 2 * frac);
+    const terraced = (i + eased * 0.22) / steps;
+    let h = lip + (Math.max(1.2, talus) - lip) * terraced;
+    return ruggedRock(f, s, h);
+  }
+  function ruggedRock(f, s, h) {
+    if (h < 2.2 || inMouth(f, s)) return h;
+    const amp = h > 12 ? 0.85 : h > 6 ? 0.55 : 0.28;
+    const ledge = Math.sin(s * 1.7 + 0.3) * Math.cos(f * 0.9);
+    const block = (Math.sin(f * 2.6 + s * 0.4) > 0.62 ? 0.5 : 0) + (Math.cos(s * 3.3 - f) > 0.7 ? 0.38 : 0);
+    const crack = Math.abs(Math.sin(f * 6.4 + s * 4.6)) < 0.06 ? -0.6 : 0;
+    const n = Math.sin(f * 3.6 + s * 2.4) * 0.32 + Math.cos(s * 5.1 - f * 1.2) * 0.2;
+    let add = (ledge * 0.65 + block + crack + n) * amp;
+    if (h > 22) add *= 0.35;
+    return h + add;
   }
   function rockPlanes(f, s) {
     return [massifH(f, s)];
@@ -1069,8 +1088,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const onSummit = h > 10 && ahead <= 0.4;
     const onTalus = ahead > 0.5 && ahead < 7.5 && h > 1.7 && h < 9.5 && Math.abs(s) < 8.5;
     const onForest = h > 1.25 && h < 7.4 && !onTalus && Math.hypot(f, s) > 3.2 && Math.hypot(f, s) < 16;
-    if (onSummit || onCliff) col = granite;
-    else if (onTalus) col = talusC;
+    if (onSummit || onCliff) {
+      col = granite.clone();
+      const grit = 0.5 + 0.5 * Math.sin(f * 2.3 + s * 1.4) * Math.cos(s * 2.8 - f * 0.6);
+      col.lerp(mixHex(K, 0xd2c2a4, 0x8a847c, t), 0.12 + grit * 0.38);
+      if (Math.abs(Math.sin(f * 6.1 + s * 4.4)) < 0.08) col.lerp(mixHex(K, 0x5e5954, 0x3e3a36, 0.4), 0.45);
+    } else if (onTalus) col = talusC;
     else if (onForest) col.lerp(pines, smoothstep((h - 1.2) / 2.4) * 0.9);
     else if (h > 2.2) col.lerp(granite, smoothstep((h - 2.2) / 3));
     const band = shoreOf(f, s) - Math.hypot(f, s);
@@ -1963,12 +1986,19 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       push(new K.Cyl(0.32, 0.32, 0.2, 12), 0x212121, p.u, p.v, 0.32, carHead, 0, Math.PI / 2);
       push(new K.Cyl(0.16, 0.16, 0.24, 8), 0xeceff1, p.u, p.v, 0.32, carHead, 0, Math.PI / 2);
     });
-    const archL = carAt(3.4, -1.7);
-    const archR = carAt(3.4, 1.7);
-    const archC = carAt(3.4, 0);
-    push(new K.Box(0.28, 2.3, 0.28), 0xf5f5f5, archL.u, archL.v, 1.3, carHead);
-    push(new K.Box(0.28, 2.3, 0.28), 0xf5f5f5, archR.u, archR.v, 1.3, carHead);
-    push(new K.Box(3.8, 0.32, 0.32), 0xffc83d, archC.u, archC.v, 2.5, carHead);
+    const archBase = loop(2.45);
+    const archNext = loop(2.62);
+    const adu = archNext.u - archBase.u;
+    const adv = archNext.v - archBase.v;
+    const aseg = Math.hypot(adu, adv) || 1;
+    const asu = -adv / aseg;
+    const asv = adu / aseg;
+    const acrossX = ux * asu + px * asv;
+    const acrossZ = uz * asu + pz * asv;
+    const archYaw = Math.atan2(-acrossZ, acrossX);
+    push(new K.Box(0.28, 2.3, 0.28), 0xf5f5f5, archBase.u + asu * 1.9, archBase.v + asv * 1.9, 1.3, archYaw);
+    push(new K.Box(0.28, 2.3, 0.28), 0xf5f5f5, archBase.u - asu * 1.9, archBase.v - asv * 1.9, 1.3, archYaw);
+    push(new K.Box(3.8, 0.32, 0.32), 0xffc83d, archBase.u, archBase.v, 2.5, archYaw);
     const pump = loop(1.15);
     push(new K.Box(2.4, 1.5, 2.2), 0xeceff1, pump.u, pump.v + 4.2, 0.85, 0);
     push(new K.Box(3.2, 0.16, 2.6), 0xc62828, pump.u, pump.v + 4.2, 1.7, 0);
@@ -3047,9 +3077,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return g;
   }
   function rushmoreFrame() {
-    const f = cliffLine(0.15) + 0.15;
-    const s = 0.15;
-    const h = 15.4;
+    const s = 0.1;
+    const f = cliffLine(s) + 0.22;
+    const lip = massifH(cliffLine(s), s);
+    const h = lip - 2.15;
     let nx = lay.fx * 0.94;
     let ny = 0.22;
     let nz = lay.fz * 0.94;
@@ -3083,175 +3114,150 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     m[12] = frame.x; m[13] = frame.y; m[14] = frame.z; m[15] = 1;
     mesh.matrixWorldNeedsUpdate = true;
   }
-  function taubinMesh(pos, seg, rings) {
-    const stride = seg + 1;
-    const tmp = new Float32Array(pos.length);
-    const step = (src, dst, w) => {
-      dst.set(src);
-      for (let iy = 1; iy < rings; iy++) {
-        for (let ix = 0; ix < seg; ix++) {
-          const i = (iy * stride + ix) * 3;
-          const iL = (iy * stride + (ix + seg - 1) % seg) * 3;
-          const iR = (iy * stride + (ix + 1) % seg) * 3;
-          const iD = ((iy - 1) * stride + ix) * 3;
-          const iU = ((iy + 1) * stride + ix) * 3;
-          for (let k = 0; k < 3; k++) {
-            const avg = (src[iL + k] + src[iR + k] + src[iD + k] + src[iU + k]) * 0.25;
-            dst[i + k] = src[i + k] + w * (avg - src[i + k]);
-          }
-        }
+  function blurField(src, w, h) {
+    const tmp = new Float32Array(src.length);
+    const out = new Float32Array(src.length);
+    const k = [0.15, 0.7, 0.15];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let acc = 0;
+        for (let t = -1; t <= 1; t++) acc += src[y * w + Math.max(0, Math.min(w - 1, x + t))] * k[t + 1];
+        tmp[y * w + x] = acc;
       }
-      for (let iy = 0; iy <= rings; iy++) {
-        const a = iy * stride * 3;
-        const b = (iy * stride + seg) * 3;
-        dst[b] = dst[a]; dst[b + 1] = dst[a + 1]; dst[b + 2] = dst[a + 2];
-      }
-    };
-    for (let n = 0; n < 2; n++) {
-      step(pos, tmp, 0.42);
-      step(tmp, pos, -0.45);
     }
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let acc = 0;
+        for (let t = -1; t <= 1; t++) acc += tmp[Math.max(0, Math.min(h - 1, y + t)) * w + x] * k[t + 1];
+        out[y * w + x] = acc;
+      }
+    }
+    return out;
   }
-  function sculptHead(K, spec, rock) {
-    const seg = 36;
-    const rings = 28;
-    const stride = seg + 1;
-    const gauss = (x, y, z, cx, cy, cz, ax, ay, az) => {
-      const dx = (x - cx) / ax;
-      const dy = (y - cy) / ay;
-      const dz = (z - cz) / az;
-      return Math.exp(-(dx * dx + dy * dy + dz * dz));
-    };
-    const pos = new Float32Array((rings + 1) * stride * 3);
-    const col = new Float32Array((rings + 1) * stride * 3);
-    for (let iy = 0; iy <= rings; iy++) {
-      const phi = (iy / rings) * Math.PI;
-      const sp = Math.sin(phi);
-      const cp = Math.cos(phi);
-      for (let ix = 0; ix <= seg; ix++) {
-        const theta = (ix / seg) * Math.PI * 2;
-        const x = sp * Math.cos(theta);
-        const y = cp;
-        const z = sp * Math.sin(theta);
-        let r = 1;
-        r += gauss(x, y, z, 0, 0.28, 0.78, 0.7, 0.16, 0.4) * 0.28;
-        r += gauss(x, y, z, 0, 0.02, 0.96, 0.14, 0.52, 0.26) * 0.46;
-        r += gauss(x, y, z, -0.36, -0.06, 0.7, 0.26, 0.22, 0.32) * 0.14;
-        r += gauss(x, y, z, 0.36, -0.06, 0.7, 0.26, 0.22, 0.32) * 0.14;
-        r += gauss(x, y, z, 0, -0.42, 0.72, 0.46, 0.22, 0.3) * 0.16;
-        r += gauss(x, y, z, 0, -0.72, 0.5, 0.28, 0.18, 0.28) * 0.16;
-        r += gauss(x, y, z, 0, 0.55, 0.2, 0.62, 0.34, 0.45) * (0.1 + spec.hair * 0.12);
-        r -= gauss(x, y, z, -0.28, 0.14, 0.88, 0.12, 0.07, 0.18) * 0.28;
-        r -= gauss(x, y, z, 0.28, 0.14, 0.88, 0.12, 0.07, 0.18) * 0.28;
-        r -= gauss(x, y, z, 0, -0.32, 0.9, 0.2, 0.04, 0.16) * 0.14;
-        if (spec.beard) r += gauss(x, y, z, 0, -0.88, 0.5, 0.5, 0.48, 0.36) * 0.52;
-        if (spec.glasses) {
-          [-0.28, 0.28].forEach((side) => {
-            const d = Math.hypot((x - side) / 0.2, (y - 0.14) / 0.11);
-            r += Math.exp(-Math.pow((d - 1) * 3.6, 2)) * Math.max(0, z) * 0.12;
-          });
-        }
-        const dark = gauss(x, y, z, -0.28, 0.14, 0.88, 0.15, 0.09, 0.22)
-          + gauss(x, y, z, 0.28, 0.14, 0.88, 0.15, 0.09, 0.22)
-          + gauss(x, y, z, 0, -0.32, 0.9, 0.24, 0.06, 0.2) * 0.85;
-        const i = (iy * stride + ix) * 3;
-        const sc = spec.scale || 1;
-        pos[i] = x * r * 0.9 * sc;
-        pos[i + 1] = y * r * 1.2 * sc;
-        pos[i + 2] = z * r * 0.82 * sc;
-        const ao = 1 - Math.min(1, dark) * 0.55;
-        col[i] = rock.r * ao;
-        col[i + 1] = rock.g * ao;
-        col[i + 2] = rock.b * ao;
-      }
-    }
-    taubinMesh(pos, seg, rings);
-    const index = [];
-    for (let iy = 0; iy < rings; iy++) {
-      for (let ix = 0; ix < seg; ix++) {
-        const a = iy * stride + ix;
-        const b = a + 1;
-        const c = a + stride;
-        const d = c + 1;
-        index.push(a, b, c, b, d, c);
-      }
-    }
-    const geo = new K.Geo();
-    geo.setAttribute("position", new K.Attr(pos, 3));
-    geo.setAttribute("color", new K.Attr(col, 3));
-    geo.setIndex(index);
-    geo.computeVertexNormals();
-    return geo;
+  function sampleField(field, w, h, u, v) {
+    const x = Math.max(0, Math.min(w - 1.001, u * (w - 1)));
+    const y = Math.max(0, Math.min(h - 1.001, v * (h - 1)));
+    const x0 = Math.floor(x);
+    const y0 = Math.floor(y);
+    const tx = x - x0;
+    const ty = y - y0;
+    const i = (yy, xx) => field[yy * w + xx];
+    return i(y0, x0) * (1 - tx) * (1 - ty) + i(y0, x0 + 1) * tx * (1 - ty) + i(y0 + 1, x0) * (1 - tx) * ty + i(y0 + 1, x0 + 1) * tx * ty;
   }
-  function mergeSculpt(K, items) {
+  function rushmoreMaps(img) {
+    const c = document.createElement("canvas");
+    c.width = img.width;
+    c.height = img.height;
+    const g = c.getContext("2d", { willReadFrequently: true });
+    g.drawImage(img, 0, 0);
+    const raw = g.getImageData(0, 0, c.width, c.height);
+    const data = raw.data;
+    const feather = Math.round(Math.min(c.width, c.height) * 0.14);
+    for (let y = 0; y < c.height; y++) {
+      for (let x = 0; x < c.width; x++) {
+        const edge = Math.min(x, y, c.width - 1 - x, c.height - 1 - y) / feather;
+        const t = edge >= 1 ? 1 : edge * edge * (3 - 2 * edge);
+        const p = (y * c.width + x) * 4;
+        data[p] = data[p] * t + 186 * (1 - t);
+        data[p + 1] = data[p + 1] * t + 176 * (1 - t);
+        data[p + 2] = data[p + 2] * t + 162 * (1 - t);
+        data[p + 3] = Math.round(255 * t);
+      }
+    }
+    g.putImageData(raw, 0, 0);
+    const w = c.width;
+    const h = c.height;
+    const lum = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) {
+      lum[i] = (data[i * 4] * 0.299 + data[i * 4 + 1] * 0.587 + data[i * 4 + 2] * 0.114) / 255;
+    }
+    let broad = lum;
+    for (let n = 0; n < 14; n++) broad = blurField(broad, w, h);
+    const detail = new Float32Array(w * h);
+    for (let i = 0; i < lum.length; i++) detail[i] = lum[i] - broad[i];
+    const normals = document.createElement("canvas");
+    normals.width = w;
+    normals.height = h;
+    const ng = normals.getContext("2d");
+    const imgData = ng.createImageData(w, h);
+    const strength = 1.6;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const l = broad[y * w + Math.max(0, x - 1)] + detail[y * w + Math.max(0, x - 1)] * 1.4;
+        const r = broad[y * w + Math.min(w - 1, x + 1)] + detail[y * w + Math.min(w - 1, x + 1)] * 1.4;
+        const u = broad[Math.max(0, y - 1) * w + x] + detail[Math.max(0, y - 1) * w + x] * 1.4;
+        const d = broad[Math.min(h - 1, y + 1) * w + x] + detail[Math.min(h - 1, y + 1) * w + x] * 1.4;
+        let nx = (l - r) * strength;
+        let ny = (u - d) * strength;
+        let nz = 1;
+        const len = Math.hypot(nx, ny, nz) || 1;
+        const p = (y * w + x) * 4;
+        imgData.data[p] = (nx / len * 0.5 + 0.5) * 255;
+        imgData.data[p + 1] = (ny / len * 0.5 + 0.5) * 255;
+        imgData.data[p + 2] = (nz / len * 0.5 + 0.5) * 255;
+        imgData.data[p + 3] = 255;
+      }
+    }
+    ng.putImageData(imgData, 0, 0);
+    return { albedo: c, broad: broad, detail: detail, normals: normals, w: w, h: h };
+  }
+  function rushmoreMesh(K) {
+    const g = new K.Group();
+    const frame = rushmoreFrame();
+    g.userData.frame = frame;
+    if (!rushmorePhoto) return g;
+    const maps = rushmoreMaps(rushmorePhoto);
+    const cols = 128;
+    const rows = 64;
+    const span = 15.4;
+    const tall = span * (maps.h / maps.w) * 1.2;
     const positions = [];
-    const colors = [];
-    items.forEach((item) => {
-      const mesh = item.mesh;
-      mesh.position.set(item.x, item.y, item.z);
-      if (item.sx) mesh.scale.set(item.sx, item.sy, item.sz);
-      mesh.updateWorldMatrix(true, false);
-      const e = mesh.matrixWorld.elements;
-      const p = mesh.geometry.attributes.position;
-      const c = mesh.geometry.attributes.color;
-      const index = mesh.geometry.index;
-      const count = index ? index.count : p.count;
-      for (let i = 0; i < count; i++) {
-        const vi = index ? index.getX(i) : i;
-        const x = p.getX(vi);
-        const y = p.getY(vi);
-        const z = p.getZ(vi);
-        positions.push(
-          e[0] * x + e[4] * y + e[8] * z + e[12],
-          e[1] * x + e[5] * y + e[9] * z + e[13],
-          e[2] * x + e[6] * y + e[10] * z + e[14]
-        );
-        if (c) colors.push(c.getX(vi), c.getY(vi), c.getZ(vi));
-        else colors.push(item.r, item.g, item.b);
+    const uvs = [];
+    const index = [];
+    for (let iy = 0; iy <= rows; iy++) {
+      for (let ix = 0; ix <= cols; ix++) {
+        const u = ix / cols;
+        const v = iy / rows;
+        const x = (u - 0.5) * span;
+        const y = (v - 0.5) * tall;
+        const edge = Math.min(u, 1 - u, v, 1 - v) / 0.08;
+        const mask = edge >= 1 ? 1 : edge * edge * (3 - 2 * edge);
+        const base = sampleField(maps.broad, maps.w, maps.h, u, 1 - v);
+        let z = 0.62 + (base - 0.5) * 0.28 * mask;
+        if (z < 0.4) z = 0.4;
+        positions.push(x, y, z);
+        uvs.push(u, 1 - v);
       }
-    });
+    }
+    const stride = cols + 1;
+    for (let iy = 0; iy < rows; iy++) {
+      for (let ix = 0; ix < cols; ix++) {
+        const a = iy * stride + ix;
+        index.push(a, a + 1, a + stride, a + 1, a + stride + 1, a + stride);
+      }
+    }
     const geo = new K.Geo();
     geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
-    geo.setAttribute("color", new K.Attr(new Float32Array(colors), 3));
+    geo.setAttribute("uv", new K.Attr(new Float32Array(uvs), 2));
+    geo.setIndex(index);
     geo.computeVertexNormals();
-    const mat = new K.Lambert({ vertexColors: true, side: 2 });
+    try { if (geo.computeTangents) geo.computeTangents(); } catch (err) { /* the displaced vertices still carry smooth normals */ }
+    const albedo = new K.CanvasTex(maps.albedo);
+    albedo.needsUpdate = true;
+    const normal = new K.CanvasTex(maps.normals);
+    normal.needsUpdate = true;
+    albedo.flipY = false;
+    normal.flipY = false;
+    const mat = new K.Lambert({ map: albedo, normalMap: normal, transparent: true, side: 2 });
+    mat.alphaTest = 0.04;
+    mat.depthWrite = true;
     mat.polygonOffset = true;
-    mat.polygonOffsetFactor = -2;
-    mat.polygonOffsetUnits = -2;
+    mat.polygonOffsetFactor = -1;
+    mat.polygonOffsetUnits = -1;
     const mesh = new K.Mesh(geo, mat);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    return mesh;
-  }
-  function rushmoreMesh(K) {
-    const frame = rushmoreFrame();
-    const rock = { r: 0.64, g: 0.61, b: 0.55 };
-    const g = new K.Group();
-    const heads = [
-      { x: -5.2, y: 0.45, z: 0.95, scale: 2.3, hair: 1, beard: 0, glasses: 0 },
-      { x: -1.35, y: 1.4, z: 0.22, scale: 1.65, hair: 0.45, beard: 0, glasses: 0 },
-      { x: 1.75, y: -0.9, z: 0.02, scale: 1.55, hair: 0.35, beard: 0, glasses: 1 },
-      { x: 5.15, y: 0.12, z: 0.5, scale: 2.1, hair: 0.7, beard: 1, glasses: 0 }
-    ];
-    const items = [];
-    heads.forEach((h) => {
-      items.push({ mesh: new K.Mesh(sculptHead(K, h, rock)), x: h.x, y: h.y, z: h.z });
-    });
-    [[-4.2, -1.7, 0.05, 0.46], [-2.2, -1.85, 0.12, 0.38], [-0.4, -1.65, 0.02, 0.42],
-      [1.5, -1.9, 0.08, 0.34], [3.2, -1.7, 0.1, 0.44], [4.6, -1.55, -0.05, 0.3]].forEach((r) => {
-      const bit = new K.Mesh(new K.Sphere(r[3], 10, 8));
-      const count = bit.geometry.attributes.position.count;
-      const colors = new Float32Array(count * 3);
-      for (let i = 0; i < count; i++) {
-        colors[i * 3] = 0.86;
-        colors[i * 3 + 1] = 0.83;
-        colors[i * 3 + 2] = 0.76;
-      }
-      bit.geometry.setAttribute("color", new K.Attr(colors, 3));
-      items.push({ mesh: bit, x: r[0], y: r[1], z: r[2], sx: 1.2, sy: 0.7, sz: 0.95 });
-    });
-    g.add(mergeSculpt(K, items));
-    g.userData.frame = frame;
+    g.add(mesh);
     return g;
   }
   function bridgeMesh(K, lamb) {
@@ -3662,7 +3668,13 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     requestAnimationFrame(function loop() { try { frame(); } catch (err) { /* keep drawing */ } requestAnimationFrame(loop); });
   }
   function loadPack() {
-    const start = () => { try { boot(); } catch (err) { /* the island can still be walked */ } readyResolve(!!PACK); };
+    const start = () => {
+      const go = () => { try { boot(); } catch (err) { /* the island can still be walked */ } readyResolve(!!PACK); };
+      const img = new Image();
+      img.onload = () => { rushmorePhoto = img; go(); };
+      img.onerror = () => go();
+      img.src = "assets/rushmore-faces.jpg";
+    };
     fetch("content/liberty-isle/history-pack.json").then((res) => res.json()).then((pack) => {
       try { applyPack(pack); } catch (err) { PACK = null; }
       start();

@@ -789,29 +789,30 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function massifH(f, s) {
     const face = cliffLine(s);
-    if (f <= face) return massifDome(f, s);
+    if (f <= face) return ruggedRock(f, s, massifDome(f, s));
     const lip = massifDome(face, s);
     const ahead = f - face;
-    const drop = smoothstep(Math.min(1, ahead / 1.2));
-    const talus = lip * 0.16 + 2.6 - ahead * 0.72 + Math.sin(s * 0.7 + 0.4) * 0.25;
-    const steps = 4;
-    const x = Math.min(0.999, drop) * steps;
-    const i = Math.floor(x);
-    const frac = x - i;
-    const eased = frac * frac * (3 - 2 * frac);
-    const terraced = (i + eased * 0.22) / steps;
-    let h = lip + (Math.max(1.2, talus) - lip) * terraced;
+    const drop = smoothstep(Math.min(1, ahead / 1.05));
+    const fan = Math.exp(-(s * s) / 14) * Math.exp(-Math.pow((ahead - 1.15) / 1.7, 2));
+    const talusH = 1.12 + fan * 3.6;
+    let h = lip * (1 - drop) + talusH * drop;
+    const spill = Math.max(0, (Math.abs(s) - 3.6) / 1.5, (ahead - 3.1) / 1.2);
+    if (spill > 0) {
+      const u = smoothstep(Math.min(1, spill));
+      h = h * (1 - u) + 1.12 * u;
+    }
     return ruggedRock(f, s, h);
   }
   function ruggedRock(f, s, h) {
-    if (h < 2.2 || inMouth(f, s)) return h;
-    const amp = h > 12 ? 0.85 : h > 6 ? 0.55 : 0.28;
-    const ledge = Math.sin(s * 1.7 + 0.3) * Math.cos(f * 0.9);
-    const block = (Math.sin(f * 2.6 + s * 0.4) > 0.62 ? 0.5 : 0) + (Math.cos(s * 3.3 - f) > 0.7 ? 0.38 : 0);
-    const crack = Math.abs(Math.sin(f * 6.4 + s * 4.6)) < 0.06 ? -0.6 : 0;
-    const n = Math.sin(f * 3.6 + s * 2.4) * 0.32 + Math.cos(s * 5.1 - f * 1.2) * 0.2;
-    let add = (ledge * 0.65 + block + crack + n) * amp;
-    if (h > 22) add *= 0.35;
+    if (h < 6.5 || inMouth(f, s)) return h;
+    const cf = Math.round(f * 2.1) / 2.1;
+    const cs = Math.round(s * 2.6) / 2.6;
+    const cell = Math.sin(cf * 3.7 + cs * 2.9) * Math.cos(cs * 4.8 - cf * 1.4);
+    const ledge = Math.sin(cs * 2.2 + 0.4) > 0.2 ? 0.62 : -0.22;
+    const crack = Math.abs(Math.sin(s * 8.4 + f * 2.7)) < 0.045 ? -0.85 : 0;
+    const amp = h > 16 ? 0.55 : 0.95;
+    let add = (cell * 0.85 + ledge + crack) * amp;
+    if (h > 22) add *= 0.3;
     return h + add;
   }
   function rockPlanes(f, s) {
@@ -1071,9 +1072,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const sand = mixHex(K, 0xf6e0b8, 0xd7b57a, t);
     const wet = mixHex(K, 0xc4a06a, 0x9a7344, t);
     const grass = mixHex(K, 0x5cb85c, 0x2f7d38, t);
-    const granite = mixHex(K, 0xddd8ce, 0xb9b3a8, t);
-    granite.lerp(mixHex(K, 0xd2c2a4, 0xc3b496, t), 0.28);
-    const talusC = mixHex(K, 0xe8e2d6, 0xd2c8b8, t);
+    const granite = mixHex(K, 0xd5cfc3, 0xb3ada2, t);
+    const talusC = mixHex(K, 0xc8c2b6, 0xb0a898, t);
     const pines = mixHex(K, 0x1c4630, 0x143628, t);
     const face = cliffLine(s);
     const ahead = f - face;
@@ -1084,18 +1084,17 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       sand.lerp(grass, u * u * u);
       col = sand;
     }
-    const onCliff = h > 8.5 && ahead < 1.5 && ahead > -2.2;
-    const onSummit = h > 10 && ahead <= 0.4;
-    const onTalus = ahead > 0.5 && ahead < 7.5 && h > 1.7 && h < 9.5 && Math.abs(s) < 8.5;
-    const onForest = h > 1.25 && h < 7.4 && !onTalus && Math.hypot(f, s) > 3.2 && Math.hypot(f, s) < 16;
+    const onCliff = h > 7.5 && ahead < 1.6 && ahead > -3 && Math.abs(s) < 12;
+    const onSummit = h > 10 && ahead <= 0.5 && Math.abs(s) < 12;
+    const onTalus = Math.abs(s) < 3.3 && ahead > 0.65 && ahead < 3.2 && h > 1.7 && h < 6.5;
+    const onForest = h > 1.35 && h < 7.2 && !onTalus && !onCliff && Math.hypot(f, s) > 3.2 && Math.hypot(f, s) < 14;
     if (onSummit || onCliff) {
       col = granite.clone();
-      const grit = 0.5 + 0.5 * Math.sin(f * 2.3 + s * 1.4) * Math.cos(s * 2.8 - f * 0.6);
-      col.lerp(mixHex(K, 0xd2c2a4, 0x8a847c, t), 0.12 + grit * 0.38);
-      if (Math.abs(Math.sin(f * 6.1 + s * 4.4)) < 0.08) col.lerp(mixHex(K, 0x5e5954, 0x3e3a36, 0.4), 0.45);
+      const grit = 0.5 + 0.5 * Math.sin(f * 2.6 + s * 1.7) * Math.cos(s * 3.1 - f * 0.8);
+      col.lerp(mixHex(K, 0xc4bba8, 0x7d776f, t), 0.08 + grit * 0.42);
+      if (Math.abs(Math.sin(f * 6.4 + s * 4.8)) < 0.07) col.lerp(mixHex(K, 0x5c564f, 0x3c3834, 0.5), 0.55);
     } else if (onTalus) col = talusC;
-    else if (onForest) col.lerp(pines, smoothstep((h - 1.2) / 2.4) * 0.9);
-    else if (h > 2.2) col.lerp(granite, smoothstep((h - 2.2) / 3));
+    else if (onForest) col.lerp(pines, smoothstep((h - 1.3) / 2.2) * 0.85);
     const band = shoreOf(f, s) - Math.hypot(f, s);
     if (band < 2.5 && h < 1.2) {
       col.lerp(wet, smoothstep((2.5 - Math.max(band, 0)) / 2.5) * 0.9);
@@ -1138,7 +1137,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function buildTerrain(K) {
     const A = 720;
-    const R = 28;
+    const fracs = [];
+    for (let i = 0; i <= 46; i++) {
+      const t = i / 46;
+      fracs.push(t < 0.62 ? (t / 0.62) * 0.38 : 0.38 + ((t - 0.62) / 0.38) * 0.62);
+    }
+    const R = fracs.length - 1;
     const skirt = 0;
     const positions = [];
     const colors = [];
@@ -1149,7 +1153,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const cs = Math.sin(ang);
       const shore = shoreOf(cf, cs);
       for (let ir = 0; ir <= R; ir++) {
-        const rad = (ir / R) * (shore + skirt);
+        const rad = fracs[ir] * (shore + skirt);
         const f = cf * rad;
         const s = cs * rad;
         const y = lowland(f, s);
@@ -3152,19 +3156,55 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     g.drawImage(img, 0, 0);
     const raw = g.getImageData(0, 0, c.width, c.height);
     const data = raw.data;
-    const feather = Math.round(Math.min(c.width, c.height) * 0.14);
+    const feather = Math.round(Math.min(c.width, c.height) * 0.22);
+    const rockPx = (x, y) => {
+      const p = (y * c.width + x) * 4;
+      const r = data[p];
+      const gg = data[p + 1];
+      const b = data[p + 2];
+      if (b > r + 16 && b > 140) return false;
+      let spread = 0;
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const xx = Math.max(0, Math.min(c.width - 1, x + dx));
+          const yy = Math.max(0, Math.min(c.height - 1, y + dy));
+          spread += Math.abs(data[(yy * c.width + xx) * 4] - r);
+        }
+      }
+      const flatFill = spread < 90 && r < 205 && Math.abs(r - gg) < 22 && Math.abs(gg - b) < 28 && r > 130;
+      return !flatFill;
+    };
     for (let y = 0; y < c.height; y++) {
       for (let x = 0; x < c.width; x++) {
-        const edge = Math.min(x, y, c.width - 1 - x, c.height - 1 - y) / feather;
-        const t = edge >= 1 ? 1 : edge * edge * (3 - 2 * edge);
+        const n = 0.55 + 0.45 * Math.sin(x * 0.31 + y * 0.17) * Math.cos(y * 0.27 - x * 0.11);
+        const edge = Math.min(x, y, c.width - 1 - x, c.height - 1 - y) / (feather * (0.55 + n * 0.7));
+        let t = edge >= 1 ? 1 : edge * edge * (3 - 2 * edge);
+        if (!rockPx(x, y)) t = 0;
         const p = (y * c.width + x) * 4;
-        data[p] = data[p] * t + 186 * (1 - t);
-        data[p + 1] = data[p + 1] * t + 176 * (1 - t);
-        data[p + 2] = data[p + 2] * t + 162 * (1 - t);
+        const warmR = Math.min(255, data[p] * 1.03);
+        const warmG = data[p + 1] * 0.99;
+        const warmB = data[p + 2] * 0.9;
+        data[p] = warmR * t + 196 * (1 - t);
+        data[p + 1] = warmG * t + 188 * (1 - t);
+        data[p + 2] = warmB * t + 176 * (1 - t);
         data[p + 3] = Math.round(255 * t);
       }
     }
     g.putImageData(raw, 0, 0);
+    const blurred = g.getImageData(0, 0, c.width, c.height);
+    const srcA = blurred.data;
+    const outA = new Uint8ClampedArray(srcA);
+    for (let y = 1; y < c.height - 1; y++) {
+      for (let x = 1; x < c.width - 1; x++) {
+        let a = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) a += srcA[((y + dy) * c.width + (x + dx)) * 4 + 3];
+        }
+        outA[(y * c.width + x) * 4 + 3] = a / 9;
+      }
+    }
+    blurred.data.set(outA);
+    g.putImageData(blurred, 0, 0);
     const w = c.width;
     const h = c.height;
     const lum = new Float32Array(w * h);
@@ -3248,9 +3288,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     normal.needsUpdate = true;
     albedo.flipY = false;
     normal.flipY = false;
-    const mat = new K.Lambert({ map: albedo, normalMap: normal, transparent: true, side: 2 });
-    mat.alphaTest = 0.04;
-    mat.depthWrite = true;
+    const mat = new K.Lambert({ map: albedo, normalMap: normal, transparent: true, depthWrite: true, side: 2 });
     mat.polygonOffset = true;
     mat.polygonOffsetFactor = -1;
     mat.polygonOffsetUnits = -1;

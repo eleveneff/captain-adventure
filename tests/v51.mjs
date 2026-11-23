@@ -95,6 +95,41 @@ check("version marker is 5.1", booted.version === "Captain Adventure 5.1: Libert
 check("Turtle Cove is restored", !!(booted.isle && booted.isle.name === "Turtle Cove" && booted.isle.R === 19), JSON.stringify(booted.isle));
 check("Liberty Isle uses the green mountain", !!(booted.host && booted.host.dock && Math.hypot(booted.host.x - 175, booted.host.z - 231) < 40), JSON.stringify(booted.host));
 
+const lawn = await page.evaluate(() => {
+  const C = window.CaptainAdventure;
+  const mesh = C.scene.getObjectByName("v51-terrain");
+  if (!mesh || !mesh.geometry.attributes.color) return { missing: true };
+  const pos = mesh.geometry.attributes.position;
+  const col = mesh.geometry.attributes.color;
+  const host = C.liberty.host();
+  const dx = host.dock.x - host.x;
+  const dz = host.dock.z - host.z;
+  const len = Math.hypot(dx, dz) || 1;
+  const fx = dx / len;
+  const fz = dz / len;
+  const spots = C.liberty.stations().filter((s) => s.id !== "rally" && s.id !== "tunnel").map((s) => ({ id: s.id, x: s.x, z: s.z }));
+  spots.push({ id: "plaza", x: host.x + fx * 22, z: host.z + fz * 22 });
+  return spots.map((spot) => {
+    let sr = 0;
+    let sg = 0;
+    let sb = 0;
+    let n = 0;
+    for (let i = 0; i < pos.count; i += 2) {
+      const ddx = pos.getX(i) - spot.x;
+      const ddz = pos.getZ(i) - spot.z;
+      if (ddx * ddx + ddz * ddz > 16) continue;
+      sr += col.getX(i);
+      sg += col.getY(i);
+      sb += col.getZ(i);
+      n++;
+    }
+    const sample = n ? { r: sr / n, g: sg / n, b: sb / n, n: n } : null;
+    const green = !!(sample && sample.g > sample.r * 1.35 && sample.g > sample.b * 1.1 && sample.g > 0.12 && sample.r < 0.55);
+    return { id: spot.id, green: green, sample: sample };
+  });
+});
+check("station pads and the plaza stay green", Array.isArray(lawn) && lawn.length >= 4 && lawn.every((s) => s.green), JSON.stringify(lawn));
+
 const spanLay = await page.evaluate(() => {
   const C = window.CaptainAdventure;
   let span = null;

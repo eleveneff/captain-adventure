@@ -1158,6 +1158,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const positions = [];
     const colors = [];
     const index = [];
+    const covered = [];
     for (let ia = 0; ia <= A; ia++) {
       const ang = (ia / A) * Math.PI * 2;
       const cf = Math.cos(ang);
@@ -1170,6 +1171,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
         const y = lowland(f, s);
         const w = worldFS(f, s);
         const col = faceColor(y == null ? -2 : y, f, s);
+        covered.push(massifCovered(f, s) ? 1 : 0);
         positions.push(host.x + w.x, y == null ? -2 : y, host.z + w.z);
         colors.push(col.r, col.g, col.b);
       }
@@ -1177,23 +1179,22 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const stride = R + 1;
     for (let ia = 0; ia < A; ia++) {
       for (let ir = 0; ir < R; ir++) {
-        let hide = false;
-        for (let ka = 0; ka < 2 && !hide; ka++) {
-          for (let kr = 0; kr < 2 && !hide; kr++) {
-            const ang = ((ia + ka) / A) * Math.PI * 2;
-            const cf = Math.cos(ang);
-            const cs = Math.sin(ang);
-            const rad = fracs[ir + kr] * shoreOf(cf, cs);
-            if (massifCovered(cf * rad, cs * rad)) hide = true;
-          }
-        }
-        if (hide) continue;
         const a = ia * stride + ir;
         const b = a + 1;
         const c = a + stride;
         const d = c + 1;
+        if (covered[a]) skirtDown(a);
+        if (covered[b]) skirtDown(b);
+        if (covered[c]) skirtDown(c);
+        if (covered[d]) skirtDown(d);
         index.push(a, c, b, b, c, d);
       }
+    }
+    function skirtDown(vi) {
+      positions[vi * 3 + 1] = 1.2 * GROW;
+      colors[vi * 3] = 0.28;
+      colors[vi * 3 + 1] = 0.55;
+      colors[vi * 3 + 2] = 0.24;
     }
     const geo = new K.Geo();
     geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
@@ -1207,19 +1208,20 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return mesh;
   }
   function massifCovered(f, s) {
-    if (inMouth(f, s) || inRoomFS(f, s)) return false;
+    if (inMouth(f, s)) return false;
     const y = lowland(f, s);
     if (y == null) return false;
     const h = y / GROW;
-    if (h < 5 || f < -10 || f > 5.5 || Math.abs(s) > 15) return false;
+    if (h < 4.2 || f < -11 || f > 4.2 || Math.abs(s) > 16) return false;
     return true;
   }
   function graniteTint(f, s, h) {
     const tint = rushmoreTint;
     const n = hsh(Math.floor(f * 2.3) * 19.1 + Math.floor(s * 2.3) * 7.7 + Math.floor(h * 1.7) * 4.4);
+    const fine = hsh(Math.floor(f * 7.4) * 5.3 + Math.floor(s * 7.1) * 11.2 + Math.floor(h * 6.6) * 3.8);
     const crack = hsh(Math.floor(f * 5.1) * 3.2 + Math.floor(h * 4.4) * 8.6 + Math.floor(s * 4.8) * 1.5);
-    let scale = 0.74 + n * 0.38;
-    if (crack > 0.9) scale *= 0.58;
+    let scale = (0.74 + n * 0.32) * (0.9 + fine * 0.18);
+    if (crack > 0.92) scale *= 0.62;
     if (Math.abs(Math.sin(h * 1.55 + s * 0.05)) > 0.97) scale *= 0.78;
     return [tint.r * scale, tint.g * scale, tint.b * scale];
   }
@@ -1246,21 +1248,25 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const index = [];
     const put = (f, s, h) => {
       const w = worldFS(f, s);
-      positions.push(host.x + w.x, h * GROW + 0.06, host.z + w.z);
+      const lift = h > 6 ? 0.05 : 0;
+      positions.push(host.x + w.x, h * GROW + lift, host.z + w.z);
       const c = graniteTint(f, s, h);
       colors.push(c[0], c[1], c[2]);
     };
-    const f0 = -10;
+    const f0 = -11;
     const f1 = 1.48;
-    const s0 = -15.2;
-    const s1 = 15.2;
+    const s0 = -16.4;
+    const s1 = 16.4;
     const nf = 44;
     const ns = 80;
     for (let j = 0; j <= ns; j++) {
       const s = s0 + (s1 - s0) * (j / ns);
       for (let i = 0; i <= nf; i++) {
         const f = f0 + (f1 - f0) * (i / nf);
-        put(f, s, crestHeight(f, s));
+        const edge = j === 0 || j === ns || i === 0;
+        const y = lowland(f, s);
+        const ground = y == null ? 1.1 : y / GROW;
+        put(f, s, edge ? ground : crestHeight(f, s));
       }
     }
     const cols = nf + 1;
@@ -1286,7 +1292,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const lip = crestHeight(lipF, s);
       for (let i = 0; i <= nt; i++) {
         const t = i / nt;
-        const fToe = face + 1.25;
+        const fToe = face + 2.05;
         let f = lipF + (fToe - lipF) * t;
         const toe = lowland(fToe, s);
         const toeH = toe == null ? 2.2 : toe / GROW;

@@ -95,6 +95,41 @@ check("version marker is 5.1", booted.version === "Captain Adventure 5.1: Libert
 check("Turtle Cove is restored", !!(booted.isle && booted.isle.name === "Turtle Cove" && booted.isle.R === 19), JSON.stringify(booted.isle));
 check("Liberty Isle uses the green mountain", !!(booted.host && booted.host.dock && Math.hypot(booted.host.x - 175, booted.host.z - 231) < 40), JSON.stringify(booted.host));
 
+const spanLay = await page.evaluate(() => {
+  const C = window.CaptainAdventure;
+  let span = null;
+  C.scene.traverse((o) => { if (o.userData && o.userData.span) span = o.userData.span; });
+  const turtle = C.isl.L.find((n) => n.id === "turtle");
+  const rally = C.liberty.stations().find((s) => s.id === "rally");
+  const water = -0.55;
+  if (!span || !turtle || !rally) return { missing: true };
+  const inlandA = { x: span.ax - span.ux * 1.8, z: span.az - span.uz * 1.8 };
+  const inlandB = { x: span.bx + span.ux * 1.8, z: span.bz + span.uz * 1.8 };
+  const yA = C.groundAt(inlandA.x, inlandA.z);
+  const yB = C.groundAt(inlandB.x, inlandB.z);
+  const pts = [];
+  for (let t = 1.2; t < span.len - 1; t += 1.6) pts.push({ x: span.ax + span.ux * t, z: span.az + span.uz * t });
+  const last = pts[pts.length - 1];
+  const dx = rally.x - last.x;
+  const dz = rally.z - last.z;
+  const hops = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 1.6));
+  for (let i = 1; i <= hops; i++) pts.push({ x: last.x + dx * (i / hops), z: last.z + dz * (i / hops) });
+  const blocked = pts.filter((p) => !C.walkable(p.x, p.z)).length;
+  return {
+    terrainA: span.terrainA, terrainB: span.terrainB, deckA: span.deckA, deckB: span.deckB,
+    yA: yA, yB: yB,
+    gapA: Math.abs(span.deckA - span.terrainA), gapB: Math.abs(span.deckB - span.terrainB),
+    landA: span.terrainA >= water + 0.15 && yA >= water + 0.15,
+    landB: span.terrainB >= water + 0.15 && yB >= water + 0.15,
+    rallyD: Math.hypot(rally.x - turtle.cx, rally.z - turtle.cz),
+    turtleR: turtle.R,
+    blocked: blocked,
+    steps: pts.length
+  };
+});
+check("bridge ends sit on land", !!(spanLay && spanLay.landA && spanLay.landB && spanLay.gapA < 0.6 && spanLay.gapB < 0.6), JSON.stringify(spanLay));
+check("rally pad is on Turtle Cove and reachable across the bridge", !!(spanLay && spanLay.rallyD < spanLay.turtleR - 2 && spanLay.blocked === 0), JSON.stringify(spanLay));
+
 const trip = await page.evaluate(() => {
   const C = window.CaptainAdventure;
   const host = C.liberty.host();

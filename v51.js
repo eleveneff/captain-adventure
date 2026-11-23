@@ -52,6 +52,7 @@
   let caveWalls = null;
   let builderPlot = null;
   let bridgeWalk = null;
+  let rallyPad = null;
   const GROW = 1.275;
   const SHORE = 1.112;
   const CHAN = { s: 17.4, half: 1.65, f0: 16, f1: 34 };
@@ -59,7 +60,7 @@
   const LAYOUT = {
     map: [18.6, -9.2],
     tunnel: [CAVE.f + 2.5, CAVE.s],
-    rally: [13.8, -12.4],
+    lawn: [13.8, -12.4],
     builder: [11.2, 10.2],
     quiz: [19.4, 5.2],
     table: [19.6, -13.1],
@@ -769,13 +770,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return x - Math.floor(x);
   }
   function rockPlanes(f, s) {
-    const n = Math.sin(f * 0.37 + 0.4) * Math.cos(s * 0.31 + 0.8) * 0.18
-      + Math.sin(f * 0.15 - s * 0.12 + 0.6) * 0.1;
+    const n = Math.sin(f * 0.31 + 0.4) * Math.cos(s * 0.27 + 0.8) * 0.28
+      + Math.sin(f * 0.13 - s * 0.11 + 0.6) * 0.14;
     return [
-      14.2 - Math.abs(f * 0.9 + 1.45) * 0.95 - Math.abs(s) * 0.78 + n,
-      9.4 - Math.abs(f + 4.3) * 0.82 - Math.abs(s - 5.0) * 1.15 + n * 0.55,
-      8.2 - Math.abs(f - 2.7) * 0.9 - Math.abs(s + 5.5) * 0.82 + n * 0.45,
-      6.1 - Math.abs(f + 0.5) * 0.55 - Math.abs(s + 1.8) * 1.25
+      27.2 - Math.abs(f + 1.5) * 1.62 - Math.abs(s - 0.15) * 1.92 + n,
+      11.2 - Math.abs(f + 3.2) * 1.35 - Math.abs(s - 3.4) * 1.55 + n * 0.35,
+      10.0 - Math.abs(f + 0.4) * 1.25 - Math.abs(s + 4.2) * 1.45 + n * 0.3
     ];
   }
   function shoreOf(f, s) {
@@ -802,7 +802,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (d < 7.5 || d > shore - 5.5) return 0;
     if (inMouth(f, s) || inRoomFS(f, s)) return 0;
     if (Math.abs(s) < 2.4 && f > 18) return 0;
-    const spots = [LAYOUT.map, LAYOUT.tunnel, LAYOUT.rally, LAYOUT.builder, LAYOUT.quiz, LAYOUT.table, LAYOUT.plot];
+    const spots = [LAYOUT.map, LAYOUT.tunnel, LAYOUT.builder, LAYOUT.quiz, LAYOUT.table, LAYOUT.plot];
     for (let i = 0; i < spots.length; i++) {
       if (Math.hypot(f - spots[i][0], s - spots[i][1]) < 3.4) return 0;
     }
@@ -866,7 +866,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const u = smoothstep(Math.min(1, (rockH - grass) / 1.8));
       y = grass + (rockH - grass) * u;
     }
-    const pads = [LAYOUT.map, LAYOUT.rally, LAYOUT.builder, LAYOUT.quiz, LAYOUT.table, LAYOUT.flag];
+    const pads = [LAYOUT.map, LAYOUT.builder, LAYOUT.quiz, LAYOUT.table, LAYOUT.flag];
     for (let i = 0; i < pads.length; i++) {
       const pd = Math.hypot(f - pads[i][0], s - pads[i][1]);
       if (pd >= 4.4) continue;
@@ -1295,22 +1295,23 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       landSpot: host.land,
       boatSpot: host.dock
     };
-    mountainBlock = { x: center.x, z: center.z, r: 4.5 };
+    mountainBlock = { x: center.x, z: center.z, r: 6.2 };
     dropOldShore();
     const root = new K.Group();
     root.name = "v51-root";
     CA.scene.add(root);
     root.add(buildTerrain(K));
     const lamb = (hex, extra) => new K.Lambert(Object.assign({ color: hex }, extra || {}));
-    const here = { map: LAYOUT.map, tunnel: LAYOUT.tunnel, rally: LAYOUT.rally, builder: LAYOUT.builder, quiz: LAYOUT.quiz };
+    const here = { map: LAYOUT.map, tunnel: LAYOUT.tunnel, builder: LAYOUT.builder, quiz: LAYOUT.quiz };
     stations = [
       { id: "map", name: "Map Puzzle Dock", f: here.map[0], s: here.map[1] },
       { id: "tunnel", name: "History Time-Tunnel", f: here.tunnel[0], s: here.tunnel[1], era: ERAS[0] },
-      { id: "rally", name: "Road Trip Rally", f: here.rally[0], s: here.rally[1] },
+      { id: "rally", name: "Road Trip Rally", turtle: true },
       { id: "builder", name: "Landmark Builder", f: here.builder[0], s: here.builder[1] },
       { id: "quiz", name: "Fifty-State Quiz Show", f: here.quiz[0], s: here.quiz[1] }
     ];
     stations.forEach((st) => {
+      if (st.turtle) return;
       const p = spot(st.f, st.s);
       st.x = p.x; st.z = p.z; st.wx = p.wx; st.wz = p.wz;
       const ring = new K.Mesh(new K.Torus(1.05, 0.07, 8, 24), new K.Lambert({ color: 0xffc83d, emissive: 0xffb300, emissiveIntensity: 0.65 }));
@@ -1334,7 +1335,6 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     root.add(isleLabel);
     ribbon(K, root, [
       [[26.4, 0.6], [23.2, -2.4], [20.6, -5.6], [18.2, -8.4], [here.map[0], here.map[1]]],
-      [[20.6, -5.6], [17.2, -9.6], [14.8, -13.8], [here.rally[0] + 2.4, here.rally[1] + 4.2]],
       [[23.2, -2.4], [21.6, 1.2], [here.quiz[0], here.quiz[1]]],
       [[21.6, 1.2], [17.4, 5.2], [here.builder[0], here.builder[1]]],
       [[20.6, -5.6], [15.4, -2.8], [12.2, -0.6], [here.tunnel[0] + 1.6, here.tunnel[1]]]
@@ -1345,10 +1345,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     /* The shore ends at the water. No underwater skirt and no foam sheet. */
     dressMapTable(K, root, lamb);
     dressTunnel(K, root, lamb);
-    dressRally(K, root, lamb);
     dressBench(K, root, lamb);
     dressStage(K, root, lamb);
     dressMonuments(K, root, lamb);
+    dressRally(K, root, lamb);
     dressRegionFlags(K, root, lamb);
     dressClearings(K, root);
     bakeIsland(K, root);
@@ -1536,7 +1536,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       place(root, rock, r[0], r[1], r[2] * 0.35);
     });
   }
-  function paintProps(K, root, name, parts) {
+  function bakeParts(K, parts) {
     const positions = [];
     const colors = [];
     parts.forEach((part) => {
@@ -1544,6 +1544,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       mesh.position.set(part.x, part.y, part.z);
       if (part.rot) mesh.rotation.y = part.rot;
       if (part.rx) mesh.rotation.x = part.rx;
+      if (part.rz) mesh.rotation.z = part.rz;
       mesh.updateWorldMatrix(true, false);
       const e = mesh.matrixWorld.elements;
       const p = mesh.geometry.attributes.position;
@@ -1569,53 +1570,21 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     geo.setAttribute("color", new K.Attr(new Float32Array(colors), 3));
     geo.computeVertexNormals();
     const mesh = new K.Mesh(geo, new K.Lambert({ vertexColors: true }));
-    mesh.name = name;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+    return mesh;
+  }
+  function paintProps(K, root, name, parts) {
+    const mesh = bakeParts(K, parts);
+    mesh.name = name;
     root.add(mesh);
+    return mesh;
   }
   function propAt(f, s, dy) {
     const p = spot(f, s);
     return { x: p.wx, y: p.y + dy, z: p.wz, rot: lay.yaw };
   }
   function dressClearings(K, root) {
-    const rally = [];
-    const start = LAYOUT.rally;
-    const toward = LAYOUT.map;
-    const span = Math.hypot(toward[0] - start[0], toward[1] - start[1]) || 1;
-    const fx = (toward[0] - start[0]) / span;
-    const fs = (toward[1] - start[1]) / span;
-    const px = -fs;
-    const ps = fx;
-    const from = worldFS(start[0], start[1]);
-    const to = worldFS(toward[0], toward[1]);
-    const heading = Math.atan2(to.x - from.x, to.z - from.z);
-    const along = (dist, side, dy) => {
-      const p = spot(start[0] + fx * dist + px * side, start[1] + fs * dist + ps * side);
-      return { x: p.wx, y: p.y + dy, z: p.wz, rot: heading };
-    };
-    for (let i = 0; i < 7; i++) {
-      const dist = 1.6 + i * 1.45;
-      const seg = along(dist, 0, 0.14);
-      if (seg.y < 0.45) continue;
-      rally.push(Object.assign({ geo: new K.Box(6.6, 0.22, 3.3), color: 0x3a3a40 }, seg));
-      rally.push(Object.assign({ geo: new K.Box(0.18, 0.04, 2.5), color: 0xf5f5f5 }, along(dist, -2.95, 0.28)));
-      rally.push(Object.assign({ geo: new K.Box(0.18, 0.04, 2.5), color: 0xf5f5f5 }, along(dist, 2.95, 0.28)));
-      if (i % 2 === 0) rally.push(Object.assign({ geo: new K.Box(0.2, 0.04, 0.9), color: 0xf6d451 }, along(dist, 0, 0.28)));
-    }
-    [[0.6, -3.6], [2.4, 3.4]].forEach((off, n) => {
-      rally.push(Object.assign({ geo: new K.Cyl(0.1, 0.11, 2.4, 6), color: 0x6d4c2f }, along(off[0], off[1], 1.2)));
-      rally.push(Object.assign({ geo: new K.Box(1.35, 0.78, 0.1), color: n ? 0x1565c0 : 0xc62828 }, along(off[0], off[1], 2.25)));
-    });
-    const car = along(5.2, 1.7, 0);
-    rally.push(Object.assign({ geo: new K.Box(2.15, 1.05, 4.7), color: 0xe53935 }, { x: car.x, y: car.y + 0.95, z: car.z, rot: heading }));
-    rally.push(Object.assign({ geo: new K.Box(1.9, 0.78, 2.15), color: 0xb3e5fc }, { x: car.x, y: car.y + 1.72, z: car.z, rot: heading }));
-    [[-0.95, -1.35], [0.95, -1.35], [-0.95, 1.45], [0.95, 1.45]].forEach((w) => {
-      const wheel = along(5.2 + w[1], 1.7 + w[0], 0.48);
-      rally.push(Object.assign({ geo: new K.Cyl(0.48, 0.48, 0.32, 10), color: 0x263238, rx: Math.PI / 2 }, wheel));
-    });
-    paintProps(K, root, "v51-rally-set", rally);
-
     const map = [];
     const mf = LAYOUT.map[0] - 1.4;
     const ms = LAYOUT.map[1] + 1.6;
@@ -1793,16 +1762,161 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     rooms = names.map((era) => ({ era: era, x: p.wx, z: p.wz, group: walls, blocks: [] }));
   }
   function dressRally(K, root, lamb) {
-    const p = spot(LAYOUT.rally[0], LAYOUT.rally[1]);
-    const postL = new K.Mesh(new K.Cyl(0.07, 0.08, 1.8, 6), lamb(0x6d4c41));
-    const postR = postL.clone();
-    postL.position.set(p.wx, p.y + 0.9, p.wz);
-    const w = worldFS(LAYOUT.rally[0], LAYOUT.rally[1] + 0.9);
-    postR.position.set(host.x + w.x, p.y + 0.9, host.z + w.z);
-    const board = new K.Mesh(new K.Box(1.6, 0.9, 0.08), new K.Lambert({ map: routeTex(K), color: 0xffffff }));
-    board.position.set((postL.position.x + postR.position.x) / 2, p.y + 1.45, (postL.position.z + postR.position.z) / 2);
-    board.rotation.y = lay.yaw;
-    root.add(postL); root.add(postR); root.add(board);
+    const turtle = (CA.isl.L || []).find((j) => j.id === "turtle");
+    const st = stations.find((s) => s.id === "rally");
+    if (!turtle || !st || !bridgeWalk) return;
+    const towardX = bridgeWalk.bx - turtle.cx;
+    const towardZ = bridgeWalk.bz - turtle.cz;
+    const span = Math.hypot(towardX, towardZ) || 1;
+    const ux = towardX / span;
+    const uz = towardZ / span;
+    const px = -uz;
+    const pz = ux;
+    const at = (u, v) => ({ x: turtle.cx + ux * u + px * v, z: turtle.cz + uz * u + pz * v });
+    const gy = (u, v) => {
+      const p = at(u, v);
+      const y = turtleGround(turtle, p.x, p.z);
+      return y == null ? 0.8 : y;
+    };
+    const parts = [];
+    const push = (geo, color, u, v, dy, rot, rx, rz) => {
+      const p = at(u, v);
+      parts.push({ geo: geo, color: color, x: p.x, y: gy(u, v) + dy, z: p.z, rot: rot, rx: rx, rz: rz });
+    };
+    const samples = 28;
+    const loop = (a) => ({ u: -2.4 + Math.cos(a) * 7.4, v: Math.sin(a) * 5.5 });
+    const sideOf = (u, v, su, sv, dist) => ({ u: u + su * dist, v: v + sv * dist });
+    for (let i = 0; i < samples; i++) {
+      const a0 = (i / samples) * Math.PI * 2;
+      const a1 = ((i + 1) / samples) * Math.PI * 2;
+      const p0 = loop(a0);
+      const p1 = loop(a1);
+      const mu = (p0.u + p1.u) / 2;
+      const mv = (p0.v + p1.v) / 2;
+      const du = p1.u - p0.u;
+      const dv = p1.v - p0.v;
+      const seg = Math.hypot(du, dv) || 1;
+      const su = -dv / seg;
+      const sv = du / seg;
+      const world0 = at(p0.u, p0.v);
+      const world1 = at(p1.u, p1.v);
+      const heading = Math.atan2(world1.x - world0.x, world1.z - world0.z);
+      const left = sideOf(mu, mv, su, sv, 2.35);
+      const right = sideOf(mu, mv, su, sv, -2.35);
+      const rail = sideOf(mu, mv, su, sv, 2.9);
+      push(new K.Box(5.4, 0.16, seg * 1.08), 0x3a3a40, mu, mv, 0.1, heading);
+      push(new K.Box(0.1, 0.03, seg * 0.95), 0xf5f5f5, left.u, left.v, 0.2, heading);
+      push(new K.Box(0.1, 0.03, seg * 0.95), 0xf5f5f5, right.u, right.v, 0.2, heading);
+      if (i % 2 === 0) push(new K.Box(0.12, 0.03, seg * 0.35), 0xf6d451, mu, mv, 0.2, heading);
+      if (i % 4 === 0) {
+        push(new K.Cyl(0.08, 0.09, 1.3, 6), 0x546e7a, rail.u, rail.v, 0.7, heading);
+        push(new K.Box(0.7, 0.42, 0.08), i % 8 === 0 ? 0xc62828 : 0x1565c0, rail.u, rail.v, 1.35, heading);
+      }
+      push(new K.Box(0.08, 0.45, 0.08), 0xb0bec5, left.u, left.v, 0.35, heading);
+      push(new K.Box(0.08, 0.45, 0.08), 0xb0bec5, right.u, right.v, 0.35, heading);
+    }
+    const start = loop(0);
+    const next = loop(0.2);
+    const w0 = at(start.u, start.v);
+    const w1 = at(next.u, next.v);
+    const carHead = Math.atan2(w1.x - w0.x, w1.z - w0.z);
+    const fx = Math.sin(carHead);
+    const fz = Math.cos(carHead);
+    const rx = fz;
+    const rz = -fx;
+    const carAt = (forward, right) => {
+      const wx = w0.x + fx * forward + rx * right;
+      const wz = w0.z + fz * forward + rz * right;
+      const u = (wx - turtle.cx) * ux + (wz - turtle.cz) * uz;
+      const v = (wx - turtle.cx) * px + (wz - turtle.cz) * pz;
+      return { u: u, v: v };
+    };
+    const body = carAt(0.15, 0);
+    push(new K.Box(1.45, 0.4, 2.7), 0xc62828, body.u, body.v, 0.55, carHead);
+    const hood = carAt(1.25, 0);
+    push(new K.Box(1.35, 0.26, 1.35), 0xb71c1c, hood.u, hood.v, 0.72, carHead);
+    const cabin = carAt(-0.45, 0);
+    push(new K.Box(1.3, 0.62, 1.25), 0xe53935, cabin.u, cabin.v, 1.1, carHead);
+    push(new K.Box(1.12, 0.42, 1.05), 0x90caf9, cabin.u, cabin.v, 1.24, carHead);
+    [-0.48, 0.48].forEach((side) => {
+      const lamp = carAt(1.85, side);
+      push(new K.Box(0.26, 0.16, 0.1), 0xfff59d, lamp.u, lamp.v, 0.58, carHead);
+    });
+    [[1.05, -0.98], [1.05, 0.98], [-0.75, -0.98], [-0.75, 0.98]].forEach((wheel) => {
+      const p = carAt(wheel[0], wheel[1]);
+      push(new K.Cyl(0.34, 0.34, 0.22, 10), 0x212121, p.u, p.v, 0.36, carHead, 0, Math.PI / 2);
+      push(new K.Cyl(0.16, 0.16, 0.26, 8), 0xb0bec5, p.u, p.v, 0.36, carHead, 0, Math.PI / 2);
+    });
+    const archL = carAt(-1.4, -1.7);
+    const archR = carAt(-1.4, 1.7);
+    const archC = carAt(-1.4, 0);
+    push(new K.Box(0.28, 2.3, 0.28), 0xf5f5f5, archL.u, archL.v, 1.3, carHead);
+    push(new K.Box(0.28, 2.3, 0.28), 0xf5f5f5, archR.u, archR.v, 1.3, carHead);
+    push(new K.Box(3.8, 0.32, 0.32), 0xffc83d, archC.u, archC.v, 2.5, carHead);
+    const pump = loop(1.15);
+    push(new K.Box(2.4, 1.5, 2.2), 0xeceff1, pump.u, pump.v + 4.2, 0.85, 0);
+    push(new K.Box(3.2, 0.16, 2.6), 0xc62828, pump.u, pump.v + 4.2, 1.7, 0);
+    push(new K.Box(0.16, 1.5, 0.16), 0x546e7a, pump.u + 0.8, pump.v + 3.2, 0.8, 0);
+    const diner = loop(3.4);
+    push(new K.Box(3.4, 1.7, 2.4), 0xffcc80, diner.u, diner.v - 4.4, 0.95, 0);
+    push(new K.Box(3.6, 0.2, 2.7), 0x6d4c41, diner.u, diner.v - 4.4, 1.85, 0);
+    push(new K.Box(1.1, 1.2, 0.08), 0x81d4fa, diner.u - 0.6, diner.v - 3.3, 1.15, 0);
+    [[0.7, "Grand Canyon"], [2.1, "Gateway Arch"], [4.2, "Liberty"], [5.4, "Golden Gate"]].forEach((bill) => {
+      const spotA = loop(bill[0]);
+      push(new K.Cyl(0.08, 0.09, 2.2, 5), 0x6d4c41, spotA.u, spotA.v + 4.6, 1.1, 0);
+    });
+    [[1.8, -5.2], [2.6, 5.4], [4.8, -5.6], [5.6, 5.2], [-0.4, 6.1], [3.2, -6.2]].forEach((tree) => {
+      const a = tree[0];
+      const p = loop(a);
+      const side = tree[1];
+      push(new K.Cyl(0.16, 0.2, 1.5, 6), 0x6d4c2f, p.u, p.v + side, 0.75, 0);
+      push(new K.Sphere(0.85, 6, 5), 0x2e7d32, p.u, p.v + side, 1.7, 0);
+    });
+    paintProps(K, root, "v51-rally-set", parts);
+    const boardAt = at(start.u, start.v + 3.4);
+    const board = new K.Mesh(new K.Box(1.8, 1.05, 0.08), new K.Lambert({ map: routeTex(K), color: 0xffffff }));
+    board.position.set(boardAt.x, gy(start.u, start.v + 3.4) + 1.7, boardAt.z);
+    board.rotation.y = Math.atan2(px, pz);
+    root.add(board);
+    [[0.7, "Grand Canyon", "Arizona"], [2.1, "Gateway Arch", "Missouri"], [4.2, "Statue of Liberty", "New York"], [5.4, "Golden Gate", "California"]].forEach((bill) => {
+      const spotA = loop(bill[0]);
+      const p = at(spotA.u, spotA.v + 4.6);
+      const sign = new K.Mesh(new K.Plane(1.7, 1.05), new K.Lambert({ map: stackTex(K, [bill[1], bill[2]]), color: 0xffffff, side: 2 }));
+      sign.position.set(p.x, gy(spotA.u, spotA.v + 4.6) + 2.15, p.z);
+      sign.rotation.y = Math.atan2(turtle.cx - p.x, turtle.cz - p.z);
+      sign.name = "v51-rally-sign";
+      root.add(sign);
+    });
+    const pad = at(start.u, start.v);
+    const padY = gy(start.u, start.v);
+    st.wx = pad.x;
+    st.wz = pad.z;
+    st.x = pad.x - host.x;
+    st.z = pad.z - host.z;
+    const ring = new K.Mesh(new K.Torus(1.15, 0.08, 8, 24), new K.Lambert({ color: 0xffc83d, emissive: 0xffb300, emissiveIntensity: 0.65 }));
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(pad.x, padY + 0.2, pad.z);
+    ring.name = "v51-ring";
+    ring.userData.nofade = 1;
+    root.add(ring);
+    st.ring = ring;
+    const label = new K.Sprite(new K.SpriteMat({ map: labelTex(K, st.name), transparent: true, depthWrite: false }));
+    label.scale.set(3.4, 0.86, 1);
+    label.position.set(pad.x, padY + 2.5, pad.z);
+    label.name = "v51-label";
+    root.add(label);
+    const path = [];
+    const door = at(8.6, 0);
+    path.push(door);
+    path.push(at(start.u + 1.2, start.v));
+    path.push(pad);
+    const loopPts = [];
+    for (let i = 0; i < samples; i++) {
+      const p = loop((i / samples) * Math.PI * 2);
+      loopPts.push(at(p.u, p.v));
+    }
+    rallyPad = { x: pad.x, y: padY, z: pad.z, heading: carHead, path: path, loop: loopPts, turtle: turtle };
+    root.userData.rally = rallyPad;
   }
   function makeMonument(K, id) {
     const lamb = (hex, extra) => new K.Lambert(Object.assign({ color: hex }, extra || {}));
@@ -1926,6 +2040,23 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
             r: 1.7
           });
         }
+      }
+      if (rallyPad && bridgeWalk) {
+        const chain = [{ x: bridgeWalk.bx, z: bridgeWalk.bz }].concat(rallyPad.path || []);
+        for (let i = 0; i < chain.length - 1; i++) {
+          const a = chain[i];
+          const b = chain[i + 1];
+          const dist = Math.hypot(b.x - a.x, b.z - a.z);
+          const n = Math.max(1, Math.ceil(dist / 1.8));
+          for (let k = 0; k <= n; k++) {
+            CA.walkCircles.push({
+              x: a.x + (b.x - a.x) * (k / n),
+              z: a.z + (b.z - a.z) * (k / n),
+              r: 2.4
+            });
+          }
+        }
+        (rallyPad.loop || []).forEach((p) => CA.walkCircles.push({ x: p.x, z: p.z, r: 3.1 }));
       }
     }
     if (CA.obstacles) CA.obstacles.push({ x: host.x, z: host.z, r: 3.3 });
@@ -2273,6 +2404,21 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const mesh = new K.Mesh(geo, mat);
     return mesh;
   }
+  function turtleGround(turtle, x, z) {
+    try {
+      if (turtle && typeof turtle.ground === "function") {
+        const y = turtle.ground(x, z);
+        if (Number.isFinite(y)) return y;
+      }
+    } catch (err) { /* fall through */ }
+    try {
+      if (CA.isl && CA.isl.groundAt) {
+        const y = CA.isl.groundAt(x, z);
+        if (Number.isFinite(y)) return y;
+      }
+    } catch (err) { /* fall through */ }
+    return null;
+  }
   function bridgeAnchors() {
     const turtle = (CA.isl.L || []).find((j) => j.id === "turtle");
     if (!turtle || !lay) return null;
@@ -2282,22 +2428,39 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const dirF = Math.cos(ang);
     const dirS = Math.sin(ang);
     const shore = shoreOf(dirF, dirS);
-    const f = dirF * (shore - 3.4);
-    const s = dirS * (shore - 3.4);
-    const w = worldFS(f, s);
-    const ax = host.x + w.x;
-    const az = host.z + w.z;
+    let ax = 0;
+    let az = 0;
+    let yA = null;
+    for (let inland = 9.4; inland >= 4.2; inland -= 0.6) {
+      const f = dirF * (shore - inland);
+      const s = dirS * (shore - inland);
+      const w = worldFS(f, s);
+      ax = host.x + w.x;
+      az = host.z + w.z;
+      const y = sampleGround(w.x, w.z);
+      if (y != null && y > 0.55) { yA = y; break; }
+      yA = y;
+    }
     const dx = ax - turtle.cx;
     const dz = az - turtle.cz;
-    const d = Math.hypot(dx, dz) || 1;
-    const reach = (turtle.R || 19) - 2.2;
-    return {
-      ax: ax,
-      az: az,
-      bx: turtle.cx + (dx / d) * reach,
-      bz: turtle.cz + (dz / d) * reach,
-      turtle: turtle
-    };
+    const dist = Math.hypot(dx, dz) || 1;
+    const tx = dx / dist;
+    const tz = dz / dist;
+    let bx = turtle.cx;
+    let bz = turtle.cz;
+    let yB = null;
+    const radius = turtle.R || 19;
+    for (let inset = 8.4; inset >= 3.2; inset -= 0.7) {
+      bx = turtle.cx + tx * (radius - inset);
+      bz = turtle.cz + tz * (radius - inset);
+      const y = turtleGround(turtle, bx, bz);
+      if (y != null && y > 0.25 && Math.hypot(bx - turtle.cx, bz - turtle.cz) < radius - 2) {
+        yB = y;
+        break;
+      }
+      yB = y;
+    }
+    return { ax: ax, az: az, bx: bx, bz: bz, turtle: turtle, terrainA: yA, terrainB: yB };
   }
   function bridgeDeckY(x, z) {
     if (!bridgeWalk) return null;
@@ -2306,19 +2469,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const dz = z - b.az;
     const along = dx * b.ux + dz * b.uz;
     const side = dx * b.px + dz * b.pz;
-    if (side < -1.35 || side > 1.35 || along < -0.4 || along > b.len + 0.4) return null;
-    const ramp = 5.5;
+    if (side < -1.35 || side > 1.35 || along < -0.6 || along > b.len + 0.6) return null;
+    const ramp = b.ramp;
     const deck = b.deckY;
-    if (along < ramp) {
-      const g = sampleGround(x - host.x, z - host.z);
-      const base = g != null && g > 0 ? g : 0.45;
-      const u = Math.max(0, along) / ramp;
-      return base + (deck - base) * u;
-    }
-    if (along > b.len - ramp) {
-      const u = Math.max(0, b.len - along) / ramp;
-      return 0.45 + (deck - 0.45) * u;
-    }
+    const ease = (u) => { const t = u < 0 ? 0 : u > 1 ? 1 : u; return t * t * (3 - 2 * t); };
+    if (along < ramp) return b.deckA + (deck - b.deckA) * ease(Math.max(0, along) / ramp);
+    if (along > b.len - ramp) return b.deckB + (deck - b.deckB) * ease(Math.max(0, b.len - along) / ramp);
     return deck;
   }
   function placeSpan(K, lamb, root) {
@@ -2331,18 +2487,65 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const ux = dx / len;
     const uz = dz / len;
     const deckY = 3.45;
+    const yA = ends.terrainA != null && ends.terrainA > 0.2 ? ends.terrainA : 0.7;
+    const yB = ends.terrainB != null && ends.terrainB > 0.2 ? ends.terrainB : 0.7;
+    const deckA = yA + 0.42;
+    const deckB = yB + 0.42;
+    const ramp = Math.min(11, Math.max(7, len * 0.26));
+    const ease = (u) => { const t = u < 0 ? 0 : u > 1 ? 1 : u; return t * t * (3 - 2 * t); };
+    const yAt = (along) => {
+      if (along < ramp) return deckA + (deckY - deckA) * ease(along / ramp);
+      if (along > len - ramp) return deckB + (deckY - deckB) * ease((len - along) / ramp);
+      return deckY;
+    };
     const g = new K.Group();
     g.position.set((ends.ax + ends.bx) / 2, 0, (ends.az + ends.bz) / 2);
     g.rotation.y = Math.atan2(-dz, dx);
     const orange = lamb(0xf04a00);
     const dark = lamb(0xc2410c);
-    const deck = new K.Mesh(new K.Box(len, 0.18, 2.15), lamb(0x5d6d7a));
-    deck.position.y = deckY;
-    g.add(deck);
-    [-0.98, 0.98].forEach((z) => {
-      const rail = new K.Mesh(new K.Box(len - 0.3, 0.07, 0.06), orange);
-      rail.position.set(0, deckY + 0.32, z);
-      g.add(rail);
+    const concrete = lamb(0xc8c2b8);
+    const deckPos = [];
+    const deckIdx = [];
+    const segs = 22;
+    const halfW = 1.08;
+    for (let i = 0; i <= segs; i++) {
+      const along = (len * i) / segs;
+      const x = -len / 2 + along;
+      const top = yAt(along);
+      deckPos.push(x, top, -halfW, x, top, halfW, x, top - 0.16, -halfW, x, top - 0.16, halfW);
+    }
+    for (let i = 0; i < segs; i++) {
+      const a = i * 4;
+      const b = a + 4;
+      deckIdx.push(a, b, a + 1, b, b + 1, a + 1);
+      deckIdx.push(a + 2, a + 3, b + 2, a + 3, b + 3, b + 2);
+      deckIdx.push(a, a + 2, b, b, a + 2, b + 2);
+      deckIdx.push(a + 1, b + 1, a + 3, b + 1, b + 3, a + 3);
+    }
+    const deckGeo = new K.Geo();
+    deckGeo.setAttribute("position", new K.Attr(new Float32Array(deckPos), 3));
+    deckGeo.setIndex(deckIdx);
+    deckGeo.computeVertexNormals();
+    g.add(new K.Mesh(deckGeo, lamb(0x5d6d7a)));
+    [-halfW + 0.06, halfW - 0.06].forEach((z) => {
+      const railPos = [];
+      const railIdx = [];
+      for (let i = 0; i <= segs; i++) {
+        const along = (len * i) / segs;
+        const x = -len / 2 + along;
+        const y = yAt(along) + 0.28;
+        railPos.push(x, y, z - 0.03, x, y, z + 0.03, x, y + 0.08, z - 0.03, x, y + 0.08, z + 0.03);
+      }
+      for (let i = 0; i < segs; i++) {
+        const a = i * 4;
+        const b = a + 4;
+        railIdx.push(a + 2, b + 2, a + 3, b + 2, b + 3, a + 3);
+      }
+      const railGeo = new K.Geo();
+      railGeo.setAttribute("position", new K.Attr(new Float32Array(railPos), 3));
+      railGeo.setIndex(railIdx);
+      railGeo.computeVertexNormals();
+      g.add(new K.Mesh(railGeo, orange));
     });
     const towerX = len * 0.22;
     const towerTop = deckY + 8.6;
@@ -2387,9 +2590,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const top = towerTop - 0.35;
     const mainSag = Math.max(1.6, towerX * 0.55);
     [-0.62, 0.62].forEach((z) => {
-      cableStrip(z, -len / 2 + 0.8, deckY + 0.55, -towerX, top, 0.35);
+      cableStrip(z, -len / 2 + 0.7, yA + 0.85, -towerX, top, 0.8);
       cableStrip(z, -towerX, top, towerX, top, mainSag);
-      cableStrip(z, towerX, top, len / 2 - 0.8, deckY + 0.55, 0.35);
+      cableStrip(z, towerX, top, len / 2 - 0.7, yB + 0.85, 0.8);
       const steps = Math.max(6, Math.round(towerX * 1.4));
       for (let i = 1; i < steps; i++) {
         const t = i / steps;
@@ -2404,16 +2607,18 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     geo.setIndex(idx);
     geo.computeVertexNormals();
     g.add(new K.Mesh(geo, orange));
-    [-len / 2 + 0.7, len / 2 - 0.7].forEach((x) => {
-      const anch = new K.Mesh(new K.Box(1.15, 0.7, 1.7), lamb(0x8d847c));
-      anch.position.set(x, deckY - 0.15, 0);
-      g.add(anch);
+    [[-len / 2 + 0.7, yA], [len / 2 - 0.7, yB]].forEach((end) => {
+      const block = new K.Mesh(new K.Box(2.2, 0.9, 2.5), concrete);
+      block.position.set(end[0], end[1] + 0.45, 0);
+      g.add(block);
     });
     root.add(g);
     bridgeWalk = {
       ax: ends.ax, az: ends.az, bx: ends.bx, bz: ends.bz,
       ux: ux, uz: uz, px: -uz, pz: ux,
-      len: len, deckY: deckY, mesh: g
+      len: len, deckY: deckY, ramp: ramp,
+      terrainA: yA, terrainB: yB, deckA: deckA, deckB: deckB,
+      mesh: g
     };
     g.userData.span = bridgeWalk;
     g.userData.role = "gate";
@@ -2443,14 +2648,13 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       if (!mesh) mesh = makers[lm.id]();
       const at = spots[lm.id] || [0, 0, 0];
       if (lm.id === "rushmore") {
-        const f = 2.6;
-        const s = -4.8;
+        const f = 6.5;
+        const s = -7.4;
         const w = worldFS(f, s);
-        mesh.position.set(host.x + w.x, rockTop(f, s) - 0.2, host.z + w.z);
+        mesh.position.set(host.x + w.x, Math.max(4.2, rockTop(f, s) * 0.55), host.z + w.z);
         root.add(mesh);
         mesh.rotation.y = lay.yaw;
         mesh.userData.role = "rushmore";
-        snapRelief(mesh);
       } else if (lm.id !== "gate") place(root, mesh, at[0], at[1], at[2] || 0);
       if (lm.id === "liberty" || lm.id === "alamo" || lm.id === "bell" || lm.id === "needle") mesh.rotation.y = lay.yaw;
       if (lm.id === "arch") {
@@ -2702,87 +2906,60 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     g.add(shaft);
     return g;
   }
-  function rushmoreMesh(K, lamb) {
-    const g = new K.Group();
-    const carve = (hex) => {
-      const mat = lamb(hex);
-      mat.polygonOffset = true;
-      mat.polygonOffsetFactor = -2;
-      mat.polygonOffsetUnits = -2;
-      return mat;
-    };
-    const granite = carve(0x847c74);
-    const deep = carve(0x6a635c);
-    const light = carve(0x90887f);
-    const faces = [
-      { x: -2.4, nose: 0.38, chin: 0.26, hair: 1 },
-      { x: -0.8, nose: 0.44, chin: 0.18, hair: 0 },
-      { x: 0.8, nose: 0.36, chin: 0.22, hair: 0 },
-      { x: 2.4, nose: 0.4, chin: 0.3, hair: 0 }
+  function rushmoreMesh(K) {
+    const granite = 0x847c74;
+    const deep = 0x5e574f;
+    const light = 0x9a9186;
+    const shadow = 0x3a342f;
+    const parts = [];
+    const add = (geo, color, x, y, z) => parts.push({ geo: geo, color: color, x: x, y: y, z: z });
+    add(new K.Box(9.4, 7.2, 1.35), granite, 0, 0.15, -0.55);
+    add(new K.Box(9.8, 0.55, 2.2), deep, 0, -3.3, 0.2);
+    const heads = [
+      { x: -3.35, who: "washington" },
+      { x: -1.12, who: "jefferson" },
+      { x: 1.12, who: "roosevelt" },
+      { x: 3.35, who: "lincoln" }
     ];
-    faces.forEach((face) => {
-      const one = new K.Group();
-      one.position.set(face.x, 0, 0);
-      one.userData.relief = "head";
-      const head = new K.Mesh(new K.Sphere(1.02, 14, 12), granite);
-      head.scale.set(0.9, 1.18, 0.55);
-      head.position.set(0, 0.02, -0.28);
-      one.add(head);
-      const brow = new K.Mesh(new K.Box(0.78, 0.12, 0.28), deep);
-      brow.position.set(0, 0.55, 0.38);
-      one.add(brow);
-      const nose = new K.Mesh(new K.Box(0.16, 0.36, face.nose), light);
-      nose.position.set(0, 0.02, 0.48);
-      one.add(nose);
-      const chin = new K.Mesh(new K.Box(0.46, 0.16, face.chin), granite);
-      chin.position.set(0, -0.58, 0.28);
-      one.add(chin);
-      if (face.hair) {
-        const cap = new K.Mesh(new K.Box(0.84, 0.14, 0.22), deep);
-        cap.position.set(0, 0.92, -0.12);
-        one.add(cap);
+    heads.forEach((face) => {
+      const x = face.x;
+      const tall = face.who === "lincoln" ? 1.15 : face.who === "jefferson" ? 1.08 : 1;
+      const wide = face.who === "roosevelt" ? 1.12 : face.who === "jefferson" ? 0.9 : 1;
+      const cheek = 1.35 * wide;
+      const chinW = 0.78 * wide;
+      add(new K.Box(chinW * 0.7, 0.45, 0.4), deep, x, -1.15 * tall, 0.05);
+      add(new K.Box(chinW, 0.55 * tall, 0.55), granite, x, -0.72 * tall, 0.42);
+      add(new K.Box(cheek, 1.15 * tall, 0.62), granite, x, 0.05, 0.32);
+      add(new K.Box(cheek * 0.82, 0.7 * tall, 0.5), granite, x, 0.85 * tall, 0.22);
+      const hairY = 1.35 * tall;
+      const hairZ = face.who === "jefferson" ? 0.02 : 0.12;
+      add(new K.Box(cheek * (face.who === "washington" ? 1.05 : 0.9), 0.55, 0.58), deep, x, hairY, hairZ);
+      if (face.who === "washington") add(new K.Box(0.35, 0.7, 0.4), deep, x, hairY + 0.15, -0.15);
+      add(new K.Box(cheek * 0.92, 0.22, 0.42), deep, x, 0.62 * tall, 0.72);
+      [-0.32, 0.32].forEach((side) => {
+        add(new K.Box(0.34 * wide, 0.26 * tall, 0.22), shadow, x + side * cheek * 0.32, 0.38 * tall, 0.48);
+      });
+      add(new K.Box(0.22 * wide, 0.7 * tall, 0.55), light, x, 0.22 * tall, 0.78);
+      add(new K.Box(cheek * 0.38, 0.08, 0.1), shadow, x, -0.12 * tall, 0.62);
+      if (face.who === "lincoln") {
+        add(new K.Box(chinW * 1.05, 0.85, 0.48), deep, x, -1.05 * tall, 0.38);
+        add(new K.Box(0.28, 0.22, 0.12), shadow, x, -0.42 * tall, 0.7);
       }
-      g.add(one);
-    });
-    const rubble = [
-      [-2.1, 0.9, 0.48],
-      [-0.7, 1.15, 0.4],
-      [0.6, 0.85, 0.44],
-      [1.9, 1.2, 0.36],
-      [-1.4, 1.7, 0.38],
-      [0.2, 1.85, 0.34],
-      [1.1, 1.65, 0.32]
-    ];
-    rubble.forEach((r, i) => {
-      const rock = new K.Mesh(new K.Sphere(r[2], 6, 5), i % 2 ? deep : granite);
-      rock.scale.set(1.35, 0.42, 1.05);
-      rock.position.set(r[0], 0, r[1]);
-      rock.userData.relief = "talus";
-      g.add(rock);
-    });
-    return g;
-  }
-  function snapRelief(group) {
-    const yaw = group.rotation.y;
-    const zx = Math.sin(yaw);
-    const zz = Math.cos(yaw);
-    const xx = Math.cos(yaw);
-    const xz = -Math.sin(yaw);
-    const surfAt = (lx, lz) => {
-      const wx = group.position.x + xx * lx + zx * lz;
-      const wz = group.position.z + xz * lx + zz * lz;
-      const q = toFS(wx - host.x, wz - host.z);
-      return rockTop(q.f, q.s);
-    };
-    group.children.forEach((child) => {
-      if (child.userData.relief === "head") {
-        const surf = surfAt(child.position.x, -0.28);
-        child.position.y = surf - 0.35 - group.position.y;
-      } else if (child.userData.relief === "talus") {
-        const surf = surfAt(child.position.x, child.position.z);
-        child.position.y = surf + 0.05 - group.position.y;
+      if (face.who === "roosevelt") {
+        [-0.34, 0.34].forEach((side) => {
+          const ex = x + side * 0.34;
+          add(new K.Box(0.42, 0.06, 0.06), shadow, ex, 0.52, 0.78);
+          add(new K.Box(0.42, 0.06, 0.06), shadow, ex, 0.26, 0.78);
+          add(new K.Box(0.06, 0.28, 0.06), shadow, ex - 0.18, 0.39, 0.78);
+          add(new K.Box(0.06, 0.28, 0.06), shadow, ex + 0.18, 0.39, 0.78);
+        });
+        add(new K.Box(0.18, 0.06, 0.06), shadow, x, 0.4, 0.78);
       }
     });
+    [[-3.1, 0.48], [-1.4, 0.4], [0.2, 0.46], [1.8, 0.36], [3.2, 0.42]].forEach((rock, i) => {
+      add(new K.Sphere(rock[1], 6, 5), i % 2 ? deep : granite, rock[0], -3.85, 1.15 + (i % 3) * 0.25);
+    });
+    return bakeParts(K, parts);
   }
   function bridgeMesh(K, lamb) {
     const g = new K.Group();
@@ -2906,6 +3083,18 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const cap = CA.captain;
     if (!cap) return;
     const walking = !CA.mode || CA.mode === "walk";
+    if (walking && session && session.id === "rally" && rallyPad) {
+      const onDeck = bridgeWalk && bridgeDeckY(cap.position.x, cap.position.z) != null;
+      const near = Math.hypot(cap.position.x - rallyPad.x, cap.position.z - rallyPad.z) < 26;
+      if (onDeck || near) {
+        const dx = cap.position.x - rallyPad.x;
+        const dz = cap.position.z - rallyPad.z;
+        const d = Math.hypot(dx, dz) || 1;
+        cam.position.set(cap.position.x + (dx / d) * 9, cap.position.y + 7.2, cap.position.z + (dz / d) * 9);
+        cam.lookAt(cap.position.x, cap.position.y + 0.7, cap.position.z);
+        return;
+      }
+    }
     const q = toFS(cap.position.x - host.x, cap.position.z - host.z);
     const on = Math.hypot(q.f, q.s) < 38;
     if (walking && on && captainInRoom(cap.position)) {
@@ -2924,15 +3113,6 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const mouth = worldFS(CAVE.f - 0.1, CAVE.s);
       const my = heightFS(CAVE.f - 0.1, CAVE.s);
       cam.lookAt(host.x + mouth.x, (my == null ? 1.2 : my) + 1.7, host.z + mouth.z);
-      return;
-    }
-    if (walking && on && session && session.id === "rally") {
-      const d = Math.hypot(q.f, q.s) || 1;
-      const cf = q.f + (q.f / d) * 18;
-      const cs = q.s + (q.s / d) * 18;
-      const w = worldFS(cf, cs);
-      cam.position.set(host.x + w.x, cap.position.y + 14, host.z + w.z);
-      cam.lookAt(cap.position.x, cap.position.y + 0.5, cap.position.z);
       return;
     }
     if (walking && on) {

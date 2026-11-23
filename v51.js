@@ -1785,35 +1785,62 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     };
     const samples = 28;
     const loop = (a) => ({ u: -2.4 + Math.cos(a) * 7.4, v: Math.sin(a) * 5.5 });
-    const sideOf = (u, v, su, sv, dist) => ({ u: u + su * dist, v: v + sv * dist });
-    for (let i = 0; i < samples; i++) {
-      const a0 = (i / samples) * Math.PI * 2;
-      const a1 = ((i + 1) / samples) * Math.PI * 2;
-      const p0 = loop(a0);
-      const p1 = loop(a1);
-      const mu = (p0.u + p1.u) / 2;
-      const mv = (p0.v + p1.v) / 2;
-      const du = p1.u - p0.u;
-      const dv = p1.v - p0.v;
+    const ribbonN = 96;
+    const halfW = 3.15;
+    const roadPos = [];
+    const roadCol = [];
+    const roadIdx = [];
+    const across = [-halfW, -halfW + 0.28, 0, halfW - 0.28, halfW];
+    const paint = [
+      [0.93, 0.93, 0.93],
+      [0.1, 0.1, 0.11],
+      [0.9, 0.72, 0.16],
+      [0.1, 0.1, 0.11],
+      [0.93, 0.93, 0.93]
+    ];
+    for (let i = 0; i <= ribbonN; i++) {
+      const a = (i / ribbonN) * Math.PI * 2;
+      const p = loop(a);
+      const ahead = loop(a + 0.04);
+      const du = ahead.u - p.u;
+      const dv = ahead.v - p.v;
       const seg = Math.hypot(du, dv) || 1;
       const su = -dv / seg;
       const sv = du / seg;
-      const world0 = at(p0.u, p0.v);
-      const world1 = at(p1.u, p1.v);
-      const heading = Math.atan2(world1.x - world0.x, world1.z - world0.z);
-      const left = sideOf(mu, mv, su, sv, 2.35);
-      const right = sideOf(mu, mv, su, sv, -2.35);
-      const rail = sideOf(mu, mv, su, sv, 2.9);
-      push(new K.Box(5.4, 0.16, seg * 1.08), 0x3a3a40, mu, mv, 0.1, heading);
-      push(new K.Box(0.1, 0.03, seg * 0.95), 0xf5f5f5, left.u, left.v, 0.2, heading);
-      push(new K.Box(0.1, 0.03, seg * 0.95), 0xf5f5f5, right.u, right.v, 0.2, heading);
-      if (i % 2 === 0) push(new K.Box(0.12, 0.03, seg * 0.35), 0xf6d451, mu, mv, 0.2, heading);
-      if (i % 4 === 0) {
-        push(new K.Cyl(0.08, 0.09, 1.3, 6), 0x546e7a, rail.u, rail.v, 0.7, heading);
-        push(new K.Box(0.7, 0.42, 0.08), i % 8 === 0 ? 0xc62828 : 0x1565c0, rail.u, rail.v, 1.35, heading);
+      const y = gy(p.u, p.v) + 0.34;
+      across.forEach((side, k) => {
+        const w = at(p.u + su * side, p.v + sv * side);
+        roadPos.push(w.x, y, w.z);
+        roadCol.push(paint[k][0], paint[k][1], paint[k][2]);
+      });
+    }
+    const spanV = across.length;
+    for (let i = 0; i < ribbonN; i++) {
+      for (let k = 0; k < spanV - 1; k++) {
+        const a = i * spanV + k;
+        const b = a + spanV;
+        roadIdx.push(a, b, a + 1, b, b + 1, a + 1);
       }
-      push(new K.Box(0.08, 0.45, 0.08), 0xb0bec5, left.u, left.v, 0.35, heading);
-      push(new K.Box(0.08, 0.45, 0.08), 0xb0bec5, right.u, right.v, 0.35, heading);
+    }
+    const roadGeo = new K.Geo();
+    roadGeo.setAttribute("position", new K.Attr(new Float32Array(roadPos), 3));
+    roadGeo.setAttribute("color", new K.Attr(new Float32Array(roadCol), 3));
+    roadGeo.setIndex(roadIdx);
+    roadGeo.computeVertexNormals();
+    const roadMat = new K.Lambert({ vertexColors: true, side: 2 });
+    const road = new K.Mesh(roadGeo, roadMat);
+    road.name = "v51-rally-road";
+    road.receiveShadow = true;
+    root.add(road);
+    for (let i = 0; i < samples; i += 4) {
+      const a = (i / samples) * Math.PI * 2;
+      const p = loop(a);
+      const ahead = loop(a + 0.08);
+      const du = ahead.u - p.u;
+      const dv = ahead.v - p.v;
+      const seg = Math.hypot(du, dv) || 1;
+      const rail = { u: p.u + (-dv / seg) * 3.05, v: p.v + (du / seg) * 3.05 };
+      push(new K.Cyl(0.07, 0.08, 0.9, 6), 0xb0bec5, rail.u, rail.v, 0.55, 0);
     }
     const start = loop(0);
     const next = loop(0.2);
@@ -1831,21 +1858,31 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const v = (wx - turtle.cx) * px + (wz - turtle.cz) * pz;
       return { u: u, v: v };
     };
+    const bodyGeo = new K.Sphere(1, 16, 12);
+    bodyGeo.scale(0.7, 0.28, 1.55);
     const body = carAt(0.15, 0);
-    push(new K.Box(1.45, 0.4, 2.7), 0xc62828, body.u, body.v, 0.55, carHead);
-    const hood = carAt(1.25, 0);
-    push(new K.Box(1.35, 0.26, 1.35), 0xb71c1c, hood.u, hood.v, 0.72, carHead);
-    const cabin = carAt(-0.45, 0);
-    push(new K.Box(1.3, 0.62, 1.25), 0xe53935, cabin.u, cabin.v, 1.1, carHead);
-    push(new K.Box(1.12, 0.42, 1.05), 0x90caf9, cabin.u, cabin.v, 1.24, carHead);
-    [-0.48, 0.48].forEach((side) => {
-      const lamp = carAt(1.85, side);
-      push(new K.Box(0.26, 0.16, 0.1), 0xfff59d, lamp.u, lamp.v, 0.58, carHead);
+    push(bodyGeo, 0xc62828, body.u, body.v, 0.58, carHead);
+    const hoodGeo = new K.Sphere(1, 14, 10);
+    hoodGeo.scale(0.62, 0.2, 0.7);
+    const hood = carAt(1.15, 0);
+    push(hoodGeo, 0xb71c1c, hood.u, hood.v, 0.62, carHead);
+    const cabinGeo = new K.Sphere(1, 14, 10);
+    cabinGeo.scale(0.62, 0.38, 0.62);
+    const cabin = carAt(-0.25, 0);
+    push(cabinGeo, 0xe53935, cabin.u, cabin.v, 0.95, carHead);
+    const glassGeo = new K.Sphere(1, 12, 8);
+    glassGeo.scale(0.55, 0.28, 0.48);
+    const glass = carAt(0.15, 0);
+    push(glassGeo, 0x90caf9, glass.u, glass.v, 1.05, carHead);
+    [-0.42, 0.42].forEach((side) => {
+      const lampGeo = new K.Sphere(0.13, 8, 6);
+      const lamp = carAt(1.35, side);
+      push(lampGeo, 0xfff59d, lamp.u, lamp.v, 0.58, carHead);
     });
-    [[1.05, -0.98], [1.05, 0.98], [-0.75, -0.98], [-0.75, 0.98]].forEach((wheel) => {
+    [[0.85, -0.78], [0.85, 0.78], [-0.55, -0.78], [-0.55, 0.78]].forEach((wheel) => {
       const p = carAt(wheel[0], wheel[1]);
-      push(new K.Cyl(0.34, 0.34, 0.22, 10), 0x212121, p.u, p.v, 0.36, carHead, 0, Math.PI / 2);
-      push(new K.Cyl(0.16, 0.16, 0.26, 8), 0xb0bec5, p.u, p.v, 0.36, carHead, 0, Math.PI / 2);
+      push(new K.Cyl(0.32, 0.32, 0.2, 12), 0x212121, p.u, p.v, 0.32, carHead, 0, Math.PI / 2);
+      push(new K.Cyl(0.16, 0.16, 0.24, 8), 0xeceff1, p.u, p.v, 0.32, carHead, 0, Math.PI / 2);
     });
     const archL = carAt(-1.4, -1.7);
     const archR = carAt(-1.4, 1.7);
@@ -1865,12 +1902,14 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const spotA = loop(bill[0]);
       push(new K.Cyl(0.08, 0.09, 2.2, 5), 0x6d4c41, spotA.u, spotA.v + 4.6, 1.1, 0);
     });
-    [[1.8, -5.2], [2.6, 5.4], [4.8, -5.6], [5.6, 5.2], [-0.4, 6.1], [3.2, -6.2]].forEach((tree) => {
-      const a = tree[0];
+    [2.2, 2.9, 3.7, 4.5].forEach((a) => {
       const p = loop(a);
-      const side = tree[1];
-      push(new K.Cyl(0.16, 0.2, 1.5, 6), 0x6d4c2f, p.u, p.v + side, 0.75, 0);
-      push(new K.Sphere(0.85, 6, 5), 0x2e7d32, p.u, p.v + side, 1.7, 0);
+      const cu = p.u + 2.4;
+      const cv = p.v;
+      const d = Math.hypot(cu, cv) || 1;
+      const tree = { u: p.u + (cu / d) * 3.4, v: p.v + (cv / d) * 3.4 };
+      push(new K.Cyl(0.16, 0.2, 1.5, 6), 0x6d4c2f, tree.u, tree.v, 0.75, 0);
+      push(new K.Sphere(0.85, 6, 5), 0x2e7d32, tree.u, tree.v, 1.7, 0);
     });
     paintProps(K, root, "v51-rally-set", parts);
     const boardAt = at(start.u, start.v + 3.4);
@@ -1915,7 +1954,28 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const p = loop((i / samples) * Math.PI * 2);
       loopPts.push(at(p.u, p.v));
     }
-    rallyPad = { x: pad.x, y: padY, z: pad.z, heading: carHead, path: path, loop: loopPts, turtle: turtle };
+    const carWorld = at(body.u, body.v);
+    const camBack = { x: carWorld.x - fx * 9, z: carWorld.z - fz * 9 };
+    CA.scene.traverse((o) => {
+      if (!o.isMesh || !o.geometry) return;
+      const keep = o.name === "v51-rally-set" || o.name === "v51-rally-road" || o.name === "v51-ring" || o.name === "v51-rally-sign" || o.name === "v51-label" || o.name === "v51-terrain";
+      if (keep) return;
+      if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+      const rad = (o.geometry.boundingSphere.radius || 0) * Math.max(o.scale.x || 1, o.scale.y || 1, o.scale.z || 1);
+      if (rad > 7) return;
+      o.updateWorldMatrix(true, false);
+      const e = o.matrixWorld.elements;
+      const dx = e[12] - camBack.x;
+      const dz = e[14] - camBack.z;
+      const along = dx * fx + dz * fz;
+      const side = dx * rx + dz * rz;
+      if (along > -0.5 && along < 12 && Math.abs(side) < 2.4 && e[13] > 0.3 && e[13] < 9) o.visible = false;
+    });
+    rallyPad = {
+      x: pad.x, y: padY, z: pad.z, heading: carHead, path: path, loop: loopPts, turtle: turtle,
+      car: { x: carWorld.x, y: gy(body.u, body.v) + 0.7, z: carWorld.z, heading: carHead },
+      view: { x: at(-1.2, 2.6).x, y: gy(-1.2, 2.6) + 2.2, z: at(-1.2, 2.6).z }
+    };
     root.userData.rally = rallyPad;
   }
   function makeMonument(K, id) {
@@ -2648,10 +2708,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       if (!mesh) mesh = makers[lm.id]();
       const at = spots[lm.id] || [0, 0, 0];
       if (lm.id === "rushmore") {
-        const f = 6.5;
-        const s = -7.4;
+        const f = 6.6;
+        const s = -5.6;
         const w = worldFS(f, s);
-        mesh.position.set(host.x + w.x, Math.max(4.2, rockTop(f, s) * 0.55), host.z + w.z);
+        const gy = sampleGround(w.x, w.z);
+        mesh.position.set(host.x + w.x, (gy == null ? 1.2 : gy) + 3.4, host.z + w.z);
+        mesh.scale.setScalar(1.15);
         root.add(mesh);
         mesh.rotation.y = lay.yaw;
         mesh.userData.role = "rushmore";
@@ -2907,59 +2969,100 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     return g;
   }
   function rushmoreMesh(K) {
-    const granite = 0x847c74;
-    const deep = 0x5e574f;
-    const light = 0x9a9186;
-    const shadow = 0x3a342f;
-    const parts = [];
-    const add = (geo, color, x, y, z) => parts.push({ geo: geo, color: color, x: x, y: y, z: z });
-    add(new K.Box(9.4, 7.2, 1.35), granite, 0, 0.15, -0.55);
-    add(new K.Box(9.8, 0.55, 2.2), deep, 0, -3.3, 0.2);
+    const cols = 110;
+    const rows = 72;
+    const width = 14.5;
+    const height = 8.2;
     const heads = [
-      { x: -3.35, who: "washington" },
-      { x: -1.12, who: "jefferson" },
-      { x: 1.12, who: "roosevelt" },
-      { x: 3.35, who: "lincoln" }
+      { x: -4.7, y: 0.35, z: 0.72, s: 1.08, hair: 1, beard: 0, glasses: 0 },
+      { x: -1.55, y: 0.05, z: 0.18, s: 0.96, hair: 0.35, beard: 0, glasses: 0 },
+      { x: 1.45, y: 0.2, z: 0.34, s: 1.02, hair: 0.45, beard: 0, glasses: 1 },
+      { x: 4.55, y: -0.15, z: 0.08, s: 1.12, hair: 0.55, beard: 1, glasses: 0 }
     ];
-    heads.forEach((face) => {
-      const x = face.x;
-      const tall = face.who === "lincoln" ? 1.15 : face.who === "jefferson" ? 1.08 : 1;
-      const wide = face.who === "roosevelt" ? 1.12 : face.who === "jefferson" ? 0.9 : 1;
-      const cheek = 1.35 * wide;
-      const chinW = 0.78 * wide;
-      add(new K.Box(chinW * 0.7, 0.45, 0.4), deep, x, -1.15 * tall, 0.05);
-      add(new K.Box(chinW, 0.55 * tall, 0.55), granite, x, -0.72 * tall, 0.42);
-      add(new K.Box(cheek, 1.15 * tall, 0.62), granite, x, 0.05, 0.32);
-      add(new K.Box(cheek * 0.82, 0.7 * tall, 0.5), granite, x, 0.85 * tall, 0.22);
-      const hairY = 1.35 * tall;
-      const hairZ = face.who === "jefferson" ? 0.02 : 0.12;
-      add(new K.Box(cheek * (face.who === "washington" ? 1.05 : 0.9), 0.55, 0.58), deep, x, hairY, hairZ);
-      if (face.who === "washington") add(new K.Box(0.35, 0.7, 0.4), deep, x, hairY + 0.15, -0.15);
-      add(new K.Box(cheek * 0.92, 0.22, 0.42), deep, x, 0.62 * tall, 0.72);
-      [-0.32, 0.32].forEach((side) => {
-        add(new K.Box(0.34 * wide, 0.26 * tall, 0.22), shadow, x + side * cheek * 0.32, 0.38 * tall, 0.48);
+    const blob = (x, y, cx, cy, rx, ry, amp) => {
+      const u = (x - cx) / rx;
+      const v = (y - cy) / ry;
+      const d = u * u + v * v;
+      if (d >= 1) return 0;
+      const t = 1 - d;
+      return amp * t * t;
+    };
+    const field = (x, y) => {
+      let z = 0;
+      let dark = 0;
+      heads.forEach((h) => {
+        const s = h.s;
+        z += blob(x, y, h.x, h.y + 0.2 * s, 1.05 * s, 1.25 * s, 1.55 + h.z);
+        z += blob(x, y, h.x, h.y - 0.25 * s, 1.15 * s, 0.72 * s, 0.42);
+        z += blob(x, y, h.x, h.y - 0.95 * s, 0.62 * s, 0.46 * s, 0.62);
+        z += blob(x, y, h.x, h.y + 0.95 * s, 0.95 * s, 0.5 * s, 0.28 + h.hair * 0.35);
+        z += blob(x, y, h.x, h.y + 0.48 * s, 0.9 * s, 0.2 * s, 0.48);
+        z += blob(x, y, h.x, h.y - 0.02 * s, 0.24 * s, 0.55 * s, 1.35);
+        const eyeL = blob(x, y, h.x - 0.34 * s, h.y + 0.22 * s, 0.24 * s, 0.16 * s, 1);
+        const eyeR = blob(x, y, h.x + 0.34 * s, h.y + 0.22 * s, 0.24 * s, 0.16 * s, 1);
+        const mouth = blob(x, y, h.x, h.y - 0.48 * s, 0.42 * s, 0.1 * s, 1);
+        z -= (eyeL + eyeR) * 0.72;
+        z -= mouth * 0.32;
+        dark += eyeL + eyeR + mouth * 0.6;
+        if (h.beard) z += blob(x, y, h.x, h.y - 1.35 * s, 0.78 * s, 0.62 * s, 0.85);
+        if (h.glasses) {
+          [-0.34, 0.34].forEach((side) => {
+            const cx = h.x + side * s;
+            const cy = h.y + 0.22 * s;
+            const d = Math.hypot((x - cx) / (0.3 * s), (y - cy) / (0.18 * s));
+            z += Math.exp(-Math.pow((d - 1) * 5.5, 2)) * 0.22;
+          });
+        }
       });
-      add(new K.Box(0.22 * wide, 0.7 * tall, 0.55), light, x, 0.22 * tall, 0.78);
-      add(new K.Box(cheek * 0.38, 0.08, 0.1), shadow, x, -0.12 * tall, 0.62);
-      if (face.who === "lincoln") {
-        add(new K.Box(chinW * 1.05, 0.85, 0.48), deep, x, -1.05 * tall, 0.38);
-        add(new K.Box(0.28, 0.22, 0.12), shadow, x, -0.42 * tall, 0.7);
+      z += Math.exp(-(y * y) / 22) * Math.exp(-(x * x) / 48) * 0.04;
+      if (z < 0) z = 0;
+      return { z: z, dark: dark };
+    };
+    const positions = [];
+    const colors = [];
+    const index = [];
+    const grid = [];
+    for (let iy = 0; iy <= rows; iy++) {
+      for (let ix = 0; ix <= cols; ix++) {
+        const x = -width / 2 + (ix / cols) * width;
+        const y = -height / 2 + (iy / rows) * height;
+        const f = field(x, y);
+        const edge = Math.min(ix / 6, (cols - ix) / 6, iy / 5, (rows - iy) / 5, 1);
+        const z = f.z * edge;
+        grid.push(z);
+        positions.push(x, y, z);
+        const light = Math.max(0, Math.min(1, z / 1.6));
+        const shade = Math.max(0, Math.min(1, f.dark));
+        const r = 0.26 + light * 0.08 - shade * 0.14;
+        const g = 0.23 + light * 0.05 - shade * 0.12;
+        const b = 0.2 + light * 0.04 - shade * 0.1;
+        colors.push(r < 0.12 ? 0.12 : r, g < 0.1 ? 0.1 : g, b < 0.08 ? 0.08 : b);
       }
-      if (face.who === "roosevelt") {
-        [-0.34, 0.34].forEach((side) => {
-          const ex = x + side * 0.34;
-          add(new K.Box(0.42, 0.06, 0.06), shadow, ex, 0.52, 0.78);
-          add(new K.Box(0.42, 0.06, 0.06), shadow, ex, 0.26, 0.78);
-          add(new K.Box(0.06, 0.28, 0.06), shadow, ex - 0.18, 0.39, 0.78);
-          add(new K.Box(0.06, 0.28, 0.06), shadow, ex + 0.18, 0.39, 0.78);
-        });
-        add(new K.Box(0.18, 0.06, 0.06), shadow, x, 0.4, 0.78);
+    }
+    const stride = cols + 1;
+    for (let iy = 0; iy < rows; iy++) {
+      for (let ix = 0; ix < cols; ix++) {
+        const a = iy * stride + ix;
+        const b = a + 1;
+        const c = a + stride;
+        const d = c + 1;
+        if (grid[a] + grid[b] + grid[c] + grid[d] < 1.05) continue;
+        index.push(a, c, b, b, c, d);
       }
-    });
-    [[-3.1, 0.48], [-1.4, 0.4], [0.2, 0.46], [1.8, 0.36], [3.2, 0.42]].forEach((rock, i) => {
-      add(new K.Sphere(rock[1], 6, 5), i % 2 ? deep : granite, rock[0], -3.85, 1.15 + (i % 3) * 0.25);
-    });
-    return bakeParts(K, parts);
+    }
+    const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
+    geo.setAttribute("color", new K.Attr(new Float32Array(colors), 3));
+    geo.setIndex(index);
+    geo.computeVertexNormals();
+    const mat = new K.Lambert({ vertexColors: true, side: 2 });
+    mat.polygonOffset = true;
+    mat.polygonOffsetFactor = -1;
+    mat.polygonOffsetUnits = -1;
+    const mesh = new K.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    return mesh;
   }
   function bridgeMesh(K, lamb) {
     const g = new K.Group();

@@ -769,14 +769,34 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
     return x - Math.floor(x);
   }
+  function massifDome(f, s) {
+    const u = (f + 0.15) / 5.4;
+    const v = (s - 0.15) / 14.2;
+    const lump = Math.sin(s * 0.33 + 0.4) * 0.55
+      + Math.sin(s * 0.72 + f * 0.2) * 0.28
+      + Math.cos(f * 0.5 + 0.6) * 0.18;
+    let h = 24.8 * Math.exp(-(u * u * 0.72 + v * v * 0.3));
+    h += lump * Math.exp(-(u * u + v * v) * 0.45);
+    const edge = Math.max(0, Math.abs(s) - 7.5);
+    h *= Math.exp(-(edge * edge) / 26);
+    h += 3.2 * Math.exp(-((f + 0.8) * (f + 0.8)) / 18 - ((s - 9.5) * (s - 9.5)) / 16);
+    h += 2.8 * Math.exp(-((f + 0.4) * (f + 0.4)) / 16 - ((s + 9.2) * (s + 9.2)) / 18);
+    return h;
+  }
+  function cliffLine(s) {
+    return 1.7 + 0.18 * Math.sin(s * 0.28);
+  }
+  function massifH(f, s) {
+    const face = cliffLine(s);
+    if (f <= face) return massifDome(f, s);
+    const lip = massifDome(face, s);
+    const ahead = f - face;
+    const drop = smoothstep(Math.min(1, ahead / 1.2));
+    const talus = lip * 0.16 + 2.6 - ahead * 0.72 + Math.sin(s * 0.7 + 0.4) * 0.25;
+    return lip + (Math.max(1.2, talus) - lip) * drop;
+  }
   function rockPlanes(f, s) {
-    const n = Math.sin(f * 0.31 + 0.4) * Math.cos(s * 0.27 + 0.8) * 0.28
-      + Math.sin(f * 0.13 - s * 0.11 + 0.6) * 0.14;
-    return [
-      27.2 - Math.abs(f + 1.5) * 1.62 - Math.abs(s - 0.15) * 1.92 + n,
-      11.2 - Math.abs(f + 3.2) * 1.35 - Math.abs(s - 3.4) * 1.55 + n * 0.35,
-      10.0 - Math.abs(f + 0.4) * 1.25 - Math.abs(s + 4.2) * 1.45 + n * 0.3
-    ];
+    return [massifH(f, s)];
   }
   function shoreOf(f, s) {
     const a = Math.atan2(s, f);
@@ -860,8 +880,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     let y = grass;
     let rockH = 0;
     rockPlanes(f, s).forEach((p) => { if (p > rockH) rockH = p; });
-    if (inRoomFS(f, s)) rockH = Math.min(rockH, 1.22);
-    else if (inMouth(f, s)) rockH = Math.min(rockH, 1.26);
+    if (inMouth(f, s)) rockH = Math.min(rockH, 1.26);
     if (rockH > grass + 0.2) {
       const u = smoothstep(Math.min(1, (rockH - grass) / 1.8));
       y = grass + (rockH - grass) * u;
@@ -886,7 +905,6 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       y = lip;
     }
     if (inMouth(f, s)) y = Math.min(y, 1.26);
-    if (inRoomFS(f, s)) y = 1.22;
     return y * GROW;
   }
   function heightFS(f, s) {
@@ -896,6 +914,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (!lay) return null;
     const q = toFS(dx, dz);
     if (q.f > 24.2 && q.f < 37.4 && Math.abs(q.s) < 1.45) return 0.52 * GROW;
+    if (inRoomFS(q.f, q.s)) return 1.22 * GROW;
     return heightFS(q.f, q.s);
   }
   function inCaveFS(q) {
@@ -1033,22 +1052,29 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const sand = mixHex(K, 0xf6e0b8, 0xd7b57a, t);
     const wet = mixHex(K, 0xc4a06a, 0x9a7344, t);
     const grass = mixHex(K, 0x5cb85c, 0x2f7d38, t);
-    const rockC = mixHex(K, 0xa39c94, 0x6e675f, t);
-    const rock = ridge(f, s);
+    const granite = mixHex(K, 0xddd8ce, 0xb9b3a8, t);
+    granite.lerp(mixHex(K, 0xd2c2a4, 0xc3b496, t), 0.28);
+    const talusC = mixHex(K, 0xe8e2d6, 0xd2c8b8, t);
+    const pines = mixHex(K, 0x1c4630, 0x143628, t);
+    const face = cliffLine(s);
+    const ahead = f - face;
     let col = grass.clone();
     if (h < 0.1) col = wet;
-    else if (h < 0.72 && rock < 1.1) {
+    else if (h < 0.72) {
       const u = Math.max(0, Math.min(1, (h - 0.1) / 0.62));
       sand.lerp(grass, u * u * u);
       col = sand;
     }
-    if (rock > 0.8 || h > 1.05) {
-      const byRock = smoothstep((rock - 0.8) / 1.8);
-      const byHeight = smoothstep((h - 1.05) / 1.35);
-      col.lerp(rockC, Math.max(byRock, byHeight));
-    }
+    const onCliff = h > 8.5 && ahead < 1.5 && ahead > -2.2;
+    const onSummit = h > 10 && ahead <= 0.4;
+    const onTalus = ahead > 0.5 && ahead < 7.5 && h > 1.7 && h < 9.5 && Math.abs(s) < 8.5;
+    const onForest = h > 1.25 && h < 7.4 && !onTalus && Math.hypot(f, s) > 3.2 && Math.hypot(f, s) < 16;
+    if (onSummit || onCliff) col = granite;
+    else if (onTalus) col = talusC;
+    else if (onForest) col.lerp(pines, smoothstep((h - 1.2) / 2.4) * 0.9);
+    else if (h > 2.2) col.lerp(granite, smoothstep((h - 2.2) / 3));
     const band = shoreOf(f, s) - Math.hypot(f, s);
-    if (band < 2.5 && rock < 1.1 && h < 1.2) {
+    if (band < 2.5 && h < 1.2) {
       col.lerp(wet, smoothstep((2.5 - Math.max(band, 0)) / 2.5) * 0.9);
     }
     return col;
@@ -1342,6 +1368,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     dressDock(K, root, lamb);
     dressFlag(K, root, lamb);
     dressFoliage(K, root, lamb);
+    dressPines(K, root);
     /* The shore ends at the water. No underwater skirt and no foam sheet. */
     dressMapTable(K, root, lamb);
     dressTunnel(K, root, lamb);
@@ -1525,16 +1552,61 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       rock.name = "v51-rock";
       place(root, rock, f, s, 0.12);
     }
-    [[2.2, -6.4, 0.7], [-3.4, 4.8, 0.85], [1.4, 6.2, 0.55], [-2.2, -3.6, 0.6], [6.8, -3.4, 0.5]].forEach((r, i) => {
-      const y = heightFS(r[0], r[1]);
-      if (y == null || y < 1.4 * GROW) return;
-      const rock = new K.Mesh(new K.Sphere(r[2], 5, 4), lamb(i % 2 ? 0x7a746c : 0x918a82));
-      rock.scale.set(1.35, 0.85, 1.05);
-      rock.rotation.y = i;
-      rock.castShadow = true;
-      rock.name = "v51-rock";
-      place(root, rock, r[0], r[1], r[2] * 0.35);
+  }
+  function dressPines(K, root) {
+    const trunks = [];
+    const tops = [];
+    const used = [];
+    const pads = [LAYOUT.map, LAYOUT.tunnel, LAYOUT.builder, LAYOUT.quiz, LAYOUT.table, LAYOUT.plot, LAYOUT.flag];
+    const plant = (f, s, scale, seed) => {
+      const y = heightFS(f, s);
+      if (y == null) return;
+      const h = y / GROW;
+      if (h < 1.3 || h > 6.6) return;
+      if (inMouth(f, s) || inRoomFS(f, s)) return;
+      if (Math.abs(s) < 5.4 && f > cliffLine(s) - 0.4 && f < cliffLine(s) + 3.4) return;
+      if (Math.abs(s) < 2.3 && f > 16) return;
+      for (let i = 0; i < pads.length; i++) {
+        if (Math.hypot(f - pads[i][0], s - pads[i][1]) < 3.3) return;
+      }
+      for (let i = 0; i < used.length; i++) {
+        if (Math.hypot(f - used[i][0], s - used[i][1]) < 1.15) return;
+      }
+      used.push([f, s]);
+      const p = spot(f, s);
+      const trunkH = (0.7 + (seed % 5) * 0.08) * scale;
+      const coneH = (1.35 + (seed % 3) * 0.12) * scale;
+      trunks.push({ geo: new K.Cyl(0.07 * scale, 0.11 * scale, trunkH, 5), color: seed % 2 ? 0x5c4030 : 0x4a3428, x: p.wx, y: p.y + trunkH / 2, z: p.wz });
+      tops.push({ geo: new K.Cone(0.52 * scale, coneH, 7), color: seed % 2 ? 0x1b4332 : 0x234e38, x: p.wx, y: p.y + trunkH + coneH * 0.32, z: p.wz });
+      tops.push({ geo: new K.Cone(0.34 * scale, coneH * 0.62, 6), color: 0x163628, x: p.wx, y: p.y + trunkH + coneH * 0.72, z: p.wz });
+    };
+    for (let i = 0; i < 64; i++) {
+      const ang = hsh(i * 2.3 + 0.4) * Math.PI * 2;
+      const rad = 3.8 + hsh(i * 4.1) * 8.4;
+      plant(Math.cos(ang) * rad, Math.sin(ang) * rad, 0.85 + hsh(i * 6.6) * 0.7, i + 1);
+    }
+    [-1, 1].forEach((side) => {
+      for (let i = 0; i < 8; i++) {
+        const s = side * (5.6 + i * 0.85);
+        plant(2.4 + (i % 3) * 0.4, s, 1.05, 20 + i + side);
+        plant(-1.6 - (i % 2) * 0.5, s * 0.92, 0.95, 40 + i);
+        plant(5.2, s * 1.05, 0.9, 60 + i);
+      }
     });
+    if (trunks.length) paintProps(K, root, "v51-pine-trunk", trunks);
+    if (tops.length) paintProps(K, root, "v51-pine", tops);
+    const rubble = [];
+    for (let i = 0; i < 18; i++) {
+      const s = -6.5 + (i / 17) * 13;
+      if (Math.abs(s - CAVE.s) < 1.7) continue;
+      const f = cliffLine(s) + 1.6 + hsh(i * 3.3) * 1.4;
+      const y = heightFS(f, s);
+      if (y == null || y / GROW < 1.8 || y / GROW > 8) continue;
+      const p = spot(f, s);
+      const rad = 0.28 + hsh(i * 8.1) * 0.34;
+      rubble.push({ geo: new K.Sphere(rad, 7, 5), color: i % 2 ? 0xe4ddd2 : 0xcfc6b6, x: p.wx, y: p.y + rad * 0.35, z: p.wz });
+    }
+    if (rubble.length) paintProps(K, root, "v51-talus", rubble);
   }
   function bakeParts(K, parts) {
     const positions = [];
@@ -1785,19 +1857,22 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     };
     const samples = 28;
     const loop = (a) => ({ u: -2.4 + Math.cos(a) * 7.4, v: Math.sin(a) * 5.5 });
+    const outside = (a, extra) => {
+      const p = loop(a);
+      const cu = p.u + 2.4;
+      const cv = p.v;
+      const d = Math.hypot(cu, cv) || 1;
+      return { u: p.u + (cu / d) * extra, v: p.v + (cv / d) * extra };
+    };
     const ribbonN = 96;
     const halfW = 3.15;
     const roadPos = [];
     const roadCol = [];
     const roadIdx = [];
-    const across = [-halfW, -halfW + 0.28, 0, halfW - 0.28, halfW];
-    const paint = [
-      [0.93, 0.93, 0.93],
-      [0.1, 0.1, 0.11],
-      [0.9, 0.72, 0.16],
-      [0.1, 0.1, 0.11],
-      [0.93, 0.93, 0.93]
-    ];
+    const asphalt = [0.15, 0.15, 0.16];
+    const white = [0.95, 0.95, 0.96];
+    const yellow = [0.93, 0.78, 0.16];
+    const across = [-halfW, -halfW + 0.18, -halfW + 0.36, -0.2, -0.07, 0.07, 0.2, halfW - 0.36, halfW - 0.18, halfW];
     for (let i = 0; i <= ribbonN; i++) {
       const a = (i / ribbonN) * Math.PI * 2;
       const p = loop(a);
@@ -1807,11 +1882,15 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const seg = Math.hypot(du, dv) || 1;
       const su = -dv / seg;
       const sv = du / seg;
-      const y = gy(p.u, p.v) + 0.34;
+      const y = gy(p.u, p.v) + 0.2;
+      const dash = Math.floor(i / 4) % 2 === 0;
       across.forEach((side, k) => {
         const w = at(p.u + su * side, p.v + sv * side);
         roadPos.push(w.x, y, w.z);
-        roadCol.push(paint[k][0], paint[k][1], paint[k][2]);
+        const center = k === 4 || k === 5;
+        const edge = k < 2 || k > 7;
+        const col = center ? (dash ? yellow : asphalt) : edge ? white : asphalt;
+        roadCol.push(col[0], col[1], col[2]);
       });
     }
     const spanV = across.length;
@@ -1884,9 +1963,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       push(new K.Cyl(0.32, 0.32, 0.2, 12), 0x212121, p.u, p.v, 0.32, carHead, 0, Math.PI / 2);
       push(new K.Cyl(0.16, 0.16, 0.24, 8), 0xeceff1, p.u, p.v, 0.32, carHead, 0, Math.PI / 2);
     });
-    const archL = carAt(-1.4, -1.7);
-    const archR = carAt(-1.4, 1.7);
-    const archC = carAt(-1.4, 0);
+    const archL = carAt(3.4, -1.7);
+    const archR = carAt(3.4, 1.7);
+    const archC = carAt(3.4, 0);
     push(new K.Box(0.28, 2.3, 0.28), 0xf5f5f5, archL.u, archL.v, 1.3, carHead);
     push(new K.Box(0.28, 2.3, 0.28), 0xf5f5f5, archR.u, archR.v, 1.3, carHead);
     push(new K.Box(3.8, 0.32, 0.32), 0xffc83d, archC.u, archC.v, 2.5, carHead);
@@ -1898,9 +1977,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     push(new K.Box(3.4, 1.7, 2.4), 0xffcc80, diner.u, diner.v - 4.4, 0.95, 0);
     push(new K.Box(3.6, 0.2, 2.7), 0x6d4c41, diner.u, diner.v - 4.4, 1.85, 0);
     push(new K.Box(1.1, 1.2, 0.08), 0x81d4fa, diner.u - 0.6, diner.v - 3.3, 1.15, 0);
-    [[0.7, "Grand Canyon"], [2.1, "Gateway Arch"], [4.2, "Liberty"], [5.4, "Golden Gate"]].forEach((bill) => {
-      const spotA = loop(bill[0]);
-      push(new K.Cyl(0.08, 0.09, 2.2, 5), 0x6d4c41, spotA.u, spotA.v + 4.6, 1.1, 0);
+    [[0.9, "Grand Canyon"], [2.2, "Gateway Arch"], [3.4, "Liberty"], [4.6, "Golden Gate"]].forEach((bill) => {
+      const spotA = outside(bill[0], 7.4);
+      push(new K.Cyl(0.08, 0.09, 2.2, 5), 0x6d4c41, spotA.u, spotA.v, 1.1, 0);
     });
     [2.2, 2.9, 3.7, 4.5].forEach((a) => {
       const p = loop(a);
@@ -1912,16 +1991,17 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       push(new K.Sphere(0.85, 6, 5), 0x2e7d32, tree.u, tree.v, 1.7, 0);
     });
     paintProps(K, root, "v51-rally-set", parts);
-    const boardAt = at(start.u, start.v + 3.4);
+    const boardSpot = outside(0.55, 7.2);
+    const boardAt = at(boardSpot.u, boardSpot.v);
     const board = new K.Mesh(new K.Box(1.8, 1.05, 0.08), new K.Lambert({ map: routeTex(K), color: 0xffffff }));
-    board.position.set(boardAt.x, gy(start.u, start.v + 3.4) + 1.7, boardAt.z);
-    board.rotation.y = Math.atan2(px, pz);
+    board.position.set(boardAt.x, gy(boardSpot.u, boardSpot.v) + 1.7, boardAt.z);
+    board.rotation.y = Math.atan2(turtle.cx - boardAt.x, turtle.cz - boardAt.z);
     root.add(board);
-    [[0.7, "Grand Canyon", "Arizona"], [2.1, "Gateway Arch", "Missouri"], [4.2, "Statue of Liberty", "New York"], [5.4, "Golden Gate", "California"]].forEach((bill) => {
-      const spotA = loop(bill[0]);
-      const p = at(spotA.u, spotA.v + 4.6);
+    [[0.9, "Grand Canyon", "Arizona"], [2.2, "Gateway Arch", "Missouri"], [3.4, "Statue of Liberty", "New York"], [4.6, "Golden Gate", "California"]].forEach((bill) => {
+      const spotA = outside(bill[0], 7.4);
+      const p = at(spotA.u, spotA.v);
       const sign = new K.Mesh(new K.Plane(1.7, 1.05), new K.Lambert({ map: stackTex(K, [bill[1], bill[2]]), color: 0xffffff, side: 2 }));
-      sign.position.set(p.x, gy(spotA.u, spotA.v + 4.6) + 2.15, p.z);
+      sign.position.set(p.x, gy(spotA.u, spotA.v) + 2.15, p.z);
       sign.rotation.y = Math.atan2(turtle.cx - p.x, turtle.cz - p.z);
       sign.name = "v51-rally-sign";
       root.add(sign);
@@ -1955,7 +2035,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       loopPts.push(at(p.u, p.v));
     }
     const carWorld = at(body.u, body.v);
-    const camBack = { x: carWorld.x - fx * 9, z: carWorld.z - fz * 9 };
+    const camLocal = { u: 0.2, v: 2.4 };
+    const lookLocal = { u: 7.4, v: 1.5 };
+    const camBack = at(camLocal.u, camLocal.v);
+    const lookAt = at(lookLocal.u, lookLocal.v);
     CA.scene.traverse((o) => {
       if (!o.isMesh || !o.geometry) return;
       const keep = o.name === "v51-rally-set" || o.name === "v51-rally-road" || o.name === "v51-ring" || o.name === "v51-rally-sign" || o.name === "v51-label" || o.name === "v51-terrain";
@@ -1969,12 +2052,13 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const dz = e[14] - camBack.z;
       const along = dx * fx + dz * fz;
       const side = dx * rx + dz * rz;
-      if (along > -0.5 && along < 12 && Math.abs(side) < 2.4 && e[13] > 0.3 && e[13] < 9) o.visible = false;
+      if (along > -1 && along < 16 && Math.abs(side) < 2.6 && e[13] > 0.3 && e[13] < 9) o.visible = false;
     });
     rallyPad = {
       x: pad.x, y: padY, z: pad.z, heading: carHead, path: path, loop: loopPts, turtle: turtle,
       car: { x: carWorld.x, y: gy(body.u, body.v) + 0.7, z: carWorld.z, heading: carHead },
-      view: { x: at(-1.2, 2.6).x, y: gy(-1.2, 2.6) + 2.2, z: at(-1.2, 2.6).z }
+      view: { x: camBack.x, y: gy(camLocal.u, camLocal.v) + 1.45, z: camBack.z },
+      look: { x: lookAt.x, y: gy(lookLocal.u, lookLocal.v) + 0.85, z: lookAt.z }
     };
     root.userData.rally = rallyPad;
   }
@@ -2708,14 +2792,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       if (!mesh) mesh = makers[lm.id]();
       const at = spots[lm.id] || [0, 0, 0];
       if (lm.id === "rushmore") {
-        const f = 6.6;
-        const s = -5.6;
-        const w = worldFS(f, s);
-        const gy = sampleGround(w.x, w.z);
-        mesh.position.set(host.x + w.x, (gy == null ? 1.2 : gy) + 3.4, host.z + w.z);
-        mesh.scale.setScalar(1.15);
+        seatRushmore(mesh);
         root.add(mesh);
-        mesh.rotation.y = lay.yaw;
         mesh.userData.role = "rushmore";
       } else if (lm.id !== "gate") place(root, mesh, at[0], at[1], at[2] || 0);
       if (lm.id === "liberty" || lm.id === "alamo" || lm.id === "bell" || lm.id === "needle") mesh.rotation.y = lay.yaw;
@@ -2968,101 +3046,213 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     g.add(shaft);
     return g;
   }
-  function rushmoreMesh(K) {
-    const cols = 110;
-    const rows = 72;
-    const width = 14.5;
-    const height = 8.2;
-    const heads = [
-      { x: -4.7, y: 0.35, z: 0.72, s: 1.08, hair: 1, beard: 0, glasses: 0 },
-      { x: -1.55, y: 0.05, z: 0.18, s: 0.96, hair: 0.35, beard: 0, glasses: 0 },
-      { x: 1.45, y: 0.2, z: 0.34, s: 1.02, hair: 0.45, beard: 0, glasses: 1 },
-      { x: 4.55, y: -0.15, z: 0.08, s: 1.12, hair: 0.55, beard: 1, glasses: 0 }
-    ];
-    const blob = (x, y, cx, cy, rx, ry, amp) => {
-      const u = (x - cx) / rx;
-      const v = (y - cy) / ry;
-      const d = u * u + v * v;
-      if (d >= 1) return 0;
-      const t = 1 - d;
-      return amp * t * t;
+  function rushmoreFrame() {
+    const f = cliffLine(0.15) + 0.15;
+    const s = 0.15;
+    const h = 15.4;
+    let nx = lay.fx * 0.94;
+    let ny = 0.22;
+    let nz = lay.fz * 0.94;
+    const nl = Math.hypot(nx, ny, nz) || 1;
+    nx /= nl; ny /= nl; nz /= nl;
+    const w = worldFS(f, s);
+    return { x: host.x + w.x, y: h * GROW, z: host.z + w.z, nx: nx, ny: ny, nz: nz, f: f, s: s, h: h };
+  }
+  function seatRushmore(mesh) {
+    const frame = mesh.userData.frame;
+    const nx = frame.nx;
+    const ny = frame.ny;
+    const nz = frame.nz;
+    let ux = -nx * ny;
+    let uy = 1 - ny * ny;
+    let uz = -nz * ny;
+    const ul = Math.hypot(ux, uy, uz) || 1;
+    ux /= ul; uy /= ul; uz /= ul;
+    let rx = uy * nz - uz * ny;
+    let ry = uz * nx - ux * nz;
+    let rz = ux * ny - uy * nx;
+    const rl = Math.hypot(rx, ry, rz) || 1;
+    rx /= rl; ry /= rl; rz /= rl;
+    if (rx * nz + rz * -nx < 0) { rx = -rx; ry = -ry; rz = -rz; ux = -ux; uy = -uy; uz = -uz; }
+    mesh.position.set(frame.x, frame.y, frame.z);
+    mesh.matrixAutoUpdate = false;
+    const m = mesh.matrix.elements;
+    m[0] = rx; m[1] = ry; m[2] = rz; m[3] = 0;
+    m[4] = ux; m[5] = uy; m[6] = uz; m[7] = 0;
+    m[8] = nx; m[9] = ny; m[10] = nz; m[11] = 0;
+    m[12] = frame.x; m[13] = frame.y; m[14] = frame.z; m[15] = 1;
+    mesh.matrixWorldNeedsUpdate = true;
+  }
+  function taubinMesh(pos, seg, rings) {
+    const stride = seg + 1;
+    const tmp = new Float32Array(pos.length);
+    const step = (src, dst, w) => {
+      dst.set(src);
+      for (let iy = 1; iy < rings; iy++) {
+        for (let ix = 0; ix < seg; ix++) {
+          const i = (iy * stride + ix) * 3;
+          const iL = (iy * stride + (ix + seg - 1) % seg) * 3;
+          const iR = (iy * stride + (ix + 1) % seg) * 3;
+          const iD = ((iy - 1) * stride + ix) * 3;
+          const iU = ((iy + 1) * stride + ix) * 3;
+          for (let k = 0; k < 3; k++) {
+            const avg = (src[iL + k] + src[iR + k] + src[iD + k] + src[iU + k]) * 0.25;
+            dst[i + k] = src[i + k] + w * (avg - src[i + k]);
+          }
+        }
+      }
+      for (let iy = 0; iy <= rings; iy++) {
+        const a = iy * stride * 3;
+        const b = (iy * stride + seg) * 3;
+        dst[b] = dst[a]; dst[b + 1] = dst[a + 1]; dst[b + 2] = dst[a + 2];
+      }
     };
-    const field = (x, y) => {
-      let z = 0;
-      let dark = 0;
-      heads.forEach((h) => {
-        const s = h.s;
-        z += blob(x, y, h.x, h.y + 0.2 * s, 1.05 * s, 1.25 * s, 1.55 + h.z);
-        z += blob(x, y, h.x, h.y - 0.25 * s, 1.15 * s, 0.72 * s, 0.42);
-        z += blob(x, y, h.x, h.y - 0.95 * s, 0.62 * s, 0.46 * s, 0.62);
-        z += blob(x, y, h.x, h.y + 0.95 * s, 0.95 * s, 0.5 * s, 0.28 + h.hair * 0.35);
-        z += blob(x, y, h.x, h.y + 0.48 * s, 0.9 * s, 0.2 * s, 0.48);
-        z += blob(x, y, h.x, h.y - 0.02 * s, 0.24 * s, 0.55 * s, 1.35);
-        const eyeL = blob(x, y, h.x - 0.34 * s, h.y + 0.22 * s, 0.24 * s, 0.16 * s, 1);
-        const eyeR = blob(x, y, h.x + 0.34 * s, h.y + 0.22 * s, 0.24 * s, 0.16 * s, 1);
-        const mouth = blob(x, y, h.x, h.y - 0.48 * s, 0.42 * s, 0.1 * s, 1);
-        z -= (eyeL + eyeR) * 0.72;
-        z -= mouth * 0.32;
-        dark += eyeL + eyeR + mouth * 0.6;
-        if (h.beard) z += blob(x, y, h.x, h.y - 1.35 * s, 0.78 * s, 0.62 * s, 0.85);
-        if (h.glasses) {
-          [-0.34, 0.34].forEach((side) => {
-            const cx = h.x + side * s;
-            const cy = h.y + 0.22 * s;
-            const d = Math.hypot((x - cx) / (0.3 * s), (y - cy) / (0.18 * s));
-            z += Math.exp(-Math.pow((d - 1) * 5.5, 2)) * 0.22;
+    for (let n = 0; n < 2; n++) {
+      step(pos, tmp, 0.42);
+      step(tmp, pos, -0.45);
+    }
+  }
+  function sculptHead(K, spec, rock) {
+    const seg = 36;
+    const rings = 28;
+    const stride = seg + 1;
+    const gauss = (x, y, z, cx, cy, cz, ax, ay, az) => {
+      const dx = (x - cx) / ax;
+      const dy = (y - cy) / ay;
+      const dz = (z - cz) / az;
+      return Math.exp(-(dx * dx + dy * dy + dz * dz));
+    };
+    const pos = new Float32Array((rings + 1) * stride * 3);
+    const col = new Float32Array((rings + 1) * stride * 3);
+    for (let iy = 0; iy <= rings; iy++) {
+      const phi = (iy / rings) * Math.PI;
+      const sp = Math.sin(phi);
+      const cp = Math.cos(phi);
+      for (let ix = 0; ix <= seg; ix++) {
+        const theta = (ix / seg) * Math.PI * 2;
+        const x = sp * Math.cos(theta);
+        const y = cp;
+        const z = sp * Math.sin(theta);
+        let r = 1;
+        r += gauss(x, y, z, 0, 0.28, 0.78, 0.7, 0.16, 0.4) * 0.28;
+        r += gauss(x, y, z, 0, 0.02, 0.96, 0.14, 0.52, 0.26) * 0.46;
+        r += gauss(x, y, z, -0.36, -0.06, 0.7, 0.26, 0.22, 0.32) * 0.14;
+        r += gauss(x, y, z, 0.36, -0.06, 0.7, 0.26, 0.22, 0.32) * 0.14;
+        r += gauss(x, y, z, 0, -0.42, 0.72, 0.46, 0.22, 0.3) * 0.16;
+        r += gauss(x, y, z, 0, -0.72, 0.5, 0.28, 0.18, 0.28) * 0.16;
+        r += gauss(x, y, z, 0, 0.55, 0.2, 0.62, 0.34, 0.45) * (0.1 + spec.hair * 0.12);
+        r -= gauss(x, y, z, -0.28, 0.14, 0.88, 0.12, 0.07, 0.18) * 0.28;
+        r -= gauss(x, y, z, 0.28, 0.14, 0.88, 0.12, 0.07, 0.18) * 0.28;
+        r -= gauss(x, y, z, 0, -0.32, 0.9, 0.2, 0.04, 0.16) * 0.14;
+        if (spec.beard) r += gauss(x, y, z, 0, -0.88, 0.5, 0.5, 0.48, 0.36) * 0.52;
+        if (spec.glasses) {
+          [-0.28, 0.28].forEach((side) => {
+            const d = Math.hypot((x - side) / 0.2, (y - 0.14) / 0.11);
+            r += Math.exp(-Math.pow((d - 1) * 3.6, 2)) * Math.max(0, z) * 0.12;
           });
         }
-      });
-      z += Math.exp(-(y * y) / 22) * Math.exp(-(x * x) / 48) * 0.04;
-      if (z < 0) z = 0;
-      return { z: z, dark: dark };
-    };
-    const positions = [];
-    const colors = [];
-    const index = [];
-    const grid = [];
-    for (let iy = 0; iy <= rows; iy++) {
-      for (let ix = 0; ix <= cols; ix++) {
-        const x = -width / 2 + (ix / cols) * width;
-        const y = -height / 2 + (iy / rows) * height;
-        const f = field(x, y);
-        const edge = Math.min(ix / 6, (cols - ix) / 6, iy / 5, (rows - iy) / 5, 1);
-        const z = f.z * edge;
-        grid.push(z);
-        positions.push(x, y, z);
-        const light = Math.max(0, Math.min(1, z / 1.6));
-        const shade = Math.max(0, Math.min(1, f.dark));
-        const r = 0.26 + light * 0.08 - shade * 0.14;
-        const g = 0.23 + light * 0.05 - shade * 0.12;
-        const b = 0.2 + light * 0.04 - shade * 0.1;
-        colors.push(r < 0.12 ? 0.12 : r, g < 0.1 ? 0.1 : g, b < 0.08 ? 0.08 : b);
+        const dark = gauss(x, y, z, -0.28, 0.14, 0.88, 0.15, 0.09, 0.22)
+          + gauss(x, y, z, 0.28, 0.14, 0.88, 0.15, 0.09, 0.22)
+          + gauss(x, y, z, 0, -0.32, 0.9, 0.24, 0.06, 0.2) * 0.85;
+        const i = (iy * stride + ix) * 3;
+        const sc = spec.scale || 1;
+        pos[i] = x * r * 0.9 * sc;
+        pos[i + 1] = y * r * 1.2 * sc;
+        pos[i + 2] = z * r * 0.82 * sc;
+        const ao = 1 - Math.min(1, dark) * 0.55;
+        col[i] = rock.r * ao;
+        col[i + 1] = rock.g * ao;
+        col[i + 2] = rock.b * ao;
       }
     }
-    const stride = cols + 1;
-    for (let iy = 0; iy < rows; iy++) {
-      for (let ix = 0; ix < cols; ix++) {
+    taubinMesh(pos, seg, rings);
+    const index = [];
+    for (let iy = 0; iy < rings; iy++) {
+      for (let ix = 0; ix < seg; ix++) {
         const a = iy * stride + ix;
         const b = a + 1;
         const c = a + stride;
         const d = c + 1;
-        if (grid[a] + grid[b] + grid[c] + grid[d] < 1.05) continue;
-        index.push(a, c, b, b, c, d);
+        index.push(a, b, c, b, d, c);
       }
     }
     const geo = new K.Geo();
+    geo.setAttribute("position", new K.Attr(pos, 3));
+    geo.setAttribute("color", new K.Attr(col, 3));
+    geo.setIndex(index);
+    geo.computeVertexNormals();
+    return geo;
+  }
+  function mergeSculpt(K, items) {
+    const positions = [];
+    const colors = [];
+    items.forEach((item) => {
+      const mesh = item.mesh;
+      mesh.position.set(item.x, item.y, item.z);
+      if (item.sx) mesh.scale.set(item.sx, item.sy, item.sz);
+      mesh.updateWorldMatrix(true, false);
+      const e = mesh.matrixWorld.elements;
+      const p = mesh.geometry.attributes.position;
+      const c = mesh.geometry.attributes.color;
+      const index = mesh.geometry.index;
+      const count = index ? index.count : p.count;
+      for (let i = 0; i < count; i++) {
+        const vi = index ? index.getX(i) : i;
+        const x = p.getX(vi);
+        const y = p.getY(vi);
+        const z = p.getZ(vi);
+        positions.push(
+          e[0] * x + e[4] * y + e[8] * z + e[12],
+          e[1] * x + e[5] * y + e[9] * z + e[13],
+          e[2] * x + e[6] * y + e[10] * z + e[14]
+        );
+        if (c) colors.push(c.getX(vi), c.getY(vi), c.getZ(vi));
+        else colors.push(item.r, item.g, item.b);
+      }
+    });
+    const geo = new K.Geo();
     geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
     geo.setAttribute("color", new K.Attr(new Float32Array(colors), 3));
-    geo.setIndex(index);
     geo.computeVertexNormals();
     const mat = new K.Lambert({ vertexColors: true, side: 2 });
     mat.polygonOffset = true;
-    mat.polygonOffsetFactor = -1;
-    mat.polygonOffsetUnits = -1;
+    mat.polygonOffsetFactor = -2;
+    mat.polygonOffsetUnits = -2;
     const mesh = new K.Mesh(geo, mat);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     return mesh;
+  }
+  function rushmoreMesh(K) {
+    const frame = rushmoreFrame();
+    const rock = { r: 0.64, g: 0.61, b: 0.55 };
+    const g = new K.Group();
+    const heads = [
+      { x: -5.2, y: 0.45, z: 0.95, scale: 2.3, hair: 1, beard: 0, glasses: 0 },
+      { x: -1.35, y: 1.4, z: 0.22, scale: 1.65, hair: 0.45, beard: 0, glasses: 0 },
+      { x: 1.75, y: -0.9, z: 0.02, scale: 1.55, hair: 0.35, beard: 0, glasses: 1 },
+      { x: 5.15, y: 0.12, z: 0.5, scale: 2.1, hair: 0.7, beard: 1, glasses: 0 }
+    ];
+    const items = [];
+    heads.forEach((h) => {
+      items.push({ mesh: new K.Mesh(sculptHead(K, h, rock)), x: h.x, y: h.y, z: h.z });
+    });
+    [[-4.2, -1.7, 0.05, 0.46], [-2.2, -1.85, 0.12, 0.38], [-0.4, -1.65, 0.02, 0.42],
+      [1.5, -1.9, 0.08, 0.34], [3.2, -1.7, 0.1, 0.44], [4.6, -1.55, -0.05, 0.3]].forEach((r) => {
+      const bit = new K.Mesh(new K.Sphere(r[3], 10, 8));
+      const count = bit.geometry.attributes.position.count;
+      const colors = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        colors[i * 3] = 0.86;
+        colors[i * 3 + 1] = 0.83;
+        colors[i * 3 + 2] = 0.76;
+      }
+      bit.geometry.setAttribute("color", new K.Attr(colors, 3));
+      items.push({ mesh: bit, x: r[0], y: r[1], z: r[2], sx: 1.2, sy: 0.7, sz: 0.95 });
+    });
+    g.add(mergeSculpt(K, items));
+    g.userData.frame = frame;
+    return g;
   }
   function bridgeMesh(K, lamb) {
     const g = new K.Group();

@@ -27,6 +27,7 @@
     if (!v.landmarks || typeof v.landmarks !== "object") v.landmarks = {};
     if (!v.cleared || typeof v.cleared !== "object") v.cleared = {};
     if (!v.quiz || typeof v.quiz !== "object") v.quiz = { rounds: 0, stars: 0, best: 0 };
+    if (!v.race || typeof v.race !== "object") v.race = { runs: 0, best: 0 };
     if (fresh) persist();
     return v;
   }
@@ -106,6 +107,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
 #liberty-prompt{position:fixed;left:50%;bottom:76px;transform:translateX(-50%);z-index:16;display:none}
 #liberty-prompt.show{display:block}
 #liberty-prompt button{font:800 18px Trebuchet MS,sans-serif;background:#14336b;color:#fff;border:3px solid #ffc83d;border-radius:14px;padding:8px 14px}
+#v51-race{position:fixed;left:0;right:0;top:0;bottom:0;z-index:18;pointer-events:none;font:800 18px Trebuchet MS,sans-serif;color:#fff}
+#v51-race .hud{position:absolute;left:50%;top:96px;transform:translateX(-50%);background:#10234dd0;border:3px solid #ffc83d;border-radius:14px;padding:8px 14px;min-width:220px;text-align:center}
+#v51-race .hud b{color:#ffc83d}
+#v51-race .pad{position:absolute;left:0;right:0;bottom:18px;display:flex;justify-content:space-between;padding:0 18px;pointer-events:auto}
+#v51-race .pad button{font:800 16px Trebuchet MS,sans-serif;background:#14336b;color:#fff;border:3px solid #ffc83d;border-radius:14px;padding:12px 16px;min-width:74px}
+#v51-lines{position:absolute;inset:0;opacity:0;background:repeating-linear-gradient(90deg,transparent 0 18px,rgba(255,255,255,.55) 18px 20px);transform:scaleX(1.4);transition:opacity .08s linear}
 @media (max-width:700px){#liberty-layer{top:108px;right:70px;left:8px;bottom:8px;width:auto}}
 `;
     document.head.appendChild(s);
@@ -143,8 +150,11 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     });
     const spin = card().querySelector("#liberty-spin");
     if (spin) spin.onclick = spinWheel;
+    const raceBtn = card().querySelector("#liberty-race");
+    if (raceBtn) raceBtn.onclick = () => startRace();
   }
   function closePlay() {
+    stopRace();
     session = null;
     document.body.classList.remove("liberty-open");
     if (ui.layer) ui.layer.classList.remove("show");
@@ -668,8 +678,24 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       v.quiz.best = Math.max(v.quiz.best || 0, session.stars);
     }
     persist();
+    if (session.id === "rally") return offerRace();
     renderDone();
     return { ok: true, done: true, score: coins(), stars: session.stars, id: session.id };
+  }
+
+  const RACE_TICKET = 10;
+  const RACE_STAGES = [
+    { a: 0.9, name: "Grand Canyon", where: "Arizona" },
+    { a: 2.2, name: "Chicago", where: "Illinois" },
+    { a: 3.4, name: "Washington", where: "D.C." },
+    { a: 4.6, name: "Golden Gate", where: "California" }
+  ];
+  function offerRace() {
+    session.phase = "done";
+    const clean = Math.max(0, session.qs.length - Math.min(session.misses || 0, session.qs.length));
+    session.raceBonus = clean * 6;
+    showCard(`<h2>Ready to roll</h2><p>Your answers add <b>${session.raceBonus} seconds</b> to the clock. The race costs ${RACE_TICKET} coins.</p><p>Steer with the arrows or A and D. Hold the gas, and tap Boost for a short burst.</p><button id="liberty-race">Start the race</button><button class="ghost" id="liberty-exit">Close</button>`);
+    return { ok: true, done: true, score: coins(), stars: session.stars, id: session.id, race: true, bonus: session.raceBonus };
   }
 
   function startBuild(id) {
@@ -2177,8 +2203,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     push(new K.Box(3.4, 1.7, 2.4), 0xffcc80, diner.u, diner.v - 4.4, 0.95, 0);
     push(new K.Box(3.6, 0.2, 2.7), 0x6d4c41, diner.u, diner.v - 4.4, 1.85, 0);
     push(new K.Box(1.1, 1.2, 0.08), 0x81d4fa, diner.u - 0.6, diner.v - 3.3, 1.15, 0);
-    [[0.9, "Grand Canyon"], [2.2, "Gateway Arch"], [3.4, "Liberty"], [4.6, "Golden Gate"]].forEach((bill) => {
-      const spotA = outside(bill[0], 7.4);
+    RACE_STAGES.forEach((bill) => {
+      const spotA = outside(bill.a, 7.4);
       push(new K.Cyl(0.08, 0.09, 2.2, 5), 0x6d4c41, spotA.u, spotA.v, 1.1, 0);
     });
     [2.2, 2.9, 3.7, 4.5].forEach((a) => {
@@ -2197,10 +2223,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     board.position.set(boardAt.x, gy(boardSpot.u, boardSpot.v) + 1.7, boardAt.z);
     board.rotation.y = Math.atan2(turtle.cx - boardAt.x, turtle.cz - boardAt.z);
     root.add(board);
-    [[0.9, "Grand Canyon", "Arizona"], [2.2, "Gateway Arch", "Missouri"], [3.4, "Statue of Liberty", "New York"], [4.6, "Golden Gate", "California"]].forEach((bill) => {
-      const spotA = outside(bill[0], 7.4);
+    RACE_STAGES.forEach((bill) => {
+      const spotA = outside(bill.a, 7.4);
       const p = at(spotA.u, spotA.v);
-      const sign = new K.Mesh(new K.Plane(1.7, 1.05), new K.Lambert({ map: stackTex(K, [bill[1], bill[2]]), color: 0xffffff, side: 2 }));
+      const sign = new K.Mesh(new K.Plane(1.7, 1.05), new K.Lambert({ map: stackTex(K, [bill.name, bill.where]), color: 0xffffff, side: 2 }));
       sign.position.set(p.x, gy(spotA.u, spotA.v) + 2.15, p.z);
       sign.rotation.y = Math.atan2(turtle.cx - p.x, turtle.cz - p.z);
       sign.name = "v51-rally-sign";
@@ -2234,6 +2260,21 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const p = loop((i / samples) * Math.PI * 2);
       loopPts.push(at(p.u, p.v));
     }
+    const courseN = 96;
+    const course = [];
+    for (let i = 0; i < courseN; i++) {
+      const a = (i / courseN) * Math.PI * 2;
+      const p = loop(a);
+      const ahead = loop(a + 0.05);
+      const w = at(p.u, p.v);
+      const wn = at(ahead.u, ahead.v);
+      course.push({ x: w.x, y: gy(p.u, p.v), z: w.z, hx: wn.x - w.x, hz: wn.z - w.z });
+    }
+    const checks = RACE_STAGES.map((stage) => {
+      const p = loop(stage.a);
+      const w = at(p.u, p.v);
+      return { u: stage.a / (Math.PI * 2), name: stage.name, where: stage.where, x: w.x, y: gy(p.u, p.v), z: w.z, hit: false };
+    });
     const carWorld = at(body.u, body.v);
     const camLocal = { u: 0.2, v: 2.4 };
     const lookLocal = { u: 7.4, v: 1.5 };
@@ -2256,11 +2297,211 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     });
     rallyPad = {
       x: pad.x, y: padY, z: pad.z, heading: carHead, path: path, loop: loopPts, turtle: turtle,
+      course: course, checks: checks,
       car: { x: carWorld.x, y: gy(body.u, body.v) + 0.7, z: carWorld.z, heading: carHead },
       view: { x: camBack.x, y: gy(camLocal.u, camLocal.v) + 1.45, z: camBack.z },
       look: { x: lookAt.x, y: gy(lookLocal.u, lookLocal.v) + 0.85, z: lookAt.z }
     };
     root.userData.rally = rallyPad;
+  }
+  let race = null;
+  const raceKeys = {};
+  function coursePose(u, lat) {
+    const samples = rallyPad.course;
+    const n = samples.length;
+    const wrapped = ((u % 1) + 1) % 1;
+    const f = wrapped * n;
+    const i = Math.floor(f) % n;
+    const j = (i + 1) % n;
+    const t = f - Math.floor(f);
+    const a = samples[i];
+    const b = samples[j];
+    let hx = a.hx;
+    let hz = a.hz;
+    const hl = Math.hypot(hx, hz) || 1;
+    hx /= hl;
+    hz /= hl;
+    const rx = hz;
+    const rz = -hx;
+    return {
+      x: a.x + (b.x - a.x) * t + rx * lat * 2.3,
+      y: a.y + (b.y - a.y) * t,
+      z: a.z + (b.z - a.z) * t + rz * lat * 2.3,
+      heading: Math.atan2(hx, hz)
+    };
+  }
+  function raceCar(K, color, cabin) {
+    const body = new K.Sphere(1, 10, 8);
+    body.scale(0.58, 0.24, 1.25);
+    const top = new K.Sphere(1, 8, 6);
+    top.scale(0.48, 0.28, 0.5);
+    const glass = new K.Sphere(1, 8, 6);
+    glass.scale(0.4, 0.18, 0.36);
+    return bakeParts(K, [
+      { geo: body, color: color, x: 0, y: 0.48, z: 0 },
+      { geo: top, color: cabin, x: -0.15, y: 0.78, z: 0 },
+      { geo: glass, color: 0xb3e5fc, x: 0.18, y: 0.84, z: 0 }
+    ]);
+  }
+  function parkCar(mesh, pose) {
+    mesh.position.set(pose.x, pose.y, pose.z);
+    mesh.rotation.y = pose.heading;
+  }
+  function ensureRaceHud() {
+    if (ui.race) return ui.race;
+    ui.race = document.createElement("div");
+    ui.race.id = "v51-race";
+    ui.race.innerHTML = '<div class="hud"></div><div id="v51-lines"></div><div class="pad"><button type="button" data-k="left">Left</button><button type="button" data-k="gas">Gas</button><button type="button" data-k="boost">Boost</button><button type="button" data-k="right">Right</button></div>';
+    ui.race.addEventListener("pointerdown", (e) => e.stopPropagation());
+    document.body.appendChild(ui.race);
+    ui.race.querySelectorAll("button").forEach((btn) => {
+      const hold = (on) => {
+        if (!race) return;
+        race.touch[btn.dataset.k] = on;
+      };
+      btn.addEventListener("pointerdown", (e) => { e.preventDefault(); hold(true); });
+      btn.addEventListener("pointerup", () => hold(false));
+      btn.addEventListener("pointerleave", () => hold(false));
+    });
+    return ui.race;
+  }
+  function paintRaceHud() {
+    const hud = ensureRaceHud();
+    hud.style.display = "block";
+    const lines = hud.querySelector("#v51-lines");
+    if (lines) lines.style.opacity = String(Math.max(0, Math.min(1, race.lines)));
+    const clean = race.checks.filter((c) => c.hit).length;
+    hud.querySelector(".hud").innerHTML = `<div>Time <b>${Math.max(0, race.time).toFixed(1)}</b></div><div>Speed <b>${Math.round(race.speed * 120)}</b></div><div>${esc(race.banner)}</div><div>Checks <b>${clean}/${race.checks.length}</b></div>`;
+  }
+  function stopRace() {
+    if (race && race.group && race.group.parent) race.group.parent.remove(race.group);
+    race = null;
+    if (ui.race) ui.race.style.display = "none";
+  }
+  function startRace() {
+    if (!session || session.id !== "rally" || !rallyPad || !rallyPad.course) return { ok: false, reason: "closed" };
+    if (coins() < RACE_TICKET) {
+      showCard(`<h2>Not enough coins</h2><p>The race costs ${RACE_TICKET} coins. You have ${coins()}.</p><button id="liberty-exit">Close</button>`);
+      return { ok: false, reason: "short", score: coins(), price: RACE_TICKET };
+    }
+    const K = kit();
+    if (!K) return { ok: false, reason: "closed" };
+    setCoins(coins() - RACE_TICKET);
+    const root = CA.scene.getObjectByName("v51-root");
+    const group = new K.Group();
+    group.name = "v51-race";
+    root.add(group);
+    const colors = [0xc62828, 0x1565c0, 0x2e7d32, 0xf9a825];
+    const cars = colors.map((color, i) => {
+      const mesh = raceCar(K, color, i === 0 ? 0xffe082 : 0xeceff1);
+      mesh.name = i === 0 ? "v51-race-player" : "v51-race-rival";
+      group.add(mesh);
+      return { mesh: mesh, u: 0.04 + i * 0.07, lat: (i - 1.5) * 0.15, rate: 0.03 + (i === 0 ? 0 : (0.004 - i * 0.001)) };
+    });
+    const traffic = [0x78909c, 0x8d6e63, 0x546e7a, 0x90a4ae].map((color, i) => {
+      const mesh = raceCar(K, color, 0xcfd8dc);
+      mesh.name = "v51-race-traffic";
+      group.add(mesh);
+      return { mesh: mesh, u: 0.18 + i * 0.22, lat: i % 2 ? 0.55 : -0.55, rate: 0.012 + i * 0.002 };
+    });
+    race = {
+      group: group,
+      cars: cars,
+      traffic: traffic,
+      checks: rallyPad.checks.map((c) => Object.assign({}, c, { hit: false })),
+      time: 32 + (session.raceBonus || 0),
+      bonus: session.raceBonus || 0,
+      nitro: 1.2,
+      lines: 0,
+      speed: 0,
+      banner: "Turtle Cove",
+      touch: {},
+      lap: 0,
+      lastU: 0.04,
+      over: false,
+      pose: coursePose(0.04, 0),
+      clock: performance.now()
+    };
+    session.phase = "race";
+    if (ui.layer) ui.layer.classList.remove("show");
+    bag().race.runs += 1;
+    persist();
+    paintRaceHud();
+    return { ok: true, score: coins(), time: race.time, bonus: race.bonus, price: RACE_TICKET };
+  }
+  function finishRace(madeIt) {
+    if (!race || race.over) return;
+    race.over = true;
+    const ahead = race.cars.filter((car, i) => i > 0 && car.u + car.lap > race.cars[0].u + race.lap).length;
+    const place = madeIt ? ahead + 1 : 4;
+    if (madeIt && (!bag().race.best || place < bag().race.best)) bag().race.best = place;
+    persist();
+    const names = ["1st", "2nd", "3rd", "4th"];
+    stopRace();
+    session.phase = "done";
+    showCard(`<h2>${names[place - 1]} place</h2><p>${madeIt ? "You crossed the finish on Turtle Cove." : "Time ran out before the finish."}</p><p>The question bonus was ${session.raceBonus || 0} seconds. Coins: ${coins()}.</p><button id="liberty-exit">Close</button>`);
+    race = { over: true, place: place, madeIt: madeIt, pose: null };
+  }
+  function stepRace(now) {
+    if (!race || race.over || !rallyPad) return;
+    const dt = Math.max(0.001, Math.min(0.05, (now - race.clock) / 1000));
+    race.clock = now;
+    const touch = race.touch;
+    const gas = raceKeys.ArrowUp || raceKeys.KeyW || raceKeys.w || touch.gas;
+    const left = raceKeys.ArrowLeft || raceKeys.KeyA || raceKeys.a || touch.left;
+    const right = raceKeys.ArrowRight || raceKeys.KeyD || raceKeys.d || touch.right;
+    const boost = raceKeys.ShiftLeft || raceKeys.ShiftRight || touch.boost;
+    const player = race.cars[0];
+    let rate = gas ? 0.034 : 0.01;
+    if (boost && race.nitro > 0) {
+      rate *= 1.85;
+      race.nitro = Math.max(0, race.nitro - dt);
+      race.lines = Math.min(1, race.lines + dt * 3);
+    } else {
+      race.nitro = Math.min(1.2, race.nitro + dt * 0.28);
+      race.lines = Math.max(0, race.lines - dt * 1.6);
+    }
+    player.lat += ((right ? 1 : 0) - (left ? 1 : 0)) * dt * 1.7;
+    player.lat *= Math.pow(0.35, dt);
+    if (Math.abs(player.lat) > 1) {
+      rate *= 0.62;
+      player.lat = Math.max(-1.15, Math.min(1.15, player.lat));
+    }
+    race.traffic.forEach((car) => {
+      car.u = (car.u - car.rate * dt + 1) % 1;
+      const gap = Math.abs(((player.u - car.u + 1.5) % 1) - 0.5);
+      if (gap < 0.018 && Math.abs(player.lat - car.lat) < 0.45) {
+        rate *= 0.45;
+        player.lat += player.lat > car.lat ? 0.08 : -0.08;
+        race.banner = "Traffic!";
+      }
+      parkCar(car.mesh, coursePose(car.u, car.lat));
+    });
+    const prev = player.u;
+    player.u = (player.u + rate * dt) % 1;
+    if (player.u < prev) race.lap += 1;
+    race.cars.slice(1).forEach((car) => {
+      car.u = (car.u + car.rate * dt) % 1;
+      car.lat = Math.sin(car.u * 12 + car.rate * 20) * 0.35;
+      parkCar(car.mesh, coursePose(car.u, car.lat));
+    });
+    race.checks.forEach((gate) => {
+      if (gate.hit) return;
+      const crossed = prev < gate.u && player.u >= gate.u;
+      const wrapped = player.u < prev && (gate.u >= prev || gate.u < player.u);
+      if (!crossed && !wrapped) return;
+      gate.hit = true;
+      race.time += 8;
+      race.banner = gate.name + " · " + gate.where + " +8s";
+    });
+    race.speed = rate / 0.034;
+    race.time -= dt;
+    race.pose = coursePose(player.u, player.lat);
+    parkCar(player.mesh, race.pose);
+    paintRaceHud();
+    const cleared = race.checks.every((gate) => gate.hit);
+    if (cleared && race.lap >= 1) finishRace(true);
+    else if (race.time <= 0) finishRace(false);
   }
   function makeMonument(K, id) {
     const lamb = (hex, extra) => new K.Lambert(Object.assign({ color: hex }, extra || {}));
@@ -3599,6 +3840,14 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       cam.lookAt(shot.lx, shot.ly, shot.lz);
       return;
     }
+    if (race && !race.over && race.pose) {
+      const p = race.pose;
+      const hx = Math.sin(p.heading);
+      const hz = Math.cos(p.heading);
+      cam.position.set(p.x - hx * 16, p.y + 11, p.z - hz * 16);
+      cam.lookAt(p.x + hx * 4, p.y + 0.5, p.z + hz * 4);
+      return;
+    }
     if (window.__libertyAerial) {
       cam.position.set(host.x + lay.fx * 78, 58, host.z + lay.fz * 78);
       cam.lookAt(host.x, 6, host.z);
@@ -3766,6 +4015,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function frame() {
     if (!isle) return;
+    if (race && !race.over) stepRace(performance.now());
     nearest = captainNear();
     if (ui.prompt) {
       if (nearest && !session && (!CA.mode || CA.mode === "walk")) {
@@ -3907,6 +4157,15 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     try { dress(); } catch (err) { console.error(err); }
     try { hookRender(); } catch (err) { console.error(err); }
     document.addEventListener("keydown", onKey, true);
+    document.addEventListener("keydown", (e) => {
+      raceKeys[e.code] = true;
+      raceKeys[e.key] = true;
+      if (race && !race.over && /Arrow|KeyW|KeyA|KeyS|KeyD|Shift/.test(e.code)) e.preventDefault();
+    }, true);
+    document.addEventListener("keyup", (e) => {
+      raceKeys[e.code] = false;
+      raceKeys[e.key] = false;
+    }, true);
     const learn = document.getElementById("learn-card");
     if (learn) new MutationObserver(() => watchCard()).observe(learn, { childList: true });
     requestAnimationFrame(function loop() { try { frame(); } catch (err) { /* keep drawing */ } requestAnimationFrame(loop); });
@@ -3942,6 +4201,34 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     answer,
     advance,
     close: closePlay,
+    start: startRace,
+    drive(opts) {
+      if (!race || race.over) return CA.liberty.race();
+      const o = opts || {};
+      if (o.gas != null) race.touch.gas = !!o.gas;
+      if (o.boost != null) race.touch.boost = !!o.boost;
+      if (o.left != null) race.touch.left = !!o.left;
+      if (o.right != null) race.touch.right = !!o.right;
+      const dt = Math.max(0.001, Math.min(0.05, o.dt || 0.016));
+      race.clock = performance.now() - dt * 1000;
+      stepRace(performance.now());
+      return CA.liberty.race();
+    },
+    race: () => {
+      if (!race) return null;
+      return {
+        over: !!race.over,
+        time: race.time,
+        bonus: race.bonus,
+        place: race.place || 0,
+        madeIt: !!race.madeIt,
+        speed: race.speed || 0,
+        banner: race.banner || "",
+        ticket: RACE_TICKET,
+        checks: (race.checks || []).map((c) => ({ name: c.name, hit: !!c.hit })),
+        pose: race.pose || null
+      };
+    },
     build: startBuild,
     spin: spinWheel,
     near: captainNear,

@@ -1246,83 +1246,39 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const positions = [];
     const colors = [];
     const index = [];
-    const hs = [];
-    const put = (f, s, h) => {
-      const w = worldFS(f, s);
+    const fsamp = [];
+    for (let i = 0; i <= 32; i++) fsamp.push(-11 + 12.5 * (i / 32));
+    for (let i = 1; i <= 28; i++) fsamp.push(1.5 + 2.6 * (i / 28));
+    const s0 = -15.5;
+    const s1 = 15.5;
+    const ns = 72;
+    const cols = fsamp.length;
+    const rise = [];
+    const put = (f, s) => {
+      const face = cliffLine(s);
+      const lip = crestHeight(Math.min(f, face), s);
       const y = lowland(f, s);
-      const ground = y == null ? h : y / GROW;
-      const placed = h < 2.6 ? ground : h;
-      const lift = placed < 3.2 ? 0.08 : 0.05;
-      positions.push(host.x + w.x, placed * GROW + lift, host.z + w.z);
-      const rock = graniteTint(f, s, placed);
-      const u = placed < 4.4 ? smoothstep((4.4 - placed) / 2.4) : 0;
-      colors.push(rock[0] * (1 - u) + 0.33 * u, rock[1] * (1 - u) + 0.58 * u, rock[2] * (1 - u) + 0.26 * u);
-      hs.push(placed);
+      const ground = y == null ? lip : y / GROW;
+      let h = lip;
+      if (f > face) h = lip * (1 - smoothstep(Math.min(1, (f - face) / 1.15))) + ground * smoothstep(Math.min(1, (f - face) / 1.15));
+      const w = worldFS(f, s);
+      const lift = h - ground < 1.2 ? 0.06 : 0.04;
+      positions.push(host.x + w.x, h * GROW + lift, host.z + w.z);
+      const rock = graniteTint(f, s, h);
+      colors.push(rock[0], rock[1], rock[2]);
+      rise.push(h - ground);
     };
-    const f0 = -11;
-    const f1 = 1.48;
-    const s0 = -16.4;
-    const s1 = 16.4;
-    const nf = 44;
-    const ns = 80;
     for (let j = 0; j <= ns; j++) {
       const s = s0 + (s1 - s0) * (j / ns);
-      for (let i = 0; i <= nf; i++) {
-        const f = f0 + (f1 - f0) * (i / nf);
-        put(f, s, crestHeight(f, s));
-      }
+      for (let i = 0; i < cols; i++) put(fsamp[i], s);
     }
-    const cols = nf + 1;
     for (let j = 0; j < ns; j++) {
-      for (let i = 0; i < nf; i++) {
+      for (let i = 0; i < cols - 1; i++) {
         const a = j * cols + i;
         const b = a + 1;
         const c = a + cols;
         const d = c + 1;
-        if (Math.max(hs[a], hs[b], hs[c], hs[d]) < 2.4) continue;
-        index.push(a, c, b, b, c, d);
-      }
-    }
-    const cs0 = -12.6;
-    const cs1 = 12.6;
-    const ncs = 64;
-    const nt = 40;
-    const base = positions.length / 3;
-    const ccols = nt + 1;
-    for (let j = 0; j <= ncs; j++) {
-      const s = cs0 + (cs1 - cs0) * (j / ncs);
-      const face = cliffLine(s);
-      const lipF = 1.48;
-      const lip = crestHeight(lipF, s);
-      for (let i = 0; i <= nt; i++) {
-        const t = i / nt;
-        const fToe = face + 2.05;
-        let f = lipF + (fToe - lipF) * t;
-        const toe = lowland(fToe, s);
-        const toeH = toe == null ? 2.2 : toe / GROW;
-        let h = lip * (1 - smoothstep(t)) + toeH * smoothstep(t);
-        const portrait = Math.abs(s) < 5.8 && h > 13 && h < 31;
-        if (!portrait) {
-          const bands = [0.18, 0.4, 0.62, 0.8];
-          for (let b = 0; b < bands.length; b++) {
-            const d = t - bands[b];
-            if (d > -0.015 && d < 0.055) {
-              const u = d < 0 ? 1 : 1 - d / 0.055;
-              f += u * 0.34 * (0.7 + 0.3 * Math.sin(s * 0.48 + b * 1.7));
-            }
-          }
-          const cell = hsh(Math.floor(s * 0.85) * 6.1 + Math.floor(t * 9) * 4.4);
-          if (cell > 0.84 && t > 0.12 && t < 0.92) f += (cell - 0.84) * 1.1;
-        }
-        put(f, s, h);
-      }
-    }
-    for (let j = 0; j < ncs; j++) {
-      for (let i = 0; i < nt; i++) {
-        const a = base + j * ccols + i;
-        const b = a + 1;
-        const c = a + ccols;
-        const d = c + 1;
+        if (Math.max(rise[a], rise[b], rise[c], rise[d]) < 0.45) continue;
         index.push(a, c, b, b, c, d);
       }
     }
@@ -1331,7 +1287,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     geo.setAttribute("color", new K.Attr(new Float32Array(colors), 3));
     geo.setIndex(index);
     geo.computeVertexNormals();
-    const mesh = new K.Mesh(geo, new K.Lambert({ vertexColors: true }));
+    const mesh = new K.Mesh(geo, new K.Lambert({ vertexColors: true, side: 2 }));
     mesh.name = "v51-massif";
     mesh.userData.nofade = 1;
     return mesh;

@@ -1212,17 +1212,25 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const y = lowland(f, s);
     if (y == null) return false;
     const h = y / GROW;
-    if (h < 4.2 || f < -11 || f > 4.2 || Math.abs(s) > 16) return false;
+    if (h < 2.15 || f < -12.4 || f > 4.8 || Math.abs(s) > 17.4) return false;
     return true;
+  }
+  function onMassifSlope(f, s) {
+    if (f < -11.2 || f > cliffLine(s) + 2.15 || Math.abs(s) > 16.6) return false;
+    const y = heightFS(f, s);
+    if (y == null) return false;
+    return y / GROW > 2.05;
   }
   function graniteTint(f, s, h) {
     const tint = rushmoreTint;
     const n = hsh(Math.floor(f * 2.3) * 19.1 + Math.floor(s * 2.3) * 7.7 + Math.floor(h * 1.7) * 4.4);
     const fine = hsh(Math.floor(f * 7.4) * 5.3 + Math.floor(s * 7.1) * 11.2 + Math.floor(h * 6.6) * 3.8);
+    const grit = hsh(Math.floor(f * 16.5) * 3.4 + Math.floor(s * 15.2) * 8.8 + Math.floor(h * 14.8) * 2.7);
     const crack = hsh(Math.floor(f * 5.1) * 3.2 + Math.floor(h * 4.4) * 8.6 + Math.floor(s * 4.8) * 1.5);
-    let scale = (0.74 + n * 0.32) * (0.9 + fine * 0.18);
-    if (crack > 0.92) scale *= 0.62;
-    if (Math.abs(Math.sin(h * 1.55 + s * 0.05)) > 0.97) scale *= 0.78;
+    let scale = (0.86 + n * 0.12) * (0.94 + fine * 0.08) * (0.94 + grit * 0.1);
+    if (crack > 0.94) scale *= 0.9;
+    if (scale > 1.02) scale = 1.02;
+    if (scale < 0.8) scale = 0.8;
     return [tint.r * scale, tint.g * scale, tint.b * scale];
   }
   function crestHeight(f, s) {
@@ -1289,10 +1297,16 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const toeF = face + 2.05;
       const toeY = lowland(toeF, s);
       const toeH = toeY == null ? 1.2 : toeY / GROW;
+      const back = crestHeight(lipF - 0.3, s);
+      const span = toeF - lipF;
+      const m0 = (lip - back) / 0.3 * span;
       for (let i = 0; i <= nt; i++) {
         const t = i / nt;
-        const f = lipF + (toeF - lipF) * t;
-        const h = lip * (1 - smoothstep(t)) + toeH * smoothstep(t);
+        const f = lipF + span * t;
+        const u = smoothstep(t);
+        let h = lip * (1 - u) + toeH * u + t * (1 - t) * (1 - t) * m0;
+        if (h > lip) h = lip;
+        if (h < toeH) h = toeH;
         put(f, s, h);
       }
     }
@@ -1310,7 +1324,24 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     geo.setAttribute("color", new K.Attr(new Float32Array(colors), 3));
     geo.setIndex(index);
     geo.computeVertexNormals();
-    const mesh = new K.Mesh(geo, new K.Lambert({ vertexColors: true, side: 2 }));
+    const rock = new K.Lambert({ vertexColors: true, side: 2 });
+    rock.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace("#include <common>", "#include <common>\nvarying vec3 vRockWorld;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvRockWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+      shader.fragmentShader = shader.fragmentShader
+        .replace("#include <common>", "#include <common>\nvarying vec3 vRockWorld;")
+        .replace("#include <color_fragment>", `#include <color_fragment>
+          {
+            vec3 wp = vRockWorld;
+            float g1 = fract(sin(dot(floor(wp * 6.4), vec3(127.1, 311.7, 74.7))) * 43758.5);
+            float g2 = fract(sin(dot(floor(wp * 14.8), vec3(269.5, 183.3, 91.7))) * 43758.5);
+            float grit = 0.76 + g1 * 0.2 + g2 * 0.18;
+            if (g2 > 0.93) grit *= 0.8;
+            diffuseColor.rgb *= grit;
+          }`);
+    };
+    const mesh = new K.Mesh(geo, rock);
     mesh.name = "v51-massif";
     mesh.userData.nofade = 1;
     return mesh;
@@ -1723,6 +1754,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       if (y == null) return;
       const h = y / GROW;
       if (h < 1.3 || h > 6.6) return;
+      if (onMassifSlope(f, s)) return;
       if (inMouth(f, s) || inRoomFS(f, s)) return;
       if (Math.abs(s) < 5.4 && f > cliffLine(s) - 0.4 && f < cliffLine(s) + 3.4) return;
       if (Math.abs(s) < 2.3 && f > 16) return;
@@ -1760,6 +1792,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const s = -6.5 + (i / 17) * 13;
       if (Math.abs(s - CAVE.s) < 1.7) continue;
       const f = cliffLine(s) + 1.6 + hsh(i * 3.3) * 1.4;
+      if (onMassifSlope(f, s)) continue;
       const y = heightFS(f, s);
       if (y == null || y / GROW < 1.8 || y / GROW > 8) continue;
       const p = spot(f, s);
@@ -2949,7 +2982,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       liberty: [30.2, -8.2, 0],
       arch: [24.2, 0.2, 0],
       bell: [20.4, 3.2, 0],
-      alamo: [2.4, 12.6, 0],
+      alamo: [7.4, 15.6, 0],
       needle: [15.2, 10.4, 0],
       rushmore: [-1.4, -1.5, 2.4]
     };
@@ -3434,6 +3467,17 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const stride = cols + 1;
     for (let iy = 0; iy < rows; iy++) {
       for (let ix = 0; ix < cols; ix++) {
+        const u0 = ix / cols;
+        const u1 = (ix + 1) / cols;
+        const v0 = iy / rows;
+        const v1 = (iy + 1) / rows;
+        const m = Math.max(
+          sampleField(maps.mask, maps.w, maps.h, u0, 1 - v0),
+          sampleField(maps.mask, maps.w, maps.h, u1, 1 - v0),
+          sampleField(maps.mask, maps.w, maps.h, u0, 1 - v1),
+          sampleField(maps.mask, maps.w, maps.h, u1, 1 - v1)
+        );
+        if (m < 0.08) continue;
         const a = iy * stride + ix;
         index.push(a, a + 1, a + stride, a + 1, a + stride + 1, a + stride);
       }
@@ -3450,7 +3494,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     normal.needsUpdate = true;
     albedo.flipY = false;
     normal.flipY = false;
-    const mat = new K.Lambert({ map: albedo, normalMap: normal, transparent: true, depthWrite: false, side: 2 });
+    const mat = new K.Lambert({ map: albedo, normalMap: normal, transparent: true, depthWrite: false });
     mat.polygonOffset = true;
     mat.polygonOffsetFactor = -1;
     mat.polygonOffsetUnits = -1;

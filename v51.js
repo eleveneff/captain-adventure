@@ -89,7 +89,7 @@
     s.textContent = `
 #liberty-layer{position:fixed;top:16px;right:118px;bottom:16px;width:min(420px,calc(100vw - 200px));z-index:18;display:none}
 #liberty-layer.show{display:block}
-body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty-prompt{visibility:hidden !important}
+body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty-prompt,body.v51-racing #hint{visibility:hidden !important}
 #liberty-card{height:100%;overflow:auto;background:#fffdf6;color:#10234d;border:6px solid #ffc83d;border-radius:22px;padding:12px 14px 16px;box-shadow:0 16px 36px rgba(7,20,48,.28)}
 #liberty-card h2{margin:0 0 6px;font-size:22px}
 #liberty-card p{margin:6px 0}
@@ -151,10 +151,14 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const spin = card().querySelector("#liberty-spin");
     if (spin) spin.onclick = spinWheel;
     const raceBtn = card().querySelector("#liberty-race");
-    if (raceBtn) raceBtn.onclick = () => startRace();
+    if (raceBtn) raceBtn.onclick = () => {
+      const started = startRace();
+      if (started && started.ok) raceBtn.disabled = true;
+    };
   }
   function closePlay() {
     stopRace();
+    document.body.classList.remove("v51-racing");
     session = null;
     document.body.classList.remove("liberty-open");
     if (ui.layer) ui.layer.classList.remove("show");
@@ -169,15 +173,40 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
 
   function practiceFor(q) {
-    const year = q.year || 1776;
-    const choices = [String(year), String(year + 11), String(year - 7), String(year + 40)];
+    const fact = String((q && q.fact) || "");
+    const question = String((q && q.question) || "");
+    const yearHit = fact.match(/\b(1[5-9]\d{2}|20\d{2})\b/);
+    if (yearHit) {
+      const year = Number(yearHit[1]);
+      return {
+        type: "choice",
+        skill: "year",
+        fact: fact,
+        question: "Practice, for no coins. Which year is named in that fact?",
+        choices: [String(year), String(year + 11), String(year - 7), String(year + 40)],
+        answer: 0,
+        explanation: "The year in the fact is " + year + "."
+      };
+    }
+    if (q && q.choices && q.choices.length >= 2 && q.answer >= 0 && q.answer < q.choices.length) {
+      return {
+        type: "choice",
+        skill: /border/i.test(question) ? "border" : "fact",
+        fact: fact,
+        question: "Practice, for no coins. " + (question || "Which answer matches the fact?"),
+        choices: q.choices.slice(),
+        answer: q.answer,
+        explanation: q.explanation || fact
+      };
+    }
     return {
       type: "choice",
-      fact: q.fact,
-      question: "Practice, for no coins. The fact names a year. Which year is it? " + q.fact,
-      choices: choices,
+      skill: "fact",
+      fact: fact,
+      question: "Practice, for no coins. Which line matches the fact?",
+      choices: ["The fact above", "A different fact", "None of these", "Skip it"],
       answer: 0,
-      explanation: "The year in the fact is " + year + "."
+      explanation: fact
     };
   }
 
@@ -694,7 +723,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     session.phase = "done";
     const clean = Math.max(0, session.qs.length - Math.min(session.misses || 0, session.qs.length));
     session.raceBonus = clean * 6;
-    showCard(`<h2>Ready to roll</h2><p>Your answers add <b>${session.raceBonus} seconds</b> to the clock. The race costs ${RACE_TICKET} coins.</p><p>Steer with the arrows or A and D. Hold the gas, and tap Boost for a short burst.</p><button id="liberty-race">Start the race</button><button class="ghost" id="liberty-exit">Close</button>`);
+    showCard(`<h2>Ready to roll</h2><p>Your answers add <b>${session.raceBonus} seconds</b> to the clock. The race costs ${RACE_TICKET} coins.</p><p>W or Up is gas. Z or Down backs up. A or Left turns left. S or Right turns right. Tap Boost for a short burst.</p><button id="liberty-race">Start the race</button><button class="ghost" id="liberty-exit">Close</button>`);
     return { ok: true, done: true, score: coins(), stars: session.stars, id: session.id, race: true, bonus: session.raceBonus };
   }
 
@@ -1830,8 +1859,11 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   function bakeParts(K, parts) {
     const positions = [];
     const colors = [];
+    const temps = [];
     parts.forEach((part) => {
-      const mesh = new K.Mesh(part.geo, new K.Lambert({ color: 0xffffff }));
+      const mat = new K.Lambert({ color: 0xffffff });
+      const mesh = new K.Mesh(part.geo, mat);
+      temps.push(mat);
       mesh.position.set(part.x, part.y, part.z);
       if (part.rot) mesh.rotation.y = part.rot;
       if (part.rx) mesh.rotation.x = part.rx;
@@ -1855,6 +1887,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
         colors.push(col.r, col.g, col.b);
       }
     });
+    parts.forEach((part) => {
+      if (part.geo && part.geo.dispose) part.geo.dispose();
+    });
+    temps.forEach((mat) => { if (mat.dispose) mat.dispose(); });
     if (!positions.length) return;
     const geo = new K.Geo();
     geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
@@ -2306,7 +2342,8 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   let race = null;
   const raceKeys = {};
-  function coursePose(u, lat) {
+  const poseScratch = { x: 0, y: 0, z: 0, heading: 0 };
+  function coursePose(u, lat, dest) {
     const samples = rallyPad.course;
     const n = samples.length;
     const wrapped = ((u % 1) + 1) % 1;
@@ -2323,12 +2360,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     hz /= hl;
     const rx = hz;
     const rz = -hx;
-    return {
-      x: a.x + (b.x - a.x) * t + rx * lat * 2.3,
-      y: a.y + (b.y - a.y) * t,
-      z: a.z + (b.z - a.z) * t + rz * lat * 2.3,
-      heading: Math.atan2(hx, hz)
-    };
+    const out = dest || poseScratch;
+    out.x = a.x + (b.x - a.x) * t + rx * lat * 2.3;
+    out.y = a.y + (b.y - a.y) * t;
+    out.z = a.z + (b.z - a.z) * t + rz * lat * 2.3;
+    out.heading = Math.atan2(hx, hz);
+    return out;
   }
   function raceCar(K, color, cabin) {
     const body = new K.Sphere(1, 10, 8);
@@ -2351,7 +2388,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (ui.race) return ui.race;
     ui.race = document.createElement("div");
     ui.race.id = "v51-race";
-    ui.race.innerHTML = '<div class="hud"></div><div id="v51-lines"></div><div class="pad"><button type="button" data-k="left">Left</button><button type="button" data-k="gas">Gas</button><button type="button" data-k="boost">Boost</button><button type="button" data-k="right">Right</button></div>';
+    ui.race.innerHTML = '<div class="hud"><div id="v51-time"></div><div id="v51-speed"></div><div id="v51-banner"></div><div id="v51-checks"></div></div><div id="v51-lines"></div><div class="pad"><button type="button" data-k="left">Left</button><button type="button" data-k="gas">Gas</button><button type="button" data-k="back">Back</button><button type="button" data-k="boost">Boost</button><button type="button" data-k="right">Right</button></div>';
     ui.race.addEventListener("pointerdown", (e) => e.stopPropagation());
     document.body.appendChild(ui.race);
     ui.race.querySelectorAll("button").forEach((btn) => {
@@ -2371,14 +2408,40 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const lines = hud.querySelector("#v51-lines");
     if (lines) lines.style.opacity = String(Math.max(0, Math.min(1, race.lines)));
     const clean = race.checks.filter((c) => c.hit).length;
-    hud.querySelector(".hud").innerHTML = `<div>Time <b>${Math.max(0, race.time).toFixed(1)}</b></div><div>Speed <b>${Math.round(race.speed * 120)}</b></div><div>${esc(race.banner)}</div><div>Checks <b>${clean}/${race.checks.length}</b></div>`;
+    const timeNode = hud.querySelector("#v51-time");
+    const speedNode = hud.querySelector("#v51-speed");
+    const bannerNode = hud.querySelector("#v51-banner");
+    const checkNode = hud.querySelector("#v51-checks");
+    if (timeNode) timeNode.textContent = "Time " + Math.max(0, race.time).toFixed(1);
+    if (speedNode) speedNode.textContent = "Speed " + Math.round(race.speed * 120);
+    if (bannerNode) bannerNode.textContent = race.banner;
+    if (checkNode) checkNode.textContent = "Checks " + clean + "/" + race.checks.length;
+  }
+  function disposeMesh(mesh) {
+    if (!mesh) return;
+    if (mesh.geometry && mesh.geometry.dispose) mesh.geometry.dispose();
+    const mats = mesh.material ? (Array.isArray(mesh.material) ? mesh.material : [mesh.material]) : [];
+    mats.forEach((m) => { if (m && m.dispose) m.dispose(); });
+  }
+  function dropRaceGroup(group) {
+    if (!group) return;
+    group.traverse((o) => { if (o.isMesh) disposeMesh(o); });
+    if (group.parent) group.parent.remove(group);
   }
   function stopRace() {
-    if (race && race.group && race.group.parent) race.group.parent.remove(race.group);
+    if (race && race.group) dropRaceGroup(race.group);
+    const root = CA.scene && CA.scene.getObjectByName("v51-root");
+    if (root) {
+      const leftover = [];
+      root.traverse((o) => { if (o.name === "v51-race") leftover.push(o); });
+      leftover.forEach(dropRaceGroup);
+    }
+    restoreChaseFade();
     race = null;
     if (ui.race) ui.race.style.display = "none";
   }
   function startRace() {
+    if (race && !race.over) return { ok: true, already: true, score: coins(), price: RACE_TICKET };
     if (!session || session.id !== "rally" || !rallyPad || !rallyPad.course) return { ok: false, reason: "closed" };
     if (coins() < RACE_TICKET) {
       showCard(`<h2>Not enough coins</h2><p>The race costs ${RACE_TICKET} coins. You have ${coins()}.</p><button id="liberty-exit">Close</button>`);
@@ -2396,13 +2459,14 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const mesh = raceCar(K, color, i === 0 ? 0xffe082 : 0xeceff1);
       mesh.name = i === 0 ? "v51-race-player" : "v51-race-rival";
       group.add(mesh);
-      return { mesh: mesh, u: 0.04 + i * 0.07, lat: (i - 1.5) * 0.15, rate: 0.03 + (i === 0 ? 0 : (0.004 - i * 0.001)) };
+      const rates = [0.034, 0.04, 0.031, 0.027];
+      return { mesh: mesh, u: 0.04 + i * 0.07, lat: (i - 1.5) * 0.15, rate: rates[i], lap: 0 };
     });
     const traffic = [0x78909c, 0x8d6e63, 0x546e7a, 0x90a4ae].map((color, i) => {
       const mesh = raceCar(K, color, 0xcfd8dc);
       mesh.name = "v51-race-traffic";
       group.add(mesh);
-      return { mesh: mesh, u: 0.18 + i * 0.22, lat: i % 2 ? 0.55 : -0.55, rate: 0.012 + i * 0.002 };
+      return { mesh: mesh, u: 0.18 + i * 0.22, lat: i % 2 ? 0.55 : -0.55, rate: 0.012 + i * 0.002, lap: 0 };
     });
     race = {
       group: group,
@@ -2419,9 +2483,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       lap: 0,
       lastU: 0.04,
       over: false,
-      pose: coursePose(0.04, 0),
+      pose: coursePose(0.04, 0, { x: 0, y: 0, z: 0, heading: 0 }),
       clock: performance.now()
     };
+    document.body.classList.add("v51-racing");
     session.phase = "race";
     if (ui.layer) ui.layer.classList.remove("show");
     bag().race.runs += 1;
@@ -2432,8 +2497,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   function finishRace(madeIt) {
     if (!race || race.over) return;
     race.over = true;
-    const ahead = race.cars.filter((car, i) => i > 0 && car.u + car.lap > race.cars[0].u + race.lap).length;
-    const place = madeIt ? ahead + 1 : 4;
+    const progress = (car, lap) => (lap || 0) + car.u;
+    const playerP = progress(race.cars[0], race.lap);
+    const ahead = race.cars.filter((car, i) => i > 0 && progress(car, car.lap) > playerP).length;
+    const place = Math.min(4, ahead + 1);
     if (madeIt && (!bag().race.best || place < bag().race.best)) bag().race.best = place;
     persist();
     const names = ["1st", "2nd", "3rd", "4th"];
@@ -2447,13 +2514,14 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     const dt = Math.max(0.001, Math.min(0.05, (now - race.clock) / 1000));
     race.clock = now;
     const touch = race.touch;
-    const gas = raceKeys.ArrowUp || raceKeys.KeyW || raceKeys.w || touch.gas;
-    const left = raceKeys.ArrowLeft || raceKeys.KeyA || raceKeys.a || touch.left;
-    const right = raceKeys.ArrowRight || raceKeys.KeyD || raceKeys.d || touch.right;
-    const boost = raceKeys.ShiftLeft || raceKeys.ShiftRight || touch.boost;
+    const gas = !!(raceKeys.ArrowUp || raceKeys.KeyW || raceKeys.w || raceKeys.W || touch.gas);
+    const back = !!(raceKeys.ArrowDown || raceKeys.KeyZ || raceKeys.z || raceKeys.Z || touch.back);
+    const left = !!(raceKeys.ArrowLeft || raceKeys.KeyA || raceKeys.a || raceKeys.A || touch.left);
+    const right = !!(raceKeys.ArrowRight || raceKeys.KeyS || raceKeys.s || raceKeys.S || touch.right);
+    const boost = !!(raceKeys.ShiftLeft || raceKeys.ShiftRight || touch.boost);
     const player = race.cars[0];
-    let rate = gas ? 0.034 : 0.01;
-    if (boost && race.nitro > 0) {
+    let rate = gas && !back ? 0.034 : back && !gas ? -0.022 : 0;
+    if (rate > 0 && boost && race.nitro > 0) {
       rate *= 1.85;
       race.nitro = Math.max(0, race.nitro - dt);
       race.lines = Math.min(1, race.lines + dt * 3);
@@ -2475,15 +2543,18 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
         player.lat += player.lat > car.lat ? 0.08 : -0.08;
         race.banner = "Traffic!";
       }
-      parkCar(car.mesh, coursePose(car.u, car.lat));
+      parkCar(car.mesh, coursePose(car.u, car.lat, poseScratch));
     });
     const prev = player.u;
-    player.u = (player.u + rate * dt) % 1;
-    if (player.u < prev) race.lap += 1;
+    player.u = (player.u + rate * dt + 1) % 1;
+    if (rate >= 0 && player.u < prev) race.lap += 1;
+    if (rate < 0 && player.u > prev && race.lap > 0) race.lap -= 1;
     race.cars.slice(1).forEach((car) => {
+      const was = car.u;
       car.u = (car.u + car.rate * dt) % 1;
+      if (car.u < was) car.lap = (car.lap || 0) + 1;
       car.lat = Math.sin(car.u * 12 + car.rate * 20) * 0.35;
-      parkCar(car.mesh, coursePose(car.u, car.lat));
+      parkCar(car.mesh, coursePose(car.u, car.lat, poseScratch));
     });
     race.checks.forEach((gate) => {
       if (gate.hit) return;
@@ -2494,9 +2565,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       race.time += 8;
       race.banner = gate.name + " · " + gate.where + " +8s";
     });
-    race.speed = rate / 0.034;
+    race.speed = Math.abs(rate) / 0.034;
     race.time -= dt;
-    race.pose = coursePose(player.u, player.lat);
+    coursePose(player.u, player.lat, race.pose);
     parkCar(player.mesh, race.pose);
     paintRaceHud();
     const cleared = race.checks.every((gate) => gate.hit);
@@ -3830,6 +3901,85 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       if (o.name === "v51-palm" || o.name === "v51-map-table") o.visible = !hide;
     });
   }
+  const chaseFaded = [];
+  function fadeMesh(o, on) {
+    if (!o.userData.v51fade) {
+      o.material = o.material.clone();
+      o.userData.v51fade = {
+        opacity: o.material.opacity == null ? 1 : o.material.opacity,
+        transparent: !!o.material.transparent,
+        depthWrite: o.material.depthWrite !== false
+      };
+    }
+    if (on) {
+      o.material.transparent = true;
+      o.material.opacity = 0.15;
+      o.material.depthWrite = false;
+      if (chaseFaded.indexOf(o) < 0) chaseFaded.push(o);
+    } else {
+      o.material.opacity = o.userData.v51fade.opacity;
+      o.material.transparent = o.userData.v51fade.transparent;
+      o.material.depthWrite = o.userData.v51fade.depthWrite;
+    }
+  }
+  function restoreChaseFade() {
+    chaseFaded.forEach((o) => fadeMesh(o, false));
+    chaseFaded.length = 0;
+    const islandDress = CA.scene && CA.scene.getObjectByName("isle-statics-turtle");
+    if (islandDress && islandDress.userData.v51was) {
+      islandDress.visible = true;
+      islandDress.userData.v51was = 0;
+    }
+  }
+  function fadeChase() {
+    if (!CA.scene || !CA.camera || !race || race.over || !race.pose) return;
+    const cam = CA.camera;
+    const p = race.pose;
+    const ax = cam.position.x;
+    const ay = cam.position.y;
+    const az = cam.position.z;
+    const bx = p.x;
+    const by = p.y + 0.7;
+    const bz = p.z;
+    const abx = bx - ax;
+    const aby = by - ay;
+    const abz = bz - az;
+    const ab2 = abx * abx + aby * aby + abz * abz || 1;
+    const islandDress = CA.scene.getObjectByName("isle-statics-turtle");
+    if (islandDress && islandDress.visible) {
+      islandDress.userData.v51was = 1;
+      islandDress.visible = false;
+    }
+    const seen = [];
+    CA.scene.traverse((o) => {
+      if (!o.isMesh || !o.material || !o.geometry) return;
+      const skip = o.name === "v51-race-player" || o.name === "v51-race-rival" || o.name === "v51-race-traffic" || o.name === "v51-rally-road" || o.name === "v51-terrain" || o.name === "v51-massif";
+      if (skip) return;
+      if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+      const reach = (o.geometry.boundingSphere.radius || 0) * Math.max(o.scale.x || 1, o.scale.y || 1, o.scale.z || 1);
+      if (reach < 1.1 || reach > 18) return;
+      const center = o.geometry.boundingSphere.center;
+      o.updateWorldMatrix(true, false);
+      const e = o.matrixWorld.elements;
+      const px = e[0] * center.x + e[4] * center.y + e[8] * center.z + e[12];
+      const py = e[1] * center.x + e[5] * center.y + e[9] * center.z + e[13];
+      const pz = e[2] * center.x + e[6] * center.y + e[10] * center.z + e[14];
+      const u = ((px - ax) * abx + (py - ay) * aby + (pz - az) * abz) / ab2;
+      if (u < 0.02 || u > 0.98) return;
+      const dx = px - (ax + abx * u);
+      const dy = py - (ay + aby * u);
+      const dz = pz - (az + abz * u);
+      const limit = u < 0.62 ? 28 : (reach + 1.5) * (reach + 1.5);
+      if (dx * dx + dy * dy + dz * dz > limit) return;
+      fadeMesh(o, true);
+      seen.push(o);
+    });
+    for (let i = chaseFaded.length - 1; i >= 0; i--) {
+      if (seen.indexOf(chaseFaded[i]) >= 0) continue;
+      fadeMesh(chaseFaded[i], false);
+      chaseFaded.splice(i, 1);
+    }
+  }
   function aimCamera(cam) {
     if (!cam || !host || !lay) return;
     if (cam.clearViewOffset) cam.clearViewOffset();
@@ -3844,8 +3994,11 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const p = race.pose;
       const hx = Math.sin(p.heading);
       const hz = Math.cos(p.heading);
-      cam.position.set(p.x - hx * 16, p.y + 11, p.z - hz * 16);
-      cam.lookAt(p.x + hx * 4, p.y + 0.5, p.z + hz * 4);
+      const rx = hz;
+      const rz = -hx;
+      cam.position.set(p.x - hx * 13 + rx * 7, p.y + 7.5, p.z - hz * 13 + rz * 7);
+      cam.lookAt(p.x + hx * 5, p.y + 0.6, p.z + hz * 5);
+      fadeChase();
       return;
     }
     if (window.__libertyAerial) {
@@ -4015,7 +4168,13 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function frame() {
     if (!isle) return;
-    if (race && !race.over) stepRace(performance.now());
+    if (race && !race.over) {
+      stepRace(performance.now());
+      if (CA.captain) {
+        if (!race.hold) race.hold = { x: CA.captain.position.x, y: CA.captain.position.y, z: CA.captain.position.z };
+        CA.captain.position.set(race.hold.x, race.hold.y, race.hold.z);
+      }
+    }
     nearest = captainNear();
     if (ui.prompt) {
       if (nearest && !session && (!CA.mode || CA.mode === "walk")) {
@@ -4160,7 +4319,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     document.addEventListener("keydown", (e) => {
       raceKeys[e.code] = true;
       raceKeys[e.key] = true;
-      if (race && !race.over && /Arrow|KeyW|KeyA|KeyS|KeyD|Shift/.test(e.code)) e.preventDefault();
+      if (race && !race.over && /Arrow|KeyW|KeyA|KeyS|KeyZ|Shift/.test(e.code)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
     }, true);
     document.addEventListener("keyup", (e) => {
       raceKeys[e.code] = false;
@@ -4202,10 +4364,18 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     advance,
     close: closePlay,
     start: startRace,
+    controls: () => ({
+      gas: ["KeyW", "ArrowUp"],
+      back: ["KeyZ", "ArrowDown"],
+      left: ["KeyA", "ArrowLeft"],
+      right: ["KeyS", "ArrowRight"],
+      unused: ["KeyD"]
+    }),
     drive(opts) {
       if (!race || race.over) return CA.liberty.race();
       const o = opts || {};
       if (o.gas != null) race.touch.gas = !!o.gas;
+      if (o.back != null) race.touch.back = !!o.back;
       if (o.boost != null) race.touch.boost = !!o.boost;
       if (o.left != null) race.touch.left = !!o.left;
       if (o.right != null) race.touch.right = !!o.right;

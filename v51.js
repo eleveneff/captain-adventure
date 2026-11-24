@@ -27,6 +27,7 @@
     if (!v.landmarks || typeof v.landmarks !== "object") v.landmarks = {};
     if (!v.cleared || typeof v.cleared !== "object") v.cleared = {};
     if (!v.quiz || typeof v.quiz !== "object") v.quiz = { rounds: 0, stars: 0, best: 0 };
+    if (!v.race || typeof v.race !== "object") v.race = { runs: 0, best: 0 };
     if (fresh) persist();
     return v;
   }
@@ -88,7 +89,11 @@
     s.textContent = `
 #liberty-layer{position:fixed;top:16px;right:118px;bottom:16px;width:min(420px,calc(100vw - 200px));z-index:18;display:none}
 #liberty-layer.show{display:block}
-body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty-prompt{visibility:hidden !important}
+#liberty-layer.compact{top:50%;right:auto;bottom:auto;left:50%;width:min(280px,calc(100vw - 48px));height:auto;transform:translate(-50%,-50%)}
+#liberty-layer.compact #liberty-card{height:auto;overflow:visible;padding:14px 16px 12px}
+#liberty-layer.compact h2,#liberty-layer.compact p{text-align:center;margin:4px 0}
+#liberty-layer.compact .acts{display:flex;justify-content:center;gap:8px;margin-top:10px}
+body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty-prompt,body.v51-racing #hint{visibility:hidden !important}
 #liberty-card{height:100%;overflow:auto;background:#fffdf6;color:#10234d;border:6px solid #ffc83d;border-radius:22px;padding:12px 14px 16px;box-shadow:0 16px 36px rgba(7,20,48,.28)}
 #liberty-card h2{margin:0 0 6px;font-size:22px}
 #liberty-card p{margin:6px 0}
@@ -106,7 +111,17 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
 #liberty-prompt{position:fixed;left:50%;bottom:76px;transform:translateX(-50%);z-index:16;display:none}
 #liberty-prompt.show{display:block}
 #liberty-prompt button{font:800 18px Trebuchet MS,sans-serif;background:#14336b;color:#fff;border:3px solid #ffc83d;border-radius:14px;padding:8px 14px}
-@media (max-width:700px){#liberty-layer{top:108px;right:70px;left:8px;bottom:8px;width:auto}}
+#v51-race{position:fixed;left:0;right:0;top:0;bottom:0;z-index:18;pointer-events:none;font:800 18px Trebuchet MS,sans-serif;color:#fff}
+#v51-race .hud{position:absolute;left:50%;top:96px;transform:translateX(-50%);background:#10234dd0;border:3px solid #ffc83d;border-radius:14px;padding:8px 14px;min-width:220px;text-align:center}
+#v51-race .hud b{color:#ffc83d}
+#v51-race .pad{position:absolute;left:0;right:0;bottom:18px;display:flex;justify-content:space-between;padding:0 18px;pointer-events:auto}
+#v51-race .pad button{font:800 16px Trebuchet MS,sans-serif;background:#14336b;color:#fff;border:3px solid #ffc83d;border-radius:14px;padding:12px 16px;min-width:74px}
+#v51-lines{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .12s linear}
+#v51-lines i{position:absolute;display:block;pointer-events:none}
+#v51-lines i:nth-child(1){left:0;top:0;bottom:0;width:14%;background:repeating-linear-gradient(104deg,transparent 0,transparent 28px,rgba(255,255,255,.5) 28px,rgba(255,255,255,.5) 30px);-webkit-mask-image:linear-gradient(90deg,#000 0%,transparent 100%);mask-image:linear-gradient(90deg,#000 0%,transparent 100%)}
+#v51-lines i:nth-child(2){right:0;top:0;bottom:0;width:14%;background:repeating-linear-gradient(76deg,transparent 0,transparent 28px,rgba(255,255,255,.5) 28px,rgba(255,255,255,.5) 30px);-webkit-mask-image:linear-gradient(270deg,#000 0%,transparent 100%);mask-image:linear-gradient(270deg,#000 0%,transparent 100%)}
+#v51-lines i:nth-child(3){left:8%;right:8%;top:0;height:12%;background:repeating-linear-gradient(6deg,transparent 0,transparent 34px,rgba(255,255,255,.4) 34px,rgba(255,255,255,.4) 36px);-webkit-mask-image:linear-gradient(180deg,#000 0%,transparent 100%);mask-image:linear-gradient(180deg,#000 0%,transparent 100%)}
+@media (max-width:700px){#liberty-layer{top:108px;right:70px;left:8px;bottom:8px;width:auto}#liberty-layer.compact{top:50%;right:auto;bottom:auto;left:50%;width:min(280px,calc(100vw - 28px));height:auto;transform:translate(-50%,-50%)}}
 `;
     document.head.appendChild(s);
   }
@@ -126,8 +141,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     }
   }
   function card() { return document.getElementById("liberty-card"); }
-  function showCard(html) {
+  function showCard(html, compact) {
     ensureUi();
+    ui.layer.classList.toggle("compact", !!compact);
     ui.layer.classList.add("show");
     document.body.classList.add("liberty-open");
     card().innerHTML = html;
@@ -143,8 +159,15 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     });
     const spin = card().querySelector("#liberty-spin");
     if (spin) spin.onclick = spinWheel;
+    const raceBtn = card().querySelector("#liberty-race");
+    if (raceBtn) raceBtn.onclick = () => {
+      const started = startRace();
+      if (started && started.ok) raceBtn.disabled = true;
+    };
   }
   function closePlay() {
+    stopRace();
+    document.body.classList.remove("v51-racing");
     session = null;
     document.body.classList.remove("liberty-open");
     if (ui.layer) ui.layer.classList.remove("show");
@@ -159,15 +182,40 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
 
   function practiceFor(q) {
-    const year = q.year || 1776;
-    const choices = [String(year), String(year + 11), String(year - 7), String(year + 40)];
+    const fact = String((q && q.fact) || "");
+    const question = String((q && q.question) || "");
+    const yearHit = fact.match(/\b(1[5-9]\d{2}|20\d{2})\b/);
+    if (yearHit) {
+      const year = Number(yearHit[1]);
+      return {
+        type: "choice",
+        skill: "year",
+        fact: fact,
+        question: "Practice, for no coins. Which year is named in that fact?",
+        choices: [String(year), String(year + 11), String(year - 7), String(year + 40)],
+        answer: 0,
+        explanation: "The year in the fact is " + year + "."
+      };
+    }
+    if (q && q.choices && q.choices.length >= 2 && q.answer >= 0 && q.answer < q.choices.length) {
+      return {
+        type: "choice",
+        skill: /border/i.test(question) ? "border" : "fact",
+        fact: fact,
+        question: "Practice, for no coins. " + (question || "Which answer matches the fact?"),
+        choices: q.choices.slice(),
+        answer: q.answer,
+        explanation: q.explanation || fact
+      };
+    }
     return {
       type: "choice",
-      fact: q.fact,
-      question: "Practice, for no coins. The fact names a year. Which year is it? " + q.fact,
-      choices: choices,
+      skill: "fact",
+      fact: fact,
+      question: "Practice, for no coins. Which line matches the fact?",
+      choices: ["The fact above", "A different fact", "None of these", "Skip it"],
       answer: 0,
-      explanation: "The year in the fact is " + year + "."
+      explanation: fact
     };
   }
 
@@ -668,8 +716,24 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       v.quiz.best = Math.max(v.quiz.best || 0, session.stars);
     }
     persist();
+    if (session.id === "rally") return offerRace();
     renderDone();
     return { ok: true, done: true, score: coins(), stars: session.stars, id: session.id };
+  }
+
+  const RACE_TICKET = 10;
+  const RACE_STAGES = [
+    { a: 0.9, name: "Grand Canyon", where: "Arizona" },
+    { a: 2.2, name: "Chicago", where: "Illinois" },
+    { a: 3.4, name: "Washington", where: "D.C." },
+    { a: 4.6, name: "Golden Gate", where: "California" }
+  ];
+  function offerRace() {
+    session.phase = "done";
+    const clean = Math.max(0, session.qs.length - Math.min(session.misses || 0, session.qs.length));
+    session.raceBonus = clean * 6;
+    showCard(`<h2>Ready to roll</h2><p>Your answers add <b>${session.raceBonus} seconds</b> to the clock. The race costs ${RACE_TICKET} coins.</p><p>W or Up is gas. Z or Down backs up. A or Left turns left. S or Right turns right. Tap Boost for a short burst.</p><button id="liberty-race">Start the race</button><button class="ghost" id="liberty-exit">Close</button>`);
+    return { ok: true, done: true, score: coins(), stars: session.stars, id: session.id, race: true, bonus: session.raceBonus };
   }
 
   function startBuild(id) {
@@ -1804,8 +1868,11 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   function bakeParts(K, parts) {
     const positions = [];
     const colors = [];
+    const temps = [];
     parts.forEach((part) => {
-      const mesh = new K.Mesh(part.geo, new K.Lambert({ color: 0xffffff }));
+      const mat = new K.Lambert({ color: 0xffffff });
+      const mesh = new K.Mesh(part.geo, mat);
+      temps.push(mat);
       mesh.position.set(part.x, part.y, part.z);
       if (part.rot) mesh.rotation.y = part.rot;
       if (part.rx) mesh.rotation.x = part.rx;
@@ -1829,6 +1896,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
         colors.push(col.r, col.g, col.b);
       }
     });
+    parts.forEach((part) => {
+      if (part.geo && part.geo.dispose) part.geo.dispose();
+    });
+    temps.forEach((mat) => { if (mat.dispose) mat.dispose(); });
     if (!positions.length) return;
     const geo = new K.Geo();
     geo.setAttribute("position", new K.Attr(new Float32Array(positions), 3));
@@ -2169,16 +2240,23 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     push(new K.Box(0.28, 2.3, 0.28), 0xf5f5f5, archBase.u + asu * 1.9, archBase.v + asv * 1.9, 1.3, archYaw);
     push(new K.Box(0.28, 2.3, 0.28), 0xf5f5f5, archBase.u - asu * 1.9, archBase.v - asv * 1.9, 1.3, archYaw);
     push(new K.Box(3.8, 0.32, 0.32), 0xffc83d, archBase.u, archBase.v, 2.5, archYaw);
-    const pump = loop(1.15);
-    push(new K.Box(2.4, 1.5, 2.2), 0xeceff1, pump.u, pump.v + 4.2, 0.85, 0);
-    push(new K.Box(3.2, 0.16, 2.6), 0xc62828, pump.u, pump.v + 4.2, 1.7, 0);
-    push(new K.Box(0.16, 1.5, 0.16), 0x546e7a, pump.u + 0.8, pump.v + 3.2, 0.8, 0);
+    const pump = outside(1.15, 7.6);
+    const pumpParts = [];
+    const pushPump = (geo, color, u, v, dy, rot) => {
+      const p = at(u, v);
+      pumpParts.push({ geo: geo, color: color, x: p.x, y: gy(u, v) + dy, z: p.z, rot: rot || 0 });
+    };
+    pushPump(new K.Box(2.1, 1.25, 1.7), 0xeceff1, pump.u, pump.v, 0.72, 0);
+    pushPump(new K.Box(2.4, 0.14, 2.0), 0xc62828, pump.u, pump.v, 1.42, 0);
+    pushPump(new K.Box(0.85, 0.62, 0.08), 0x81d4fa, pump.u - 0.55, pump.v, 0.86, 0);
+    pushPump(new K.Box(0.7, 0.26, 0.06), 0xc62828, pump.u - 0.55, pump.v, 1.28, 0);
+    paintProps(K, root, "v51-pump", pumpParts);
     const diner = loop(3.4);
     push(new K.Box(3.4, 1.7, 2.4), 0xffcc80, diner.u, diner.v - 4.4, 0.95, 0);
     push(new K.Box(3.6, 0.2, 2.7), 0x6d4c41, diner.u, diner.v - 4.4, 1.85, 0);
     push(new K.Box(1.1, 1.2, 0.08), 0x81d4fa, diner.u - 0.6, diner.v - 3.3, 1.15, 0);
-    [[0.9, "Grand Canyon"], [2.2, "Gateway Arch"], [3.4, "Liberty"], [4.6, "Golden Gate"]].forEach((bill) => {
-      const spotA = outside(bill[0], 7.4);
+    RACE_STAGES.forEach((bill) => {
+      const spotA = outside(bill.a, 7.4);
       push(new K.Cyl(0.08, 0.09, 2.2, 5), 0x6d4c41, spotA.u, spotA.v, 1.1, 0);
     });
     [2.2, 2.9, 3.7, 4.5].forEach((a) => {
@@ -2197,10 +2275,10 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     board.position.set(boardAt.x, gy(boardSpot.u, boardSpot.v) + 1.7, boardAt.z);
     board.rotation.y = Math.atan2(turtle.cx - boardAt.x, turtle.cz - boardAt.z);
     root.add(board);
-    [[0.9, "Grand Canyon", "Arizona"], [2.2, "Gateway Arch", "Missouri"], [3.4, "Statue of Liberty", "New York"], [4.6, "Golden Gate", "California"]].forEach((bill) => {
-      const spotA = outside(bill[0], 7.4);
+    RACE_STAGES.forEach((bill) => {
+      const spotA = outside(bill.a, 7.4);
       const p = at(spotA.u, spotA.v);
-      const sign = new K.Mesh(new K.Plane(1.7, 1.05), new K.Lambert({ map: stackTex(K, [bill[1], bill[2]]), color: 0xffffff, side: 2 }));
+      const sign = new K.Mesh(new K.Plane(1.7, 1.05), new K.Lambert({ map: stackTex(K, [bill.name, bill.where]), color: 0xffffff, side: 2 }));
       sign.position.set(p.x, gy(spotA.u, spotA.v) + 2.15, p.z);
       sign.rotation.y = Math.atan2(turtle.cx - p.x, turtle.cz - p.z);
       sign.name = "v51-rally-sign";
@@ -2234,6 +2312,21 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       const p = loop((i / samples) * Math.PI * 2);
       loopPts.push(at(p.u, p.v));
     }
+    const courseN = 96;
+    const course = [];
+    for (let i = 0; i < courseN; i++) {
+      const a = (i / courseN) * Math.PI * 2;
+      const p = loop(a);
+      const ahead = loop(a + 0.05);
+      const w = at(p.u, p.v);
+      const wn = at(ahead.u, ahead.v);
+      course.push({ x: w.x, y: gy(p.u, p.v), z: w.z, hx: wn.x - w.x, hz: wn.z - w.z });
+    }
+    const checks = RACE_STAGES.map((stage) => {
+      const p = loop(stage.a);
+      const w = at(p.u, p.v);
+      return { u: stage.a / (Math.PI * 2), name: stage.name, where: stage.where, x: w.x, y: gy(p.u, p.v), z: w.z, hit: false };
+    });
     const carWorld = at(body.u, body.v);
     const camLocal = { u: 0.2, v: 2.4 };
     const lookLocal = { u: 7.4, v: 1.5 };
@@ -2256,11 +2349,254 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     });
     rallyPad = {
       x: pad.x, y: padY, z: pad.z, heading: carHead, path: path, loop: loopPts, turtle: turtle,
+      course: course, checks: checks,
       car: { x: carWorld.x, y: gy(body.u, body.v) + 0.7, z: carWorld.z, heading: carHead },
       view: { x: camBack.x, y: gy(camLocal.u, camLocal.v) + 1.45, z: camBack.z },
       look: { x: lookAt.x, y: gy(lookLocal.u, lookLocal.v) + 0.85, z: lookAt.z }
     };
     root.userData.rally = rallyPad;
+  }
+  let race = null;
+  const raceKeys = {};
+  const poseScratch = { x: 0, y: 0, z: 0, heading: 0 };
+  function coursePose(u, lat, dest) {
+    const samples = rallyPad.course;
+    const n = samples.length;
+    const wrapped = ((u % 1) + 1) % 1;
+    const f = wrapped * n;
+    const i = Math.floor(f) % n;
+    const j = (i + 1) % n;
+    const t = f - Math.floor(f);
+    const a = samples[i];
+    const b = samples[j];
+    let hx = a.hx;
+    let hz = a.hz;
+    const hl = Math.hypot(hx, hz) || 1;
+    hx /= hl;
+    hz /= hl;
+    const rx = hz;
+    const rz = -hx;
+    const out = dest || poseScratch;
+    out.x = a.x + (b.x - a.x) * t + rx * lat * 2.3;
+    out.y = a.y + (b.y - a.y) * t;
+    out.z = a.z + (b.z - a.z) * t + rz * lat * 2.3;
+    out.heading = Math.atan2(hx, hz);
+    return out;
+  }
+  function raceCar(K, color, cabin) {
+    const body = new K.Sphere(1, 10, 8);
+    body.scale(0.58, 0.24, 1.25);
+    const top = new K.Sphere(1, 8, 6);
+    top.scale(0.48, 0.28, 0.5);
+    const glass = new K.Sphere(1, 8, 6);
+    glass.scale(0.4, 0.18, 0.36);
+    return bakeParts(K, [
+      { geo: body, color: color, x: 0, y: 0.48, z: 0 },
+      { geo: top, color: cabin, x: -0.15, y: 0.78, z: 0 },
+      { geo: glass, color: 0xb3e5fc, x: 0.18, y: 0.84, z: 0 }
+    ]);
+  }
+  function parkCar(mesh, pose) {
+    mesh.position.set(pose.x, pose.y, pose.z);
+    mesh.rotation.y = pose.heading;
+  }
+  function ensureRaceHud() {
+    if (ui.race) return ui.race;
+    ui.race = document.createElement("div");
+    ui.race.id = "v51-race";
+    ui.race.innerHTML = '<div class="hud"><div id="v51-time"></div><div id="v51-speed"></div><div id="v51-banner"></div><div id="v51-checks"></div></div><div id="v51-lines"><i></i><i></i><i></i></div><div class="pad"><button type="button" data-k="left">Left</button><button type="button" data-k="gas">Gas</button><button type="button" data-k="back">Back</button><button type="button" data-k="boost">Boost</button><button type="button" data-k="right">Right</button></div>';
+    ui.race.addEventListener("pointerdown", (e) => e.stopPropagation());
+    document.body.appendChild(ui.race);
+    ui.race.querySelectorAll("button").forEach((btn) => {
+      const hold = (on) => {
+        if (!race) return;
+        race.touch[btn.dataset.k] = on;
+      };
+      btn.addEventListener("pointerdown", (e) => { e.preventDefault(); hold(true); });
+      btn.addEventListener("pointerup", () => hold(false));
+      btn.addEventListener("pointerleave", () => hold(false));
+    });
+    return ui.race;
+  }
+  function paintRaceHud() {
+    const hud = ensureRaceHud();
+    hud.style.display = "block";
+    const lines = hud.querySelector("#v51-lines");
+    if (lines) lines.style.opacity = String(Math.max(0, Math.min(1, race.lines)));
+    const clean = race.checks.filter((c) => c.hit).length;
+    const timeNode = hud.querySelector("#v51-time");
+    const speedNode = hud.querySelector("#v51-speed");
+    const bannerNode = hud.querySelector("#v51-banner");
+    const checkNode = hud.querySelector("#v51-checks");
+    if (timeNode) timeNode.textContent = "Time " + Math.max(0, race.time).toFixed(1);
+    if (speedNode) speedNode.textContent = "Speed " + Math.round(race.speed * 120);
+    if (bannerNode) bannerNode.textContent = race.banner;
+    if (checkNode) checkNode.textContent = "Checks " + clean + "/" + race.checks.length;
+  }
+  function disposeMesh(mesh) {
+    if (!mesh) return;
+    if (mesh.geometry && mesh.geometry.dispose) mesh.geometry.dispose();
+    const mats = mesh.material ? (Array.isArray(mesh.material) ? mesh.material : [mesh.material]) : [];
+    mats.forEach((m) => { if (m && m.dispose) m.dispose(); });
+  }
+  function dropRaceGroup(group) {
+    if (!group) return;
+    group.traverse((o) => { if (o.isMesh) disposeMesh(o); });
+    if (group.parent) group.parent.remove(group);
+  }
+  function stopRace() {
+    if (race && race.group) dropRaceGroup(race.group);
+    const root = CA.scene && CA.scene.getObjectByName("v51-root");
+    if (root) {
+      const leftover = [];
+      root.traverse((o) => { if (o.name === "v51-race") leftover.push(o); });
+      leftover.forEach(dropRaceGroup);
+    }
+    restoreChaseFade();
+    race = null;
+    if (ui.race) ui.race.style.display = "none";
+  }
+  function startRace() {
+    if (race && !race.over) return { ok: true, already: true, score: coins(), price: RACE_TICKET };
+    if (!session || session.id !== "rally" || !rallyPad || !rallyPad.course) return { ok: false, reason: "closed" };
+    if (coins() < RACE_TICKET) {
+      showCard(`<h2>Not enough coins</h2><p>The race costs ${RACE_TICKET} coins. You have ${coins()}.</p><button id="liberty-exit">Close</button>`);
+      return { ok: false, reason: "short", score: coins(), price: RACE_TICKET };
+    }
+    const K = kit();
+    if (!K) return { ok: false, reason: "closed" };
+    setCoins(coins() - RACE_TICKET);
+    const root = CA.scene.getObjectByName("v51-root");
+    const group = new K.Group();
+    group.name = "v51-race";
+    root.add(group);
+    const colors = [0xc62828, 0x1565c0, 0x2e7d32, 0xf9a825];
+    const cars = colors.map((color, i) => {
+      const mesh = raceCar(K, color, i === 0 ? 0xffe082 : 0xeceff1);
+      mesh.name = i === 0 ? "v51-race-player" : "v51-race-rival";
+      group.add(mesh);
+      const rates = [0.034, 0.04, 0.031, 0.027];
+      return { mesh: mesh, u: 0.04 + i * 0.07, lat: (i - 1.5) * 0.15, rate: rates[i], lap: 0 };
+    });
+    const traffic = [0x78909c, 0x8d6e63, 0x546e7a, 0x90a4ae].map((color, i) => {
+      const mesh = raceCar(K, color, 0xcfd8dc);
+      mesh.name = "v51-race-traffic";
+      group.add(mesh);
+      return { mesh: mesh, u: 0.18 + i * 0.22, lat: i % 2 ? 0.55 : -0.55, rate: 0.012 + i * 0.002, lap: 0 };
+    });
+    race = {
+      group: group,
+      cars: cars,
+      traffic: traffic,
+      checks: rallyPad.checks.map((c) => Object.assign({}, c, { hit: false })),
+      time: 32 + (session.raceBonus || 0),
+      bonus: session.raceBonus || 0,
+      nitro: 1.2,
+      lines: 0,
+      speed: 0,
+      banner: "Turtle Cove",
+      touch: {},
+      lap: 0,
+      lastU: 0.04,
+      over: false,
+      pose: coursePose(0.04, 0, { x: 0, y: 0, z: 0, heading: 0 }),
+      clock: performance.now()
+    };
+    document.body.classList.add("v51-racing");
+    session.phase = "race";
+    if (ui.layer) ui.layer.classList.remove("show");
+    CA.scene.traverse((o) => {
+      if (o.name === "v51-pump" || o.name === "v51-abutment") {
+        o.userData.v51was = 1;
+        o.visible = false;
+      }
+    });
+    bag().race.runs += 1;
+    persist();
+    paintRaceHud();
+    return { ok: true, score: coins(), time: race.time, bonus: race.bonus, price: RACE_TICKET };
+  }
+  function finishRace(madeIt) {
+    if (!race || race.over) return;
+    race.over = true;
+    const progress = (car, lap) => (lap || 0) + car.u;
+    const playerP = progress(race.cars[0], race.lap);
+    const ahead = race.cars.filter((car, i) => i > 0 && progress(car, car.lap) > playerP).length;
+    const place = Math.min(4, ahead + 1);
+    if (madeIt && (!bag().race.best || place < bag().race.best)) bag().race.best = place;
+    persist();
+    const names = ["1st", "2nd", "3rd", "4th"];
+    const left = Math.max(0, race.time);
+    const bonus = session.raceBonus || 0;
+    stopRace();
+    session.phase = "done";
+    showCard(`<h2>${names[place - 1]} place</h2><p>Time ${left.toFixed(1)}s</p><p>Question bonus ${bonus}s</p><p>Coins ${coins()}</p><div class="acts"><button id="liberty-race">Race Again</button><button class="ghost" id="liberty-exit">Close</button></div>`, true);
+    race = { over: true, place: place, madeIt: madeIt, pose: null };
+  }
+  function stepRace(now) {
+    if (!race || race.over || !rallyPad) return;
+    const dt = Math.max(0.001, Math.min(0.05, (now - race.clock) / 1000));
+    race.clock = now;
+    const touch = race.touch;
+    const gas = !!(raceKeys.ArrowUp || raceKeys.KeyW || raceKeys.w || raceKeys.W || touch.gas);
+    const back = !!(raceKeys.ArrowDown || raceKeys.KeyZ || raceKeys.z || raceKeys.Z || touch.back);
+    const left = !!(raceKeys.ArrowLeft || raceKeys.KeyA || raceKeys.a || raceKeys.A || touch.left);
+    const right = !!(raceKeys.ArrowRight || raceKeys.KeyS || raceKeys.s || raceKeys.S || touch.right);
+    const boost = !!(raceKeys.ShiftLeft || raceKeys.ShiftRight || touch.boost);
+    const player = race.cars[0];
+    let rate = gas && !back ? 0.034 : back && !gas ? -0.022 : 0;
+    if (rate > 0 && boost && race.nitro > 0) {
+      rate *= 1.85;
+      race.nitro = Math.max(0, race.nitro - dt);
+      race.lines = Math.min(1, race.lines + dt * 3);
+    } else {
+      race.nitro = Math.min(1.2, race.nitro + dt * 0.28);
+      race.lines = Math.max(0, race.lines - dt * 1.6);
+    }
+    player.lat += ((right ? 1 : 0) - (left ? 1 : 0)) * dt * 1.7;
+    player.lat *= Math.pow(0.35, dt);
+    if (Math.abs(player.lat) > 1) {
+      rate *= 0.62;
+      player.lat = Math.max(-1.15, Math.min(1.15, player.lat));
+    }
+    race.traffic.forEach((car) => {
+      car.u = (car.u - car.rate * dt + 1) % 1;
+      const gap = Math.abs(((player.u - car.u + 1.5) % 1) - 0.5);
+      if (gap < 0.018 && Math.abs(player.lat - car.lat) < 0.45) {
+        rate *= 0.45;
+        player.lat += player.lat > car.lat ? 0.08 : -0.08;
+        race.banner = "Traffic!";
+      }
+      parkCar(car.mesh, coursePose(car.u, car.lat, poseScratch));
+    });
+    const prev = player.u;
+    player.u = (player.u + rate * dt + 1) % 1;
+    if (rate >= 0 && player.u < prev) race.lap += 1;
+    if (rate < 0 && player.u > prev && race.lap > 0) race.lap -= 1;
+    race.cars.slice(1).forEach((car) => {
+      const was = car.u;
+      car.u = (car.u + car.rate * dt) % 1;
+      if (car.u < was) car.lap = (car.lap || 0) + 1;
+      car.lat = Math.sin(car.u * 12 + car.rate * 20) * 0.35;
+      parkCar(car.mesh, coursePose(car.u, car.lat, poseScratch));
+    });
+    race.checks.forEach((gate) => {
+      if (gate.hit) return;
+      const crossed = prev < gate.u && player.u >= gate.u;
+      const wrapped = player.u < prev && (gate.u >= prev || gate.u < player.u);
+      if (!crossed && !wrapped) return;
+      gate.hit = true;
+      race.time += 8;
+      race.banner = gate.name + " · " + gate.where + " +8s";
+    });
+    race.speed = Math.abs(rate) / 0.034;
+    race.time -= dt;
+    coursePose(player.u, player.lat, race.pose);
+    parkCar(player.mesh, race.pose);
+    paintRaceHud();
+    const cleared = race.checks.every((gate) => gate.hit);
+    if (cleared && race.lap >= 1) finishRace(true);
+    else if (race.time <= 0) finishRace(false);
   }
   function makeMonument(K, id) {
     const lamb = (hex, extra) => new K.Lambert(Object.assign({ color: hex }, extra || {}));
@@ -2952,8 +3288,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     geo.computeVertexNormals();
     g.add(new K.Mesh(geo, orange));
     [[-len / 2 + 0.7, yA], [len / 2 - 0.7, yB]].forEach((end) => {
-      const block = new K.Mesh(new K.Box(2.2, 0.9, 2.5), concrete);
-      block.position.set(end[0], end[1] + 0.45, 0);
+      const block = new K.Mesh(new K.Box(1.15, 0.42, 1.35), concrete);
+      block.name = "v51-abutment";
+      block.position.set(end[0], end[1] + 0.22, 0);
       g.add(block);
     });
     root.add(g);
@@ -3589,6 +3926,97 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       if (o.name === "v51-palm" || o.name === "v51-map-table") o.visible = !hide;
     });
   }
+  const chaseFaded = [];
+  function fadeMesh(o, on) {
+    if (!o.userData.v51fade) {
+      o.material = o.material.clone();
+      o.userData.v51fade = {
+        opacity: o.material.opacity == null ? 1 : o.material.opacity,
+        transparent: !!o.material.transparent,
+        depthWrite: o.material.depthWrite !== false
+      };
+    }
+    if (on) {
+      o.material.transparent = true;
+      o.material.opacity = 0.15;
+      o.material.depthWrite = false;
+      if (chaseFaded.indexOf(o) < 0) chaseFaded.push(o);
+    } else {
+      o.material.opacity = o.userData.v51fade.opacity;
+      o.material.transparent = o.userData.v51fade.transparent;
+      o.material.depthWrite = o.userData.v51fade.depthWrite;
+    }
+  }
+  function restoreChaseFade() {
+    chaseFaded.forEach((o) => fadeMesh(o, false));
+    chaseFaded.length = 0;
+    const islandDress = CA.scene && CA.scene.getObjectByName("isle-statics-turtle");
+    if (islandDress && islandDress.userData.v51was) {
+      islandDress.visible = true;
+      islandDress.userData.v51was = 0;
+    }
+    CA.scene && CA.scene.traverse((o) => {
+      if ((o.name === "v51-pump" || o.name === "v51-abutment") && o.userData.v51was) {
+        o.visible = true;
+        o.userData.v51was = 0;
+      }
+    });
+  }
+  function fadeChase() {
+    if (!CA.scene || !CA.camera || !race || race.over || !race.pose) return;
+    const cam = CA.camera;
+    const p = race.pose;
+    const ax = cam.position.x;
+    const ay = cam.position.y;
+    const az = cam.position.z;
+    const bx = p.x;
+    const by = p.y + 0.7;
+    const bz = p.z;
+    const abx = bx - ax;
+    const aby = by - ay;
+    const abz = bz - az;
+    const ab2 = abx * abx + aby * aby + abz * abz || 1;
+    const islandDress = CA.scene.getObjectByName("isle-statics-turtle");
+    if (islandDress && islandDress.visible) {
+      islandDress.userData.v51was = 1;
+      islandDress.visible = false;
+    }
+    CA.scene.traverse((o) => {
+      if ((o.name === "v51-pump" || o.name === "v51-abutment") && o.visible) {
+        o.userData.v51was = 1;
+        o.visible = false;
+      }
+    });
+    const seen = [];
+    CA.scene.traverse((o) => {
+      if (!o.isMesh || !o.material || !o.geometry) return;
+      const skip = o.name === "v51-race-player" || o.name === "v51-race-rival" || o.name === "v51-race-traffic" || o.name === "v51-rally-road" || o.name === "v51-terrain" || o.name === "v51-massif";
+      if (skip) return;
+      if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+      const reach = (o.geometry.boundingSphere.radius || 0) * Math.max(o.scale.x || 1, o.scale.y || 1, o.scale.z || 1);
+      if (reach < 1.1 || reach > 18) return;
+      const center = o.geometry.boundingSphere.center;
+      o.updateWorldMatrix(true, false);
+      const e = o.matrixWorld.elements;
+      const px = e[0] * center.x + e[4] * center.y + e[8] * center.z + e[12];
+      const py = e[1] * center.x + e[5] * center.y + e[9] * center.z + e[13];
+      const pz = e[2] * center.x + e[6] * center.y + e[10] * center.z + e[14];
+      const u = ((px - ax) * abx + (py - ay) * aby + (pz - az) * abz) / ab2;
+      if (u < 0.02 || u > 0.98) return;
+      const dx = px - (ax + abx * u);
+      const dy = py - (ay + aby * u);
+      const dz = pz - (az + abz * u);
+      const limit = u < 0.62 ? 28 : (reach + 1.5) * (reach + 1.5);
+      if (dx * dx + dy * dy + dz * dz > limit) return;
+      fadeMesh(o, true);
+      seen.push(o);
+    });
+    for (let i = chaseFaded.length - 1; i >= 0; i--) {
+      if (seen.indexOf(chaseFaded[i]) >= 0) continue;
+      fadeMesh(chaseFaded[i], false);
+      chaseFaded.splice(i, 1);
+    }
+  }
   function aimCamera(cam) {
     if (!cam || !host || !lay) return;
     if (cam.clearViewOffset) cam.clearViewOffset();
@@ -3597,6 +4025,17 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (shot && shot.x != null) {
       cam.position.set(shot.x, shot.y, shot.z);
       cam.lookAt(shot.lx, shot.ly, shot.lz);
+      return;
+    }
+    if (race && !race.over && race.pose) {
+      const p = race.pose;
+      const hx = Math.sin(p.heading);
+      const hz = Math.cos(p.heading);
+      const rx = hz;
+      const rz = -hx;
+      cam.position.set(p.x - hx * 13 + rx * 7, p.y + 7.5, p.z - hz * 13 + rz * 7);
+      cam.lookAt(p.x + hx * 5, p.y + 0.6, p.z + hz * 5);
+      fadeChase();
       return;
     }
     if (window.__libertyAerial) {
@@ -3766,6 +4205,13 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
   }
   function frame() {
     if (!isle) return;
+    if (race && !race.over) {
+      stepRace(performance.now());
+      if (CA.captain) {
+        if (!race.hold) race.hold = { x: CA.captain.position.x, y: CA.captain.position.y, z: CA.captain.position.z };
+        CA.captain.position.set(race.hold.x, race.hold.y, race.hold.z);
+      }
+    }
     nearest = captainNear();
     if (ui.prompt) {
       if (nearest && !session && (!CA.mode || CA.mode === "walk")) {
@@ -3907,6 +4353,18 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     try { dress(); } catch (err) { console.error(err); }
     try { hookRender(); } catch (err) { console.error(err); }
     document.addEventListener("keydown", onKey, true);
+    document.addEventListener("keydown", (e) => {
+      raceKeys[e.code] = true;
+      raceKeys[e.key] = true;
+      if (race && !race.over && /Arrow|KeyW|KeyA|KeyS|KeyZ|Shift/.test(e.code)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    }, true);
+    document.addEventListener("keyup", (e) => {
+      raceKeys[e.code] = false;
+      raceKeys[e.key] = false;
+    }, true);
     const learn = document.getElementById("learn-card");
     if (learn) new MutationObserver(() => watchCard()).observe(learn, { childList: true });
     requestAnimationFrame(function loop() { try { frame(); } catch (err) { /* keep drawing */ } requestAnimationFrame(loop); });
@@ -3942,6 +4400,42 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     answer,
     advance,
     close: closePlay,
+    start: startRace,
+    controls: () => ({
+      gas: ["KeyW", "ArrowUp"],
+      back: ["KeyZ", "ArrowDown"],
+      left: ["KeyA", "ArrowLeft"],
+      right: ["KeyS", "ArrowRight"],
+      unused: ["KeyD"]
+    }),
+    drive(opts) {
+      if (!race || race.over) return CA.liberty.race();
+      const o = opts || {};
+      if (o.gas != null) race.touch.gas = !!o.gas;
+      if (o.back != null) race.touch.back = !!o.back;
+      if (o.boost != null) race.touch.boost = !!o.boost;
+      if (o.left != null) race.touch.left = !!o.left;
+      if (o.right != null) race.touch.right = !!o.right;
+      const dt = Math.max(0.001, Math.min(0.05, o.dt || 0.016));
+      race.clock = performance.now() - dt * 1000;
+      stepRace(performance.now());
+      return CA.liberty.race();
+    },
+    race: () => {
+      if (!race) return null;
+      return {
+        over: !!race.over,
+        time: race.time,
+        bonus: race.bonus,
+        place: race.place || 0,
+        madeIt: !!race.madeIt,
+        speed: race.speed || 0,
+        banner: race.banner || "",
+        ticket: RACE_TICKET,
+        checks: (race.checks || []).map((c) => ({ name: c.name, hit: !!c.hit })),
+        pose: race.pose || null
+      };
+    },
     build: startBuild,
     spin: spinWheel,
     near: captainNear,

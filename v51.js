@@ -89,6 +89,10 @@
     s.textContent = `
 #liberty-layer{position:fixed;top:16px;right:118px;bottom:16px;width:min(420px,calc(100vw - 200px));z-index:18;display:none}
 #liberty-layer.show{display:block}
+#liberty-layer.compact{top:50%;right:auto;bottom:auto;left:50%;width:min(280px,calc(100vw - 48px));height:auto;transform:translate(-50%,-50%)}
+#liberty-layer.compact #liberty-card{height:auto;overflow:visible;padding:14px 16px 12px}
+#liberty-layer.compact h2,#liberty-layer.compact p{text-align:center;margin:4px 0}
+#liberty-layer.compact .acts{display:flex;justify-content:center;gap:8px;margin-top:10px}
 body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty-prompt,body.v51-racing #hint{visibility:hidden !important}
 #liberty-card{height:100%;overflow:auto;background:#fffdf6;color:#10234d;border:6px solid #ffc83d;border-radius:22px;padding:12px 14px 16px;box-shadow:0 16px 36px rgba(7,20,48,.28)}
 #liberty-card h2{margin:0 0 6px;font-size:22px}
@@ -112,8 +116,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
 #v51-race .hud b{color:#ffc83d}
 #v51-race .pad{position:absolute;left:0;right:0;bottom:18px;display:flex;justify-content:space-between;padding:0 18px;pointer-events:auto}
 #v51-race .pad button{font:800 16px Trebuchet MS,sans-serif;background:#14336b;color:#fff;border:3px solid #ffc83d;border-radius:14px;padding:12px 16px;min-width:74px}
-#v51-lines{position:absolute;inset:0;opacity:0;background:repeating-linear-gradient(90deg,transparent 0 18px,rgba(255,255,255,.55) 18px 20px);transform:scaleX(1.4);transition:opacity .08s linear}
-@media (max-width:700px){#liberty-layer{top:108px;right:70px;left:8px;bottom:8px;width:auto}}
+#v51-lines{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .12s linear}
+#v51-lines i{position:absolute;display:block;pointer-events:none}
+#v51-lines i:nth-child(1){left:0;top:0;bottom:0;width:14%;background:repeating-linear-gradient(104deg,transparent 0,transparent 28px,rgba(255,255,255,.5) 28px,rgba(255,255,255,.5) 30px);-webkit-mask-image:linear-gradient(90deg,#000 0%,transparent 100%);mask-image:linear-gradient(90deg,#000 0%,transparent 100%)}
+#v51-lines i:nth-child(2){right:0;top:0;bottom:0;width:14%;background:repeating-linear-gradient(76deg,transparent 0,transparent 28px,rgba(255,255,255,.5) 28px,rgba(255,255,255,.5) 30px);-webkit-mask-image:linear-gradient(270deg,#000 0%,transparent 100%);mask-image:linear-gradient(270deg,#000 0%,transparent 100%)}
+#v51-lines i:nth-child(3){left:8%;right:8%;top:0;height:12%;background:repeating-linear-gradient(6deg,transparent 0,transparent 34px,rgba(255,255,255,.4) 34px,rgba(255,255,255,.4) 36px);-webkit-mask-image:linear-gradient(180deg,#000 0%,transparent 100%);mask-image:linear-gradient(180deg,#000 0%,transparent 100%)}
+@media (max-width:700px){#liberty-layer{top:108px;right:70px;left:8px;bottom:8px;width:auto}#liberty-layer.compact{top:50%;right:auto;bottom:auto;left:50%;width:min(280px,calc(100vw - 28px));height:auto;transform:translate(-50%,-50%)}}
 `;
     document.head.appendChild(s);
   }
@@ -133,8 +141,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     }
   }
   function card() { return document.getElementById("liberty-card"); }
-  function showCard(html) {
+  function showCard(html, compact) {
     ensureUi();
+    ui.layer.classList.toggle("compact", !!compact);
     ui.layer.classList.add("show");
     document.body.classList.add("liberty-open");
     card().innerHTML = html;
@@ -2231,10 +2240,17 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     push(new K.Box(0.28, 2.3, 0.28), 0xf5f5f5, archBase.u + asu * 1.9, archBase.v + asv * 1.9, 1.3, archYaw);
     push(new K.Box(0.28, 2.3, 0.28), 0xf5f5f5, archBase.u - asu * 1.9, archBase.v - asv * 1.9, 1.3, archYaw);
     push(new K.Box(3.8, 0.32, 0.32), 0xffc83d, archBase.u, archBase.v, 2.5, archYaw);
-    const pump = loop(1.15);
-    push(new K.Box(2.4, 1.5, 2.2), 0xeceff1, pump.u, pump.v + 4.2, 0.85, 0);
-    push(new K.Box(3.2, 0.16, 2.6), 0xc62828, pump.u, pump.v + 4.2, 1.7, 0);
-    push(new K.Box(0.16, 1.5, 0.16), 0x546e7a, pump.u + 0.8, pump.v + 3.2, 0.8, 0);
+    const pump = outside(1.15, 7.6);
+    const pumpParts = [];
+    const pushPump = (geo, color, u, v, dy, rot) => {
+      const p = at(u, v);
+      pumpParts.push({ geo: geo, color: color, x: p.x, y: gy(u, v) + dy, z: p.z, rot: rot || 0 });
+    };
+    pushPump(new K.Box(2.1, 1.25, 1.7), 0xeceff1, pump.u, pump.v, 0.72, 0);
+    pushPump(new K.Box(2.4, 0.14, 2.0), 0xc62828, pump.u, pump.v, 1.42, 0);
+    pushPump(new K.Box(0.85, 0.62, 0.08), 0x81d4fa, pump.u - 0.55, pump.v, 0.86, 0);
+    pushPump(new K.Box(0.7, 0.26, 0.06), 0xc62828, pump.u - 0.55, pump.v, 1.28, 0);
+    paintProps(K, root, "v51-pump", pumpParts);
     const diner = loop(3.4);
     push(new K.Box(3.4, 1.7, 2.4), 0xffcc80, diner.u, diner.v - 4.4, 0.95, 0);
     push(new K.Box(3.6, 0.2, 2.7), 0x6d4c41, diner.u, diner.v - 4.4, 1.85, 0);
@@ -2388,7 +2404,7 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (ui.race) return ui.race;
     ui.race = document.createElement("div");
     ui.race.id = "v51-race";
-    ui.race.innerHTML = '<div class="hud"><div id="v51-time"></div><div id="v51-speed"></div><div id="v51-banner"></div><div id="v51-checks"></div></div><div id="v51-lines"></div><div class="pad"><button type="button" data-k="left">Left</button><button type="button" data-k="gas">Gas</button><button type="button" data-k="back">Back</button><button type="button" data-k="boost">Boost</button><button type="button" data-k="right">Right</button></div>';
+    ui.race.innerHTML = '<div class="hud"><div id="v51-time"></div><div id="v51-speed"></div><div id="v51-banner"></div><div id="v51-checks"></div></div><div id="v51-lines"><i></i><i></i><i></i></div><div class="pad"><button type="button" data-k="left">Left</button><button type="button" data-k="gas">Gas</button><button type="button" data-k="back">Back</button><button type="button" data-k="boost">Boost</button><button type="button" data-k="right">Right</button></div>';
     ui.race.addEventListener("pointerdown", (e) => e.stopPropagation());
     document.body.appendChild(ui.race);
     ui.race.querySelectorAll("button").forEach((btn) => {
@@ -2489,6 +2505,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     document.body.classList.add("v51-racing");
     session.phase = "race";
     if (ui.layer) ui.layer.classList.remove("show");
+    CA.scene.traverse((o) => {
+      if (o.name === "v51-pump" || o.name === "v51-abutment") {
+        o.userData.v51was = 1;
+        o.visible = false;
+      }
+    });
     bag().race.runs += 1;
     persist();
     paintRaceHud();
@@ -2504,9 +2526,11 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     if (madeIt && (!bag().race.best || place < bag().race.best)) bag().race.best = place;
     persist();
     const names = ["1st", "2nd", "3rd", "4th"];
+    const left = Math.max(0, race.time);
+    const bonus = session.raceBonus || 0;
     stopRace();
     session.phase = "done";
-    showCard(`<h2>${names[place - 1]} place</h2><p>${madeIt ? "You crossed the finish on Turtle Cove." : "Time ran out before the finish."}</p><p>The question bonus was ${session.raceBonus || 0} seconds. Coins: ${coins()}.</p><button id="liberty-exit">Close</button>`);
+    showCard(`<h2>${names[place - 1]} place</h2><p>Time ${left.toFixed(1)}s</p><p>Question bonus ${bonus}s</p><p>Coins ${coins()}</p><div class="acts"><button id="liberty-race">Race Again</button><button class="ghost" id="liberty-exit">Close</button></div>`, true);
     race = { over: true, place: place, madeIt: madeIt, pose: null };
   }
   function stepRace(now) {
@@ -3264,8 +3288,9 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
     geo.computeVertexNormals();
     g.add(new K.Mesh(geo, orange));
     [[-len / 2 + 0.7, yA], [len / 2 - 0.7, yB]].forEach((end) => {
-      const block = new K.Mesh(new K.Box(2.2, 0.9, 2.5), concrete);
-      block.position.set(end[0], end[1] + 0.45, 0);
+      const block = new K.Mesh(new K.Box(1.15, 0.42, 1.35), concrete);
+      block.name = "v51-abutment";
+      block.position.set(end[0], end[1] + 0.22, 0);
       g.add(block);
     });
     root.add(g);
@@ -3930,6 +3955,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       islandDress.visible = true;
       islandDress.userData.v51was = 0;
     }
+    CA.scene && CA.scene.traverse((o) => {
+      if ((o.name === "v51-pump" || o.name === "v51-abutment") && o.userData.v51was) {
+        o.visible = true;
+        o.userData.v51was = 0;
+      }
+    });
   }
   function fadeChase() {
     if (!CA.scene || !CA.camera || !race || race.over || !race.pose) return;
@@ -3950,6 +3981,12 @@ body.liberty-open #shop-btn,body.liberty-open #prompt,body.liberty-open #liberty
       islandDress.userData.v51was = 1;
       islandDress.visible = false;
     }
+    CA.scene.traverse((o) => {
+      if ((o.name === "v51-pump" || o.name === "v51-abutment") && o.visible) {
+        o.userData.v51was = 1;
+        o.visible = false;
+      }
+    });
     const seen = [];
     CA.scene.traverse((o) => {
       if (!o.isMesh || !o.material || !o.geometry) return;
